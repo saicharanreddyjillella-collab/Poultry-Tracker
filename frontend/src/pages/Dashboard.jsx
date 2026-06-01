@@ -30,88 +30,82 @@ export default function Dashboard() {
     load();
   };
 
-  if (loading) return <div className="loading">Loading dashboard...</div>;
+  if (loading) return <div className="loading">Loading...</div>;
   if (!data) return <div className="empty-state">Could not load dashboard. Is the Django server running?</div>;
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';
-  const fmtDec = (n, d = 2) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
-  const rates = data.latest_feed_rates || {};
+  const fmtDec = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
   const feedToday = data.feed_today || {};
-  const fb = data.feed_by_type || {};
+  const todayTotalBags = (feedToday.bpsc_bags || 0) + (feedToday.bsc_bags || 0) + (feedToday.bfp_bags || 0);
 
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Integration Dashboard</h1>
+        <div>
+          <h1>Today's Dashboard</h1>
+          <p className="farm-meta">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-secondary" onClick={() => setShowFeedForm(!showFeedForm)}>Update Feed Rate</button>
           <Link to="/farms/new" className="btn btn-primary">+ Add Farm</Link>
         </div>
       </div>
 
-      {/* LIFETIME SUMMARY */}
-      <h2 className="section-title">Lifetime Summary</h2>
+      {/* TODAY STATS */}
       <div className="stats-grid stats-grid-wide">
         <div className="stat-card stat-highlight">
-          <span className="stat-label">Birds Placed</span>
-          <span className="stat-value">{fmt(data.total_birds_placed)}</span>
+          <span className="stat-label">Active Farms</span>
+          <span className="stat-value">{data.total_farms}</span>
         </div>
-        <div className="stat-card stat-success">
-          <span className="stat-label">Sold (Birds)</span>
-          <span className="stat-value">{fmt(data.total_sold_birds)}</span>
-        </div>
-        <div className="stat-card stat-success">
-          <span className="stat-label">Sold (kg)</span>
-          <span className="stat-value">{fmtDec(data.total_sold_weight_kg)} kg</span>
-        </div>
-        <div className="stat-card stat-success">
-          <span className="stat-label">Sale Amount</span>
-          <span className="stat-value">₹{fmtDec(data.total_sale_amount)}</span>
-        </div>
-        <div className="stat-card stat-alert">
-          <span className="stat-label">Mortality</span>
-          <span className="stat-value">{fmt(data.total_mortality)} <small>({data.mortality_percentage}%)</small></span>
-        </div>
-        <div className="stat-card stat-info">
-          <span className="stat-label">FCR</span>
-          <span className="stat-value">{data.fcr ?? '—'}</span>
-        </div>
-        <div className="stat-card stat-info">
-          <span className="stat-label">Feed Cost / kg Production</span>
-          <span className="stat-value">{data.cost_per_kg_production != null ? `₹${fmtDec(data.cost_per_kg_production)}` : '—'}</span>
-        </div>
-        <div className="stat-card stat-info">
-          <span className="stat-label">Total Feed Cost</span>
-          <span className="stat-value">₹{fmtDec(data.total_feed_cost)}</span>
-        </div>
-      </div>
-
-      {/* FEED BREAKDOWN */}
-      <h2 className="section-title" style={{ marginTop: '1.5rem' }}>Feed Consumed (by type)</h2>
-      <div className="stats-grid">
-        <div className="stat-card feed-card-bpsc">
-          <span className="stat-label">BPSC (Pre-Starter)</span>
-          <span className="stat-value">{fmtDec(fb.bpsc_bags)} bags</span>
-          <span className="stat-sub">{fmtDec(fb.bpsc_kg)} kg {rates.BPSC ? `· ₹${rates.BPSC}/kg` : ''}</span>
-        </div>
-        <div className="stat-card feed-card-bsc">
-          <span className="stat-label">BSC (Starter)</span>
-          <span className="stat-value">{fmtDec(fb.bsc_bags)} bags</span>
-          <span className="stat-sub">{fmtDec(fb.bsc_kg)} kg {rates.BSC ? `· ₹${rates.BSC}/kg` : ''}</span>
-        </div>
-        <div className="stat-card feed-card-bfp">
-          <span className="stat-label">BFP (Finisher)</span>
-          <span className="stat-value">{fmtDec(fb.bfp_bags)} bags</span>
-          <span className="stat-sub">{fmtDec(fb.bfp_kg)} kg {rates.BFP ? `· ₹${rates.BFP}/kg` : ''}</span>
+        <div className="stat-card stat-highlight">
+          <span className="stat-label">Active Flocks</span>
+          <span className="stat-value">{data.total_active_flocks}</span>
         </div>
         <div className="stat-card">
-          <span className="stat-label">Total Feed</span>
-          <span className="stat-value">{fmtDec(data.total_feed_bags)} bags</span>
-          <span className="stat-sub">{fmtDec(data.total_feed_kg)} kg</span>
+          <span className="stat-label">Live Birds</span>
+          <span className="stat-value">{fmt(data.total_live_birds)}</span>
+        </div>
+        <div className="stat-card stat-alert">
+          <span className="stat-label">Mortality Today</span>
+          <span className="stat-value">{data.mortality_today}</span>
         </div>
       </div>
 
-      {/* FEED RATE FORM */}
+      {/* TODAY FEED */}
+      <h2 className="section-title" style={{ marginTop: '1.5rem' }}>Feed Today</h2>
+      <div className="stats-grid">
+        <div className="stat-card feed-card-bpsc">
+          <span className="stat-label">BPSC</span>
+          <span className="stat-value">{fmtDec(feedToday.bpsc_bags)} bags</span>
+          <span className="stat-sub">{fmtDec((feedToday.bpsc_bags || 0) * 50)} kg</span>
+        </div>
+        <div className="stat-card feed-card-bsc">
+          <span className="stat-label">BSC</span>
+          <span className="stat-value">{fmtDec(feedToday.bsc_bags)} bags</span>
+          <span className="stat-sub">{fmtDec((feedToday.bsc_bags || 0) * 50)} kg</span>
+        </div>
+        <div className="stat-card feed-card-bfp">
+          <span className="stat-label">BFP</span>
+          <span className="stat-value">{fmtDec(feedToday.bfp_bags)} bags</span>
+          <span className="stat-sub">{fmtDec((feedToday.bfp_bags || 0) * 50)} kg</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Total Feed Today</span>
+          <span className="stat-value">{fmtDec(todayTotalBags)} bags</span>
+          <span className="stat-sub">{fmtDec(todayTotalBags * 50)} kg</span>
+        </div>
+      </div>
+
+      {/* FEED RATE */}
+      {data.latest_feed_rates && Object.keys(data.latest_feed_rates).length > 0 && (
+        <div className="feed-rate-bar" style={{ marginTop: '1rem' }}>
+          Current Rates:
+          {data.latest_feed_rates.BPSC && <span> <strong>BPSC ₹{data.latest_feed_rates.BPSC}/kg</strong></span>}
+          {data.latest_feed_rates.BSC && <span> · <strong>BSC ₹{data.latest_feed_rates.BSC}/kg</strong></span>}
+          {data.latest_feed_rates.BFP && <span> · <strong>BFP ₹{data.latest_feed_rates.BFP}/kg</strong></span>}
+        </div>
+      )}
+
       {showFeedForm && (
         <form onSubmit={handleFeedRate} className="form-card" style={{ margin: '1rem 0 1.5rem' }}>
           <h3>Update Feed Rate</h3>
@@ -140,56 +134,7 @@ export default function Dashboard() {
         </form>
       )}
 
-      {data.feed_rates && data.feed_rates.length > 0 && (
-        <details className="feed-history">
-          <summary>Feed Rate History ({data.feed_rates.length})</summary>
-          <div className="table-wrapper" style={{ marginTop: '0.5rem' }}>
-            <table>
-              <thead><tr><th>Week</th><th>Type</th><th>Rate (₹/kg)</th><th>Notes</th></tr></thead>
-              <tbody>
-                {data.feed_rates.map(fr => (
-                  <tr key={fr.id}><td>{fr.week_start_date}</td><td><span className={`feed-badge feed-badge-${fr.feed_type.toLowerCase()}`}>{fr.feed_type}</span></td><td>₹{fr.rate_per_kg}</td><td>{fr.notes || '—'}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      )}
-
-      {/* TODAY */}
-      <h2 className="section-title" style={{ marginTop: '2rem' }}>Today</h2>
-      <div className="stats-grid">
-        <div className="stat-card">
-          <span className="stat-label">Active Farms</span>
-          <span className="stat-value">{data.total_farms}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Active Flocks</span>
-          <span className="stat-value">{data.total_active_flocks}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-label">Live Birds</span>
-          <span className="stat-value">{fmt(data.total_live_birds)}</span>
-        </div>
-        <div className="stat-card stat-alert">
-          <span className="stat-label">Mortality Today</span>
-          <span className="stat-value">{data.mortality_today}</span>
-        </div>
-        <div className="stat-card feed-card-bpsc">
-          <span className="stat-label">BPSC Today</span>
-          <span className="stat-value">{fmtDec(feedToday.bpsc_bags)} bags</span>
-        </div>
-        <div className="stat-card feed-card-bsc">
-          <span className="stat-label">BSC Today</span>
-          <span className="stat-value">{fmtDec(feedToday.bsc_bags)} bags</span>
-        </div>
-        <div className="stat-card feed-card-bfp">
-          <span className="stat-label">BFP Today</span>
-          <span className="stat-value">{fmtDec(feedToday.bfp_bags)} bags</span>
-        </div>
-      </div>
-
-      {/* FARMS */}
+      {/* FARMS LIST */}
       <h2 className="section-title" style={{ marginTop: '2rem' }}>Farms</h2>
       {data.farms.length === 0 ? (
         <div className="empty-state">
