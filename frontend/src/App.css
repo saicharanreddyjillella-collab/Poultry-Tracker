@@ -189,3 +189,20 @@ tbody tr:hover { background: #fafaf8; }
   .flock-stats { grid-template-columns: repeat(2, 1fr); }
   .form-row { grid-template-columns: 1fr; }
 }
+
+/* Report page */
+.report-filters { display: flex; gap: 0.5rem; }
+.report-filters select {
+  padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 0.95rem; font-family: inherit; background: var(--surface); cursor: pointer;
+}
+.report-batch {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow);
+}
+.report-batch-header { margin-bottom: 1rem; }
+.report-batch-header h3 { font-size: 1.15rem; }
+.report-feed-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; font-size: 0.875rem; margin-bottom: 0.5rem; }
+.report-month-sales { font-size: 0.875rem; color: var(--text-muted); padding: 0.5rem 0; border-top: 1px dashed var(--border); }
+.table-total-row { background: var(--bg); }
+

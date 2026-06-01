@@ -50,4 +50,8 @@ export const dashboardAPI = {
   get: () => API.get('/dashboard/'),
 };
 
+export const reportAPI = {
+  monthly: (year, month) => API.get(`/reports/monthly/?year=${year}&month=${month}`),
+};
+
 export default API;

@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard';
 import FarmForm from './pages/FarmForm';
 import FarmDetail from './pages/FarmDetail';
 import FlockDetail from './pages/FlockDetail';
+import MonthlyReport from './pages/MonthlyReport';
 import './App.css';
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
         <Link to="/" className="nav-brand">🐔 PoultryTrack</Link>
         <div className="nav-links">
           <Link to="/">Dashboard</Link>
+          <Link to="/reports">Reports</Link>
           <Link to="/farms/new">+ Farm</Link>
         </div>
       </nav>
@@ -22,6 +24,7 @@ function App() {
           <Route path="/farms/:id/edit" element={<FarmForm />} />
           <Route path="/farms/:id" element={<FarmDetail />} />
           <Route path="/flocks/:id" element={<FlockDetail />} />
+          <Route path="/reports" element={<MonthlyReport />} />
         </Routes>
       </main>
     </BrowserRouter>

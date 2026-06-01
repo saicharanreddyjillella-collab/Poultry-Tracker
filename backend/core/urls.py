@@ -14,4 +14,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/', views.dashboard),
     path('flocks/<int:flock_id>/cumulative/', views.flock_cumulative),
+    path('reports/monthly/', views.monthly_report),
 ]

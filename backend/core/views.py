@@ -232,3 +232,160 @@ def flock_cumulative(request, flock_id):
         'entries': result,
         'sales': SaleSerializer(sales, many=True).data,
     })
+
+
+@api_view(['GET'])
+def monthly_report(request):
+    """
+    Monthly report: ?year=2026&month=6
+    Only includes flocks that had at least one sale in that month.
+    For each such flock, shows full lifecycle data: weekly mortality, total FCR,
+    feed cost per kg production.
+    """
+    import calendar
+    from datetime import timedelta
+
+    year = int(request.query_params.get('year', date.today().year))
+    month = int(request.query_params.get('month', date.today().month))
+
+    month_start = date(year, month, 1)
+    month_end = date(year, month, calendar.monthrange(year, month)[1])
+
+    # Find flocks that had sales this month
+    flock_ids = Sale.objects.filter(
+        date__gte=month_start, date__lte=month_end
+    ).values_list('flock_id', flat=True).distinct()
+
+    flocks_data = []
+    BAG_KG = 50
+
+    # Totals across all reported flocks
+    grand_birds_placed = 0
+    grand_mortality = 0
+    grand_sold_birds = 0
+    grand_sold_weight = 0
+    grand_sale_amount = 0
+    grand_feed_kg = 0
+    grand_feed_cost = 0
+
+    for flock in Flock.objects.filter(id__in=flock_ids).select_related('farm'):
+        entries = DailyEntry.objects.filter(flock=flock).order_by('date')
+        sales = Sale.objects.filter(flock=flock)
+        month_sales = sales.filter(date__gte=month_start, date__lte=month_end)
+
+        # Weekly mortality breakdown (week 1 = day 1-7, week 2 = day 8-14, etc.)
+        weekly_mortality = {}
+        total_mortality = 0
+        for entry in entries:
+            day_num = (entry.date - flock.placement_date).days
+            week_num = (day_num // 7) + 1
+            if week_num not in weekly_mortality:
+                weekly_mortality[week_num] = {'week': week_num, 'mortality': 0, 'days': f"Day {(week_num-1)*7+1}-{week_num*7}"}
+            weekly_mortality[week_num]['mortality'] += entry.mortality_count
+            total_mortality += entry.mortality_count
+
+        # Add mortality % per week
+        for w in weekly_mortality.values():
+            w['mortality_pct'] = round((w['mortality'] / flock.chick_count) * 100, 2) if flock.chick_count else 0
+
+        # Feed totals
+        feed_agg = entries.aggregate(
+            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
+        )
+        bpsc_kg = float(feed_agg['bpsc'] or 0) * BAG_KG
+        bsc_kg = float(feed_agg['bsc'] or 0) * BAG_KG
+        bfp_kg = float(feed_agg['bfp'] or 0) * BAG_KG
+        total_feed_kg = bpsc_kg + bsc_kg + bfp_kg
+
+        # Sale totals (full lifecycle, not just this month)
+        sold_birds = sales.aggregate(t=Sum('bird_count'))['t'] or 0
+        sold_weight = float(sales.aggregate(t=Sum('total_weight_kg'))['t'] or 0)
+        sale_amount = 0
+        for s in sales.filter(rate_per_kg__isnull=False):
+            sale_amount += float(s.total_weight_kg) * float(s.rate_per_kg)
+
+        # This month's sales
+        month_sold_birds = month_sales.aggregate(t=Sum('bird_count'))['t'] or 0
+        month_sold_weight = float(month_sales.aggregate(t=Sum('total_weight_kg'))['t'] or 0)
+        month_sale_amount = 0
+        for s in month_sales.filter(rate_per_kg__isnull=False):
+            month_sale_amount += float(s.total_weight_kg) * float(s.rate_per_kg)
+
+        # FCR
+        fcr = round(total_feed_kg / sold_weight, 3) if sold_weight > 0 else None
+
+        # Feed cost per kg production
+        latest_rates = get_latest_feed_rates()
+        feed_cost = (
+            bpsc_kg * latest_rates.get('BPSC', 0) +
+            bsc_kg * latest_rates.get('BSC', 0) +
+            bfp_kg * latest_rates.get('BFP', 0)
+        )
+        cost_per_kg = round(feed_cost / sold_weight, 2) if sold_weight > 0 else None
+
+        # Avg bird weight
+        avg_bird_wt = round(sold_weight / sold_birds, 3) if sold_birds > 0 else None
+
+        flock_data = {
+            'flock_id': flock.id,
+            'farm_name': flock.farm.name,
+            'farm_location': flock.farm.location,
+            'placement_date': flock.placement_date,
+            'chick_count': flock.chick_count,
+            'age_days': flock.age_days,
+
+            'total_mortality': total_mortality,
+            'mortality_pct': round((total_mortality / flock.chick_count) * 100, 2) if flock.chick_count else 0,
+            'weekly_mortality': sorted(weekly_mortality.values(), key=lambda x: x['week']),
+
+            'total_feed_kg': round(total_feed_kg, 2),
+            'feed_bpsc_kg': round(bpsc_kg, 2),
+            'feed_bsc_kg': round(bsc_kg, 2),
+            'feed_bfp_kg': round(bfp_kg, 2),
+            'total_feed_bags': round((bpsc_kg + bsc_kg + bfp_kg) / BAG_KG, 2),
+
+            'total_sold_birds': sold_birds,
+            'total_sold_weight_kg': round(sold_weight, 2),
+            'total_sale_amount': round(sale_amount, 2),
+            'avg_bird_weight_kg': avg_bird_wt,
+
+            'month_sold_birds': month_sold_birds,
+            'month_sold_weight_kg': round(month_sold_weight, 2),
+            'month_sale_amount': round(month_sale_amount, 2),
+
+            'fcr': fcr,
+            'feed_cost': round(feed_cost, 2),
+            'cost_per_kg_production': cost_per_kg,
+        }
+        flocks_data.append(flock_data)
+
+        grand_birds_placed += flock.chick_count
+        grand_mortality += total_mortality
+        grand_sold_birds += sold_birds
+        grand_sold_weight += sold_weight
+        grand_sale_amount += sale_amount
+        grand_feed_kg += total_feed_kg
+        grand_feed_cost += feed_cost
+
+    grand_fcr = round(grand_feed_kg / grand_sold_weight, 3) if grand_sold_weight > 0 else None
+    grand_cost_per_kg = round(grand_feed_cost / grand_sold_weight, 2) if grand_sold_weight > 0 else None
+
+    return Response({
+        'year': year,
+        'month': month,
+        'month_name': calendar.month_name[month],
+        'flocks_count': len(flocks_data),
+        'summary': {
+            'total_birds_placed': grand_birds_placed,
+            'total_mortality': grand_mortality,
+            'mortality_pct': round((grand_mortality / grand_birds_placed) * 100, 2) if grand_birds_placed else 0,
+            'total_sold_birds': grand_sold_birds,
+            'total_sold_weight_kg': round(grand_sold_weight, 2),
+            'total_sale_amount': round(grand_sale_amount, 2),
+            'total_feed_kg': round(grand_feed_kg, 2),
+            'total_feed_cost': round(grand_feed_cost, 2),
+            'fcr': grand_fcr,
+            'cost_per_kg_production': grand_cost_per_kg,
+        },
+        'flocks': flocks_data,
+    })
