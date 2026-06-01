@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { farmAPI, flockAPI } from '../api/client';
 
 export default function FarmDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [farm, setFarm] = useState(null);
+  const [cumulative, setCumulative] = useState(null);
   const [showFlockForm, setShowFlockForm] = useState(false);
-  const [flockForm, setFlockForm] = useState({
-    placement_date: '', chick_count: '',
-  });
+  const [showDetails, setShowDetails] = useState(false);
+  const [flockForm, setFlockForm] = useState({ placement_date: '', chick_count: '' });
 
-  const load = () => farmAPI.get(id).then(res => setFarm(res.data));
+  const load = async () => {
+    const farmRes = await farmAPI.get(id);
+    setFarm(farmRes.data);
+    try {
+      const cumRes = await farmAPI.cumulative(id);
+      setCumulative(cumRes.data);
+    } catch { setCumulative(null); }
+  };
 
   useEffect(() => { load(); }, [id]);
 
@@ -25,21 +31,47 @@ export default function FarmDetail() {
 
   if (!farm) return <div className="loading">Loading...</div>;
 
+  const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';
+  const fmtDec = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+
+  const activeFlocks = farm.active_flocks || [];
+  const closedFlocks = farm.closed_flocks || [];
+
   return (
     <div className="page">
+      {/* HEADER */}
       <div className="page-header">
         <div>
+          <Link to="/farms" className="back-link">&larr; All Farms</Link>
           <h1>{farm.name}</h1>
-          <p className="farm-meta">{farm.owner_name} &middot; {farm.location} &middot; {farm.house_count} house(s)</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <Link to={`/farms/${id}/edit`} className="btn btn-secondary">Edit Farm</Link>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={() => setShowDetails(!showDetails)}>
+            {showDetails ? 'Hide' : 'Farm'} Details
+          </button>
+          <Link to={`/farms/${id}/edit`} className="btn btn-secondary">Edit</Link>
           <button className="btn btn-primary" onClick={() => setShowFlockForm(!showFlockForm)}>
             + New Flock
           </button>
         </div>
       </div>
 
+      {/* FARM DETAILS TILE */}
+      {showDetails && (
+        <div className="farm-details-tile">
+          <h3>Farm Details</h3>
+          <div className="farm-details-grid">
+            <div><span className="detail-label">Owner</span><span className="detail-value">{farm.owner_name}</span></div>
+            <div><span className="detail-label">Location</span><span className="detail-value">{farm.location || '—'}</span></div>
+            <div><span className="detail-label">Houses</span><span className="detail-value">{farm.house_count}</span></div>
+            <div><span className="detail-label">Total Batches</span><span className="detail-value">{activeFlocks.length + closedFlocks.length}</span></div>
+            <div><span className="detail-label">Active</span><span className="detail-value">{activeFlocks.length}</span></div>
+            <div><span className="detail-label">Completed</span><span className="detail-value">{closedFlocks.length}</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW FLOCK FORM */}
       {showFlockForm && (
         <form onSubmit={handleCreateFlock} className="form-card" style={{ marginBottom: '1.5rem' }}>
           <h3>Place New Flock</h3>
@@ -60,30 +92,109 @@ export default function FarmDetail() {
         </form>
       )}
 
-      <h2>Active Flocks</h2>
-      {farm.active_flocks && farm.active_flocks.length > 0 ? (
-        <div className="card-grid">
-          {farm.active_flocks.map(flock => (
-            <Link to={`/flocks/${flock.id}`} key={flock.id} className="flock-card">
+      {/* CURRENT FLOCK (active) */}
+      <h2 className="section-title">Current Flock</h2>
+      {activeFlocks.length > 0 ? (
+        <div className="card-grid" style={{ marginBottom: '2rem' }}>
+          {activeFlocks.map(flock => (
+            <Link to={`/flocks/${flock.id}`} key={flock.id} className="flock-card flock-card-active">
               <div className="flock-header">
-                <span className="flock-breed">Placed {flock.placement_date}</span>
+                <span className="flock-badge-active">ACTIVE</span>
                 <span className="flock-age">Day {flock.age_days}</span>
               </div>
+              <p className="farm-meta">Placed: {flock.placement_date} &middot; {flock.chick_count.toLocaleString()} chicks</p>
               <div className="flock-stats">
-                <div><strong>{flock.chick_count.toLocaleString()}</strong><br /><small>Placed</small></div>
                 <div><strong>{flock.live_birds.toLocaleString()}</strong><br /><small>Live</small></div>
                 <div className={flock.mortality_percentage > 5 ? 'text-danger' : ''}>
                   <strong>{flock.mortality_percentage}%</strong><br /><small>Mortality</small>
                 </div>
                 <div><strong>{parseFloat(flock.total_feed_kg).toLocaleString()} kg</strong><br /><small>Feed</small></div>
+                <div><strong>{flock.fcr ?? '—'}</strong><br /><small>FCR</small></div>
+              </div>
+              <div style={{ marginTop: '0.5rem' }}>
+                <span className={`feed-badge feed-badge-${(flock.feed_schedule_status?.current_feed_type || '').toLowerCase()}`}>
+                  {flock.feed_schedule_status?.current_feed_type}
+                </span>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="empty-state">
-          <p>No active flocks. Place a new flock to start tracking.</p>
+        <div className="empty-state" style={{ marginBottom: '2rem' }}>
+          <p>No active flock. Place a new flock to start tracking.</p>
         </div>
+      )}
+
+      {/* CUMULATIVE — all closed flocks */}
+      {cumulative && cumulative.closed_flock_count > 0 && (
+        <>
+          <h2 className="section-title">Farm Cumulative ({cumulative.closed_flock_count} completed batch{cumulative.closed_flock_count > 1 ? 'es' : ''})</h2>
+          <div className="stats-grid stats-grid-wide" style={{ marginBottom: '1.5rem' }}>
+            <div className="stat-card stat-highlight">
+              <span className="stat-label">Birds Placed</span>
+              <span className="stat-value">{fmt(cumulative.total_birds_placed)}</span>
+            </div>
+            <div className="stat-card stat-alert">
+              <span className="stat-label">Mortality</span>
+              <span className="stat-value">{fmt(cumulative.total_mortality)} <small>({cumulative.mortality_pct}%)</small></span>
+            </div>
+            <div className="stat-card stat-success">
+              <span className="stat-label">Sold (Birds)</span>
+              <span className="stat-value">{fmt(cumulative.total_sold_birds)}</span>
+            </div>
+            <div className="stat-card stat-success">
+              <span className="stat-label">Sold (kg)</span>
+              <span className="stat-value">{fmtDec(cumulative.total_sold_weight_kg)} kg</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Avg Bird Wt</span>
+              <span className="stat-value">{cumulative.avg_bird_weight_kg ?? '—'} kg</span>
+            </div>
+            <div className="stat-card stat-success">
+              <span className="stat-label">Sale Amount</span>
+              <span className="stat-value">₹{fmtDec(cumulative.total_sale_amount)}</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-label">Feed</span>
+              <span className="stat-value">{fmtDec(cumulative.total_feed_kg)} kg</span>
+              <span className="stat-sub">{cumulative.total_feed_bags} bags</span>
+            </div>
+            <div className="stat-card stat-info">
+              <span className="stat-label">FCR</span>
+              <span className="stat-value">{cumulative.fcr ?? '—'}</span>
+            </div>
+            <div className="stat-card stat-info">
+              <span className="stat-label">Feed Cost / kg</span>
+              <span className="stat-value">{cumulative.cost_per_kg_production != null ? `₹${fmtDec(cumulative.cost_per_kg_production)}` : '—'}</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* PREVIOUS FLOCKS (closed) */}
+      {closedFlocks.length > 0 && (
+        <>
+          <h2 className="section-title">Previous Batches</h2>
+          <div className="card-grid">
+            {closedFlocks.map(flock => (
+              <Link to={`/flocks/${flock.id}`} key={flock.id} className="flock-card flock-card-closed">
+                <div className="flock-header">
+                  <span className="flock-badge-closed">COMPLETED</span>
+                  <span className="flock-age">{flock.age_days} days</span>
+                </div>
+                <p className="farm-meta">Placed: {flock.placement_date} &middot; {flock.chick_count.toLocaleString()} chicks</p>
+                <div className="flock-stats">
+                  <div><strong>{flock.total_sold_birds.toLocaleString()}</strong><br /><small>Sold</small></div>
+                  <div><strong>{parseFloat(flock.total_sold_weight_kg).toLocaleString()} kg</strong><br /><small>Weight</small></div>
+                  <div className={flock.mortality_percentage > 5 ? 'text-danger' : ''}>
+                    <strong>{flock.mortality_percentage}%</strong><br /><small>Mortality</small>
+                  </div>
+                  <div><strong>{flock.fcr ?? '—'}</strong><br /><small>FCR</small></div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

@@ -389,3 +389,73 @@ def monthly_report(request):
         },
         'flocks': flocks_data,
     })
+
+
+@api_view(['GET'])
+def farm_cumulative(request, farm_id):
+    """Cumulative metrics across all closed flocks for a farm."""
+    farm = Farm.objects.get(id=farm_id)
+    closed_flocks = Flock.objects.filter(farm=farm, status='closed')
+
+    BAG_KG = 50
+    total_birds_placed = 0
+    total_mortality = 0
+    total_sold_birds = 0
+    total_sold_weight = 0
+    total_sale_amount = 0
+    total_feed_kg = 0
+    total_bpsc_kg = 0
+    total_bsc_kg = 0
+    total_bfp_kg = 0
+    total_feed_cost = 0
+    flock_count = 0
+
+    latest_rates = get_latest_feed_rates()
+
+    for flock in closed_flocks:
+        flock_count += 1
+        total_birds_placed += flock.chick_count
+        total_mortality += flock.total_mortality
+        total_sold_birds += flock.total_sold_birds
+        sold_wt = float(flock.total_sold_weight_kg)
+        total_sold_weight += sold_wt
+
+        for s in flock.sales.filter(rate_per_kg__isnull=False):
+            total_sale_amount += float(s.total_weight_kg) * float(s.rate_per_kg)
+
+        fb = flock.feed_by_type
+        total_bpsc_kg += fb['bpsc_kg']
+        total_bsc_kg += fb['bsc_kg']
+        total_bfp_kg += fb['bfp_kg']
+        total_feed_kg += fb['bpsc_kg'] + fb['bsc_kg'] + fb['bfp_kg']
+
+        total_feed_cost += (
+            fb['bpsc_kg'] * latest_rates.get('BPSC', 0) +
+            fb['bsc_kg'] * latest_rates.get('BSC', 0) +
+            fb['bfp_kg'] * latest_rates.get('BFP', 0)
+        )
+
+    fcr = round(total_feed_kg / total_sold_weight, 3) if total_sold_weight > 0 else None
+    cost_per_kg = round(total_feed_cost / total_sold_weight, 2) if total_sold_weight > 0 else None
+    avg_bird_wt = round(total_sold_weight / total_sold_birds, 3) if total_sold_birds > 0 else None
+
+    return Response({
+        'farm_id': farm.id,
+        'farm_name': farm.name,
+        'closed_flock_count': flock_count,
+        'total_birds_placed': total_birds_placed,
+        'total_mortality': total_mortality,
+        'mortality_pct': round((total_mortality / total_birds_placed) * 100, 2) if total_birds_placed else 0,
+        'total_sold_birds': total_sold_birds,
+        'total_sold_weight_kg': round(total_sold_weight, 2),
+        'avg_bird_weight_kg': avg_bird_wt,
+        'total_sale_amount': round(total_sale_amount, 2),
+        'total_feed_kg': round(total_feed_kg, 2),
+        'total_feed_bags': round(total_feed_kg / BAG_KG, 2),
+        'feed_bpsc_kg': round(total_bpsc_kg, 2),
+        'feed_bsc_kg': round(total_bsc_kg, 2),
+        'feed_bfp_kg': round(total_bfp_kg, 2),
+        'fcr': fcr,
+        'total_feed_cost': round(total_feed_cost, 2),
+        'cost_per_kg_production': cost_per_kg,
+    })

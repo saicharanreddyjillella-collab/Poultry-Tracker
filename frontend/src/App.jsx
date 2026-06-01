@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+import FarmsList from './pages/FarmsList';
 import FarmForm from './pages/FarmForm';
 import FarmDetail from './pages/FarmDetail';
 import FlockDetail from './pages/FlockDetail';
@@ -14,14 +15,15 @@ function App() {
         <Link to="/" className="nav-brand">🐔 PoultryTrack</Link>
         <div className="nav-links">
           <Link to="/">Today</Link>
+          <Link to="/farms">Farms</Link>
           <Link to="/reports/monthly">Monthly</Link>
           <Link to="/reports/till-date">Till Date</Link>
-          <Link to="/farms/new">+ Farm</Link>
         </div>
       </nav>
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/farms" element={<FarmsList />} />
           <Route path="/farms/new" element={<FarmForm />} />
           <Route path="/farms/:id/edit" element={<FarmForm />} />
           <Route path="/farms/:id" element={<FarmDetail />} />

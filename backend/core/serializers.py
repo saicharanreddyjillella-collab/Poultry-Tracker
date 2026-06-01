@@ -77,6 +77,7 @@ class FlockListSerializer(serializers.ModelSerializer):
 
 class FarmSerializer(serializers.ModelSerializer):
     active_flocks = serializers.SerializerMethodField()
+    closed_flocks = serializers.SerializerMethodField()
 
     class Meta:
         model = Farm
@@ -84,4 +85,8 @@ class FarmSerializer(serializers.ModelSerializer):
 
     def get_active_flocks(self, obj):
         flocks = obj.flocks.filter(status='active')
+        return FlockListSerializer(flocks, many=True).data
+
+    def get_closed_flocks(self, obj):
+        flocks = obj.flocks.filter(status='closed')
         return FlockListSerializer(flocks, many=True).data

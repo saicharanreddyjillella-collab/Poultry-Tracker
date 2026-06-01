@@ -10,6 +10,7 @@ export const farmAPI = {
   get: (id) => API.get(`/farms/${id}/`),
   update: (id, data) => API.put(`/farms/${id}/`, data),
   delete: (id) => API.delete(`/farms/${id}/`),
+  cumulative: (id) => API.get(`/farms/${id}/cumulative/`),
 };
 
 export const flockAPI = {
