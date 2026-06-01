@@ -11,7 +11,7 @@ class FlockAdmin(admin.ModelAdmin):
 
 @admin.register(DailyEntry)
 class DailyEntryAdmin(admin.ModelAdmin):
-    list_display = ('flock', 'date', 'mortality_count', 'feed_bpsc_kg', 'feed_bsc_kg', 'feed_bfp_kg')
+    list_display = ('flock', 'date', 'mortality_count', 'feed_bpsc_bags', 'feed_bsc_bags', 'feed_bfp_bags')
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):

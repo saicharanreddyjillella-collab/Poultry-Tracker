@@ -3,7 +3,11 @@ from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
+    total_feed_bags = serializers.ReadOnlyField()
     total_feed_kg = serializers.ReadOnlyField()
+    feed_bpsc_kg = serializers.ReadOnlyField()
+    feed_bsc_kg = serializers.ReadOnlyField()
+    feed_bfp_kg = serializers.ReadOnlyField()
 
     class Meta:
         model = DailyEntry

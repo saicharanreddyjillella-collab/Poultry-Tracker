@@ -54,23 +54,27 @@ class Flock(models.Model):
     @property
     def total_feed_kg(self):
         agg = self.daily_entries.aggregate(
-            bpsc=models.Sum('feed_bpsc_kg'),
-            bsc=models.Sum('feed_bsc_kg'),
-            bfp=models.Sum('feed_bfp_kg'),
+            bpsc=models.Sum('feed_bpsc_bags'),
+            bsc=models.Sum('feed_bsc_bags'),
+            bfp=models.Sum('feed_bfp_bags'),
         )
-        return (agg['bpsc'] or 0) + (agg['bsc'] or 0) + (agg['bfp'] or 0)
+        total_bags = float(agg['bpsc'] or 0) + float(agg['bsc'] or 0) + float(agg['bfp'] or 0)
+        return total_bags * 50
 
     @property
     def feed_by_type(self):
         agg = self.daily_entries.aggregate(
-            bpsc=models.Sum('feed_bpsc_kg'),
-            bsc=models.Sum('feed_bsc_kg'),
-            bfp=models.Sum('feed_bfp_kg'),
+            bpsc=models.Sum('feed_bpsc_bags'),
+            bsc=models.Sum('feed_bsc_bags'),
+            bfp=models.Sum('feed_bfp_bags'),
         )
         return {
-            'bpsc': float(agg['bpsc'] or 0),
-            'bsc': float(agg['bsc'] or 0),
-            'bfp': float(agg['bfp'] or 0),
+            'bpsc_bags': float(agg['bpsc'] or 0),
+            'bsc_bags': float(agg['bsc'] or 0),
+            'bfp_bags': float(agg['bfp'] or 0),
+            'bpsc_kg': float(agg['bpsc'] or 0) * 50,
+            'bsc_kg': float(agg['bsc'] or 0) * 50,
+            'bfp_kg': float(agg['bfp'] or 0) * 50,
         }
 
     @property
@@ -80,16 +84,21 @@ class Flock(models.Model):
         bpsc_quota = float(self.bpsc_per_bird_kg) * self.chick_count
         bsc_quota = float(self.bsc_per_bird_kg) * self.chick_count
         return {
-            'bpsc_used_kg': fb['bpsc'],
+            'bpsc_used_kg': fb['bpsc_kg'],
+            'bpsc_used_bags': fb['bpsc_bags'],
             'bpsc_quota_kg': round(bpsc_quota, 2),
-            'bpsc_remaining_kg': round(max(0, bpsc_quota - fb['bpsc']), 2),
-            'bpsc_done': fb['bpsc'] >= bpsc_quota,
-            'bsc_used_kg': fb['bsc'],
+            'bpsc_quota_bags': round(bpsc_quota / 50, 2),
+            'bpsc_remaining_kg': round(max(0, bpsc_quota - fb['bpsc_kg']), 2),
+            'bpsc_done': fb['bpsc_kg'] >= bpsc_quota,
+            'bsc_used_kg': fb['bsc_kg'],
+            'bsc_used_bags': fb['bsc_bags'],
             'bsc_quota_kg': round(bsc_quota, 2),
-            'bsc_remaining_kg': round(max(0, bsc_quota - fb['bsc']), 2),
-            'bsc_done': fb['bsc'] >= bsc_quota,
-            'bfp_used_kg': fb['bfp'],
-            'current_feed_type': 'BPSC' if fb['bpsc'] < bpsc_quota else ('BSC' if fb['bsc'] < bsc_quota else 'BFP'),
+            'bsc_quota_bags': round(bsc_quota / 50, 2),
+            'bsc_remaining_kg': round(max(0, bsc_quota - fb['bsc_kg']), 2),
+            'bsc_done': fb['bsc_kg'] >= bsc_quota,
+            'bfp_used_kg': fb['bfp_kg'],
+            'bfp_used_bags': fb['bfp_bags'],
+            'current_feed_type': 'BPSC' if fb['bpsc_kg'] < bpsc_quota else ('BSC' if fb['bsc_kg'] < bsc_quota else 'BFP'),
         }
 
     @property
@@ -127,10 +136,12 @@ class DailyEntry(models.Model):
     date = models.DateField()
     mortality_count = models.PositiveIntegerField(default=0)
 
-    # Feed by type
-    feed_bpsc_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BPSC (kg)")
-    feed_bsc_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BSC (kg)")
-    feed_bfp_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BFP (kg)")
+    BAG_WEIGHT_KG = 50
+
+    # Feed by type (in bags — each bag = 50 kg)
+    feed_bpsc_bags = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BPSC (bags)")
+    feed_bsc_bags = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BSC (bags)")
+    feed_bfp_bags = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BFP (bags)")
 
     water_consumed_liters = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     avg_body_weight_grams = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -145,8 +156,24 @@ class DailyEntry(models.Model):
         return f"{self.flock} - {self.date}"
 
     @property
+    def feed_bpsc_kg(self):
+        return float(self.feed_bpsc_bags) * self.BAG_WEIGHT_KG
+
+    @property
+    def feed_bsc_kg(self):
+        return float(self.feed_bsc_bags) * self.BAG_WEIGHT_KG
+
+    @property
+    def feed_bfp_kg(self):
+        return float(self.feed_bfp_bags) * self.BAG_WEIGHT_KG
+
+    @property
+    def total_feed_bags(self):
+        return float(self.feed_bpsc_bags) + float(self.feed_bsc_bags) + float(self.feed_bfp_bags)
+
+    @property
     def total_feed_kg(self):
-        return float(self.feed_bpsc_kg) + float(self.feed_bsc_kg) + float(self.feed_bfp_kg)
+        return self.total_feed_bags * self.BAG_WEIGHT_KG
 
 
 class Sale(models.Model):

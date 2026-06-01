@@ -11,7 +11,7 @@ export default function FlockDetail() {
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [entryForm, setEntryForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    mortality_count: '', feed_bpsc_kg: '', feed_bsc_kg: '', feed_bfp_kg: '',
+    mortality_count: '', feed_bpsc_bags: '', feed_bsc_bags: '', feed_bfp_bags: '',
     water_consumed_liters: '', avg_body_weight_grams: '', notes: '',
   });
   const [saleForm, setSaleForm] = useState({
@@ -34,15 +34,15 @@ export default function FlockDetail() {
       await dailyEntryAPI.create({
         flock: id, date: entryForm.date,
         mortality_count: parseInt(entryForm.mortality_count) || 0,
-        feed_bpsc_kg: parseFloat(entryForm.feed_bpsc_kg) || 0,
-        feed_bsc_kg: parseFloat(entryForm.feed_bsc_kg) || 0,
-        feed_bfp_kg: parseFloat(entryForm.feed_bfp_kg) || 0,
+        feed_bpsc_bags: parseFloat(entryForm.feed_bpsc_bags) || 0,
+        feed_bsc_bags: parseFloat(entryForm.feed_bsc_bags) || 0,
+        feed_bfp_bags: parseFloat(entryForm.feed_bfp_bags) || 0,
         water_consumed_liters: parseFloat(entryForm.water_consumed_liters) || 0,
         avg_body_weight_grams: entryForm.avg_body_weight_grams ? parseFloat(entryForm.avg_body_weight_grams) : null,
         notes: entryForm.notes,
       });
       setShowEntryForm(false);
-      setEntryForm({ date: new Date().toISOString().split('T')[0], mortality_count: '', feed_bpsc_kg: '', feed_bsc_kg: '', feed_bfp_kg: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
+      setEntryForm({ date: new Date().toISOString().split('T')[0], mortality_count: '', feed_bpsc_bags: '', feed_bsc_bags: '', feed_bfp_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
       load();
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
@@ -87,7 +87,7 @@ export default function FlockDetail() {
         <div className="stat-card"><span className="stat-label">Live Birds</span><span className="stat-value">{cumulative.live_birds.toLocaleString()}</span></div>
         <div className="stat-card stat-alert"><span className="stat-label">Mortality</span><span className="stat-value">{flock.total_mortality} ({flock.mortality_percentage}%)</span></div>
         <div className="stat-card stat-success"><span className="stat-label">Sold</span><span className="stat-value">{cumulative.total_sold_birds.toLocaleString()} / {cumulative.total_sold_weight_kg.toLocaleString()} kg</span></div>
-        <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{cumulative.total_feed_kg.toLocaleString()} kg</span></div>
+        <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{(cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags).toFixed(1)} bags<br/><small>{cumulative.total_feed_kg.toLocaleString()} kg</small></span></div>
         <div className="stat-card stat-info"><span className="stat-label">FCR</span><span className="stat-value">{cumulative.fcr ?? '—'}</span></div>
         <div className="stat-card"><span className="stat-label">Current Feed</span><span className="stat-value"><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></span></div>
       </div>
@@ -98,7 +98,7 @@ export default function FlockDetail() {
         <div className="feed-progress-card">
           <div className="feed-progress-header">
             <span className="feed-badge feed-badge-bpsc">BPSC</span>
-            <span>{fs.bpsc_used_kg} / {fs.bpsc_quota_kg} kg</span>
+            <span>{fs.bpsc_used_bags} / {fs.bpsc_quota_bags} bags ({fs.bpsc_used_kg} / {fs.bpsc_quota_kg} kg)</span>
           </div>
           <div className="progress-bar"><div className="progress-fill progress-bpsc" style={{ width: `${pctUsed(fs.bpsc_used_kg, fs.bpsc_quota_kg)}%` }}></div></div>
           <span className="feed-progress-sub">{fs.bpsc_remaining_kg} kg remaining &middot; {flock.bpsc_per_bird_kg} kg/bird</span>
@@ -106,7 +106,7 @@ export default function FlockDetail() {
         <div className="feed-progress-card">
           <div className="feed-progress-header">
             <span className="feed-badge feed-badge-bsc">BSC</span>
-            <span>{fs.bsc_used_kg} / {fs.bsc_quota_kg} kg</span>
+            <span>{fs.bsc_used_bags} / {fs.bsc_quota_bags} bags ({fs.bsc_used_kg} / {fs.bsc_quota_kg} kg)</span>
           </div>
           <div className="progress-bar"><div className="progress-fill progress-bsc" style={{ width: `${pctUsed(fs.bsc_used_kg, fs.bsc_quota_kg)}%` }}></div></div>
           <span className="feed-progress-sub">{fs.bsc_remaining_kg} kg remaining &middot; {flock.bsc_per_bird_kg} kg/bird</span>
@@ -114,7 +114,7 @@ export default function FlockDetail() {
         <div className="feed-progress-card">
           <div className="feed-progress-header">
             <span className="feed-badge feed-badge-bfp">BFP</span>
-            <span>{fs.bfp_used_kg} kg used</span>
+            <span>{fs.bfp_used_bags} bags ({fs.bfp_used_kg} kg)</span>
           </div>
           <span className="feed-progress-sub">No fixed quota — given after BPSC &amp; BSC complete</span>
         </div>
@@ -131,9 +131,9 @@ export default function FlockDetail() {
             <div className="form-group"><label>Mortality</label><input type="number" min="0" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>BPSC (kg)</label><input type="number" step="0.01" min="0" value={entryForm.feed_bpsc_kg} onChange={e => setEntryForm({ ...entryForm, feed_bpsc_kg: e.target.value })} placeholder="0" /></div>
-            <div className="form-group"><label>BSC (kg)</label><input type="number" step="0.01" min="0" value={entryForm.feed_bsc_kg} onChange={e => setEntryForm({ ...entryForm, feed_bsc_kg: e.target.value })} placeholder="0" /></div>
-            <div className="form-group"><label>BFP (kg)</label><input type="number" step="0.01" min="0" value={entryForm.feed_bfp_kg} onChange={e => setEntryForm({ ...entryForm, feed_bfp_kg: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>BPSC (bags)</label><input type="number" step="0.5" min="0" value={entryForm.feed_bpsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bpsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BSC (bags)</label><input type="number" step="0.5" min="0" value={entryForm.feed_bsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BFP (bags)</label><input type="number" step="0.5" min="0" value={entryForm.feed_bfp_bags} onChange={e => setEntryForm({ ...entryForm, feed_bfp_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
           </div>
           <div className="form-row">
             <div className="form-group"><label>Water (L)</label><input type="number" step="0.01" min="0" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
@@ -170,16 +170,16 @@ export default function FlockDetail() {
       {/* Charts */}
       {cumulative.entries.length > 0 && (
         <>
-          <h2 style={{ margin: '2rem 0 1rem' }}>Feed by Type (Cumulative)</h2>
+          <h2 style={{ margin: '2rem 0 1rem' }}>Feed by Type — Cumulative (bags)</h2>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={cumulative.entries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                 <XAxis dataKey="day_number" label={{ value: 'Day', position: 'bottom' }} />
                 <YAxis /><Tooltip /><Legend />
-                <Area type="monotone" dataKey="cum_bpsc" name="BPSC" stackId="1" stroke="#e67e22" fill="#fdebd0" />
-                <Area type="monotone" dataKey="cum_bsc" name="BSC" stackId="1" stroke="#2980b9" fill="#d4e6f1" />
-                <Area type="monotone" dataKey="cum_bfp" name="BFP" stackId="1" stroke="#27ae60" fill="#d5f5e3" />
+                <Area type="monotone" dataKey="cum_bpsc_bags" name="BPSC (bags)" stackId="1" stroke="#e67e22" fill="#fdebd0" />
+                <Area type="monotone" dataKey="cum_bsc_bags" name="BSC (bags)" stackId="1" stroke="#2980b9" fill="#d4e6f1" />
+                <Area type="monotone" dataKey="cum_bfp_bags" name="BFP (bags)" stackId="1" stroke="#27ae60" fill="#d5f5e3" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -217,7 +217,7 @@ export default function FlockDetail() {
               <thead>
                 <tr>
                   <th>Day</th><th>Date</th><th>Mort.</th><th>Cum.M</th><th>M%</th>
-                  <th>BPSC</th><th>BSC</th><th>BFP</th><th>Total Feed</th><th>Cum.Feed</th><th>Water</th><th>Wt(g)</th>
+                  <th>BPSC</th><th>BSC</th><th>BFP</th><th>Total (bags)</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,8 +226,8 @@ export default function FlockDetail() {
                     <td>{e.day_number}</td><td>{e.date}</td>
                     <td>{e.daily_mortality}</td><td>{e.cumulative_mortality}</td>
                     <td className={e.mortality_percentage > 5 ? 'text-danger' : ''}>{e.mortality_percentage}%</td>
-                    <td>{e.feed_bpsc_kg}</td><td>{e.feed_bsc_kg}</td><td>{e.feed_bfp_kg}</td>
-                    <td>{e.daily_feed_kg}</td><td>{e.cumulative_feed_kg}</td>
+                    <td>{e.feed_bpsc_bags}</td><td>{e.feed_bsc_bags}</td><td>{e.feed_bfp_bags}</td>
+                    <td>{e.daily_feed_bags}</td><td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
                     <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td>
                   </tr>
                 ))}

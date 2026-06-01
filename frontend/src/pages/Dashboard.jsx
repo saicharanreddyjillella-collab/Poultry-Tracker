@@ -37,7 +37,7 @@ export default function Dashboard() {
   const fmtDec = (n, d = 2) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
   const rates = data.latest_feed_rates || {};
   const feedToday = data.feed_today || {};
-  const feedByType = data.feed_by_type || {};
+  const fb = data.feed_by_type || {};
 
   return (
     <div className="page">
@@ -91,22 +91,23 @@ export default function Dashboard() {
       <div className="stats-grid">
         <div className="stat-card feed-card-bpsc">
           <span className="stat-label">BPSC (Pre-Starter)</span>
-          <span className="stat-value">{fmtDec(feedByType.bpsc)} kg</span>
-          {rates.BPSC && <span className="stat-sub">₹{rates.BPSC}/kg</span>}
+          <span className="stat-value">{fmtDec(fb.bpsc_bags)} bags</span>
+          <span className="stat-sub">{fmtDec(fb.bpsc_kg)} kg {rates.BPSC ? `· ₹${rates.BPSC}/kg` : ''}</span>
         </div>
         <div className="stat-card feed-card-bsc">
           <span className="stat-label">BSC (Starter)</span>
-          <span className="stat-value">{fmtDec(feedByType.bsc)} kg</span>
-          {rates.BSC && <span className="stat-sub">₹{rates.BSC}/kg</span>}
+          <span className="stat-value">{fmtDec(fb.bsc_bags)} bags</span>
+          <span className="stat-sub">{fmtDec(fb.bsc_kg)} kg {rates.BSC ? `· ₹${rates.BSC}/kg` : ''}</span>
         </div>
         <div className="stat-card feed-card-bfp">
           <span className="stat-label">BFP (Finisher)</span>
-          <span className="stat-value">{fmtDec(feedByType.bfp)} kg</span>
-          {rates.BFP && <span className="stat-sub">₹{rates.BFP}/kg</span>}
+          <span className="stat-value">{fmtDec(fb.bfp_bags)} bags</span>
+          <span className="stat-sub">{fmtDec(fb.bfp_kg)} kg {rates.BFP ? `· ₹${rates.BFP}/kg` : ''}</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Total Feed</span>
-          <span className="stat-value">{fmtDec(data.total_feed_kg)} kg</span>
+          <span className="stat-value">{fmtDec(data.total_feed_bags)} bags</span>
+          <span className="stat-sub">{fmtDec(data.total_feed_kg)} kg</span>
         </div>
       </div>
 
@@ -147,7 +148,7 @@ export default function Dashboard() {
               <thead><tr><th>Week</th><th>Type</th><th>Rate (₹/kg)</th><th>Notes</th></tr></thead>
               <tbody>
                 {data.feed_rates.map(fr => (
-                  <tr key={fr.id}><td>{fr.week_start_date}</td><td className="feed-badge-cell"><span className={`feed-badge feed-badge-${fr.feed_type.toLowerCase()}`}>{fr.feed_type}</span></td><td>₹{fr.rate_per_kg}</td><td>{fr.notes || '—'}</td></tr>
+                  <tr key={fr.id}><td>{fr.week_start_date}</td><td><span className={`feed-badge feed-badge-${fr.feed_type.toLowerCase()}`}>{fr.feed_type}</span></td><td>₹{fr.rate_per_kg}</td><td>{fr.notes || '—'}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -176,15 +177,15 @@ export default function Dashboard() {
         </div>
         <div className="stat-card feed-card-bpsc">
           <span className="stat-label">BPSC Today</span>
-          <span className="stat-value">{fmtDec(feedToday.bpsc)} kg</span>
+          <span className="stat-value">{fmtDec(feedToday.bpsc_bags)} bags</span>
         </div>
         <div className="stat-card feed-card-bsc">
           <span className="stat-label">BSC Today</span>
-          <span className="stat-value">{fmtDec(feedToday.bsc)} kg</span>
+          <span className="stat-value">{fmtDec(feedToday.bsc_bags)} bags</span>
         </div>
         <div className="stat-card feed-card-bfp">
           <span className="stat-label">BFP Today</span>
-          <span className="stat-value">{fmtDec(feedToday.bfp)} kg</span>
+          <span className="stat-value">{fmtDec(feedToday.bfp_bags)} bags</span>
         </div>
       </div>
 

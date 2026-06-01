@@ -93,14 +93,19 @@ def dashboard(request):
     for sale in Sale.objects.filter(rate_per_kg__isnull=False):
         total_sale_amount += sale.total_weight_kg * sale.rate_per_kg
 
-    # Feed by type
+    # Feed by type (stored as bags, 1 bag = 50 kg)
+    BAG_KG = 50
     feed_agg = DailyEntry.objects.aggregate(
-        bpsc=Sum('feed_bpsc_kg'), bsc=Sum('feed_bsc_kg'), bfp=Sum('feed_bfp_kg'),
+        bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
     )
-    total_bpsc = float(feed_agg['bpsc'] or 0)
-    total_bsc = float(feed_agg['bsc'] or 0)
-    total_bfp = float(feed_agg['bfp'] or 0)
-    total_feed_kg = total_bpsc + total_bsc + total_bfp
+    total_bpsc_bags = float(feed_agg['bpsc'] or 0)
+    total_bsc_bags = float(feed_agg['bsc'] or 0)
+    total_bfp_bags = float(feed_agg['bfp'] or 0)
+    total_bpsc_kg = total_bpsc_bags * BAG_KG
+    total_bsc_kg = total_bsc_bags * BAG_KG
+    total_bfp_kg = total_bfp_bags * BAG_KG
+    total_feed_kg = total_bpsc_kg + total_bsc_kg + total_bfp_kg
+    total_feed_bags = total_bpsc_bags + total_bsc_bags + total_bfp_bags
 
     # FCR
     fcr = None
@@ -110,9 +115,9 @@ def dashboard(request):
     # Cost per kg using latest rates per feed type
     latest_rates = get_latest_feed_rates()
     total_feed_cost = (
-        total_bpsc * latest_rates.get('BPSC', 0) +
-        total_bsc * latest_rates.get('BSC', 0) +
-        total_bfp * latest_rates.get('BFP', 0)
+        total_bpsc_kg * latest_rates.get('BPSC', 0) +
+        total_bsc_kg * latest_rates.get('BSC', 0) +
+        total_bfp_kg * latest_rates.get('BFP', 0)
     )
     cost_per_kg = None
     if total_sold_weight_kg and total_sold_weight_kg > 0:
@@ -123,7 +128,7 @@ def dashboard(request):
     today_entries = DailyEntry.objects.filter(date=today)
     mortality_today = today_entries.aggregate(t=Sum('mortality_count'))['t'] or 0
     today_feed = today_entries.aggregate(
-        bpsc=Sum('feed_bpsc_kg'), bsc=Sum('feed_bsc_kg'), bfp=Sum('feed_bfp_kg'),
+        bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
     )
 
     total_live_birds = sum(f.live_birds for f in active_flocks)
@@ -137,10 +142,14 @@ def dashboard(request):
         'mortality_percentage': round((total_mortality / total_birds_placed) * 100, 2) if total_birds_placed else 0,
 
         'total_feed_kg': round(total_feed_kg, 2),
+        'total_feed_bags': round(total_feed_bags, 2),
         'feed_by_type': {
-            'bpsc': round(total_bpsc, 2),
-            'bsc': round(total_bsc, 2),
-            'bfp': round(total_bfp, 2),
+            'bpsc_bags': round(total_bpsc_bags, 2),
+            'bsc_bags': round(total_bsc_bags, 2),
+            'bfp_bags': round(total_bfp_bags, 2),
+            'bpsc_kg': round(total_bpsc_kg, 2),
+            'bsc_kg': round(total_bsc_kg, 2),
+            'bfp_kg': round(total_bfp_kg, 2),
         },
         'total_feed_cost': round(total_feed_cost, 2),
         'fcr': fcr,
@@ -153,9 +162,9 @@ def dashboard(request):
         'total_live_birds': total_live_birds,
         'mortality_today': mortality_today,
         'feed_today': {
-            'bpsc': float(today_feed['bpsc'] or 0),
-            'bsc': float(today_feed['bsc'] or 0),
-            'bfp': float(today_feed['bfp'] or 0),
+            'bpsc_bags': float(today_feed['bpsc'] or 0),
+            'bsc_bags': float(today_feed['bsc'] or 0),
+            'bfp_bags': float(today_feed['bfp'] or 0),
         },
 
         'feed_rates': FeedRateSerializer(FeedRate.objects.all()[:30], many=True).data,
@@ -170,16 +179,17 @@ def flock_cumulative(request, flock_id):
     flock = Flock.objects.get(id=flock_id)
     sales = Sale.objects.filter(flock_id=flock_id).order_by('date')
 
+    BAG_KG = 50
     cum_mortality = 0
-    cum_bpsc = cum_bsc = cum_bfp = 0
+    cum_bpsc_bags = cum_bsc_bags = cum_bfp_bags = 0
     result = []
 
     for entry in entries:
         cum_mortality += entry.mortality_count
-        cum_bpsc += float(entry.feed_bpsc_kg)
-        cum_bsc += float(entry.feed_bsc_kg)
-        cum_bfp += float(entry.feed_bfp_kg)
-        cum_feed = cum_bpsc + cum_bsc + cum_bfp
+        cum_bpsc_bags += float(entry.feed_bpsc_bags)
+        cum_bsc_bags += float(entry.feed_bsc_bags)
+        cum_bfp_bags += float(entry.feed_bfp_bags)
+        cum_total_bags = cum_bpsc_bags + cum_bsc_bags + cum_bfp_bags
         day_number = (entry.date - flock.placement_date).days
 
         result.append({
@@ -188,14 +198,19 @@ def flock_cumulative(request, flock_id):
             'daily_mortality': entry.mortality_count,
             'cumulative_mortality': cum_mortality,
             'mortality_percentage': round((cum_mortality / flock.chick_count) * 100, 2) if flock.chick_count else 0,
-            'feed_bpsc_kg': float(entry.feed_bpsc_kg),
-            'feed_bsc_kg': float(entry.feed_bsc_kg),
-            'feed_bfp_kg': float(entry.feed_bfp_kg),
+            'feed_bpsc_bags': float(entry.feed_bpsc_bags),
+            'feed_bsc_bags': float(entry.feed_bsc_bags),
+            'feed_bfp_bags': float(entry.feed_bfp_bags),
+            'daily_feed_bags': entry.total_feed_bags,
             'daily_feed_kg': entry.total_feed_kg,
-            'cumulative_feed_kg': round(cum_feed, 2),
-            'cum_bpsc': round(cum_bpsc, 2),
-            'cum_bsc': round(cum_bsc, 2),
-            'cum_bfp': round(cum_bfp, 2),
+            'cumulative_feed_bags': round(cum_total_bags, 2),
+            'cumulative_feed_kg': round(cum_total_bags * BAG_KG, 2),
+            'cum_bpsc_bags': round(cum_bpsc_bags, 2),
+            'cum_bsc_bags': round(cum_bsc_bags, 2),
+            'cum_bfp_bags': round(cum_bfp_bags, 2),
+            'cum_bpsc_kg': round(cum_bpsc_bags * BAG_KG, 2),
+            'cum_bsc_kg': round(cum_bsc_bags * BAG_KG, 2),
+            'cum_bfp_kg': round(cum_bfp_bags * BAG_KG, 2),
             'water_liters': float(entry.water_consumed_liters),
             'avg_body_weight_grams': float(entry.avg_body_weight_grams) if entry.avg_body_weight_grams else None,
         })
