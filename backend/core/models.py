@@ -1,5 +1,13 @@
 from django.db import models
 from django.contrib.auth.models import User
+from decimal import Decimal
+
+
+FEED_TYPES = [
+    ('BPSC', 'BPSC (Pre-Starter Crumble)'),
+    ('BSC', 'BSC (Starter Crumble)'),
+    ('BFP', 'BFP (Finisher Pellet)'),
+]
 
 
 class Farm(models.Model):
@@ -23,6 +31,12 @@ class Flock(models.Model):
     placement_date = models.DateField()
     chick_count = models.PositiveIntegerField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+
+    # Feed schedule per bird (kg)
+    bpsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="kg of BPSC per bird")
+    bsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=1.0, help_text="kg of BSC per bird")
+    # BFP = remaining (no fixed limit)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -39,7 +53,44 @@ class Flock(models.Model):
 
     @property
     def total_feed_kg(self):
-        return self.daily_entries.aggregate(total=models.Sum('feed_consumed_kg'))['total'] or 0
+        agg = self.daily_entries.aggregate(
+            bpsc=models.Sum('feed_bpsc_kg'),
+            bsc=models.Sum('feed_bsc_kg'),
+            bfp=models.Sum('feed_bfp_kg'),
+        )
+        return (agg['bpsc'] or 0) + (agg['bsc'] or 0) + (agg['bfp'] or 0)
+
+    @property
+    def feed_by_type(self):
+        agg = self.daily_entries.aggregate(
+            bpsc=models.Sum('feed_bpsc_kg'),
+            bsc=models.Sum('feed_bsc_kg'),
+            bfp=models.Sum('feed_bfp_kg'),
+        )
+        return {
+            'bpsc': float(agg['bpsc'] or 0),
+            'bsc': float(agg['bsc'] or 0),
+            'bfp': float(agg['bfp'] or 0),
+        }
+
+    @property
+    def feed_schedule_status(self):
+        """How much of each feed type quota has been used."""
+        fb = self.feed_by_type
+        bpsc_quota = float(self.bpsc_per_bird_kg) * self.chick_count
+        bsc_quota = float(self.bsc_per_bird_kg) * self.chick_count
+        return {
+            'bpsc_used_kg': fb['bpsc'],
+            'bpsc_quota_kg': round(bpsc_quota, 2),
+            'bpsc_remaining_kg': round(max(0, bpsc_quota - fb['bpsc']), 2),
+            'bpsc_done': fb['bpsc'] >= bpsc_quota,
+            'bsc_used_kg': fb['bsc'],
+            'bsc_quota_kg': round(bsc_quota, 2),
+            'bsc_remaining_kg': round(max(0, bsc_quota - fb['bsc']), 2),
+            'bsc_done': fb['bsc'] >= bsc_quota,
+            'bfp_used_kg': fb['bfp'],
+            'current_feed_type': 'BPSC' if fb['bpsc'] < bpsc_quota else ('BSC' if fb['bsc'] < bsc_quota else 'BFP'),
+        }
 
     @property
     def total_sold_birds(self):
@@ -65,7 +116,6 @@ class Flock(models.Model):
 
     @property
     def fcr(self):
-        """Feed Conversion Ratio = total feed / total weight of birds sold"""
         sold_kg = float(self.total_sold_weight_kg)
         if sold_kg == 0:
             return None
@@ -76,7 +126,12 @@ class DailyEntry(models.Model):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='daily_entries')
     date = models.DateField()
     mortality_count = models.PositiveIntegerField(default=0)
-    feed_consumed_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # Feed by type
+    feed_bpsc_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BPSC (kg)")
+    feed_bsc_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BSC (kg)")
+    feed_bfp_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BFP (kg)")
+
     water_consumed_liters = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     avg_body_weight_grams = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     notes = models.TextField(blank=True)
@@ -89,9 +144,12 @@ class DailyEntry(models.Model):
     def __str__(self):
         return f"{self.flock} - {self.date}"
 
+    @property
+    def total_feed_kg(self):
+        return float(self.feed_bpsc_kg) + float(self.feed_bsc_kg) + float(self.feed_bfp_kg)
+
 
 class Sale(models.Model):
-    """Records birds sold / lifted from a flock."""
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='sales')
     date = models.DateField()
     bird_count = models.PositiveIntegerField()
@@ -120,17 +178,19 @@ class Sale(models.Model):
 
 
 class FeedRate(models.Model):
-    """Weekly feed rate update — applies across all flocks."""
-    week_start_date = models.DateField(unique=True)
-    rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2, help_text="Cost per kg of feed in ₹")
+    FEED_TYPE_CHOICES = FEED_TYPES
+    week_start_date = models.DateField()
+    feed_type = models.CharField(max_length=10, choices=FEED_TYPE_CHOICES, default='BFP')
+    rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2, help_text="Cost per kg in ₹")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-week_start_date']
+        unique_together = ['week_start_date', 'feed_type']
+        ordering = ['-week_start_date', 'feed_type']
 
     def __str__(self):
-        return f"₹{self.rate_per_kg}/kg from {self.week_start_date}"
+        return f"{self.feed_type} ₹{self.rate_per_kg}/kg from {self.week_start_date}"
 
 
 class Medication(models.Model):

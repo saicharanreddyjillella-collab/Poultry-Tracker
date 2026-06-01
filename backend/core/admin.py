@@ -7,11 +7,11 @@ class FarmAdmin(admin.ModelAdmin):
 
 @admin.register(Flock)
 class FlockAdmin(admin.ModelAdmin):
-    list_display = ('farm', 'breed', 'placement_date', 'chick_count', 'status')
+    list_display = ('farm', 'breed', 'placement_date', 'chick_count', 'status', 'bpsc_per_bird_kg', 'bsc_per_bird_kg')
 
 @admin.register(DailyEntry)
 class DailyEntryAdmin(admin.ModelAdmin):
-    list_display = ('flock', 'date', 'mortality_count', 'feed_consumed_kg')
+    list_display = ('flock', 'date', 'mortality_count', 'feed_bpsc_kg', 'feed_bsc_kg', 'feed_bfp_kg')
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
@@ -19,7 +19,7 @@ class SaleAdmin(admin.ModelAdmin):
 
 @admin.register(FeedRate)
 class FeedRateAdmin(admin.ModelAdmin):
-    list_display = ('week_start_date', 'rate_per_kg')
+    list_display = ('week_start_date', 'feed_type', 'rate_per_kg')
 
 @admin.register(Medication)
 class MedicationAdmin(admin.ModelAdmin):

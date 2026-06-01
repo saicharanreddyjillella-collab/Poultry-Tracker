@@ -3,6 +3,8 @@ from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
+    total_feed_kg = serializers.ReadOnlyField()
+
     class Meta:
         model = DailyEntry
         fields = '__all__'
@@ -33,6 +35,8 @@ class FlockSerializer(serializers.ModelSerializer):
     age_days = serializers.ReadOnlyField()
     total_mortality = serializers.ReadOnlyField()
     total_feed_kg = serializers.ReadOnlyField()
+    feed_by_type = serializers.ReadOnlyField()
+    feed_schedule_status = serializers.ReadOnlyField()
     total_sold_birds = serializers.ReadOnlyField()
     total_sold_weight_kg = serializers.ReadOnlyField()
     mortality_percentage = serializers.ReadOnlyField()
@@ -52,6 +56,8 @@ class FlockListSerializer(serializers.ModelSerializer):
     age_days = serializers.ReadOnlyField()
     total_mortality = serializers.ReadOnlyField()
     total_feed_kg = serializers.ReadOnlyField()
+    feed_by_type = serializers.ReadOnlyField()
+    feed_schedule_status = serializers.ReadOnlyField()
     total_sold_birds = serializers.ReadOnlyField()
     total_sold_weight_kg = serializers.ReadOnlyField()
     mortality_percentage = serializers.ReadOnlyField()

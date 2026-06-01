@@ -143,6 +143,30 @@ tbody tr:hover { background: #fafaf8; }
 .stat-alert { border-left: 4px solid var(--danger); }
 .stat-card small { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
 
+/* Feed type cards */
+.feed-card-bpsc { border-left: 4px solid #e67e22; }
+.feed-card-bsc { border-left: 4px solid #2980b9; }
+.feed-card-bfp { border-left: 4px solid #27ae60; }
+.stat-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+/* Feed badges */
+.feed-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; }
+.feed-badge-bpsc { background: #fdebd0; color: #b45309; }
+.feed-badge-bsc { background: #d4e6f1; color: #1a5276; }
+.feed-badge-bfp { background: #d5f5e3; color: #196f3d; }
+.feed-badge-cell { }
+
+/* Feed schedule progress */
+.feed-progress-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.feed-progress-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+.feed-progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; }
+.feed-progress-sub { font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.4rem; }
+.progress-bar { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
+.progress-bpsc { background: #e67e22; }
+.progress-bsc { background: #2980b9; }
+.progress-bfp { background: #27ae60; }
+
 /* Feed rate bar */
 .feed-rate-bar {
   background: #eaf5ee; border: 1px solid #c8e6c9; border-radius: var(--radius);
