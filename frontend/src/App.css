@@ -206,3 +206,13 @@ tbody tr:hover { background: #fafaf8; }
 .report-month-sales { font-size: 0.875rem; color: var(--text-muted); padding: 0.5rem 0; border-top: 1px dashed var(--border); }
 .table-total-row { background: var(--bg); }
 
+/* Report table */
+.report-table { font-size: 0.8rem; }
+.report-table th { white-space: nowrap; font-size: 0.7rem; }
+.report-table td { white-space: nowrap; }
+.report-row-clickable { cursor: pointer; transition: background 0.15s; }
+.report-row-clickable:hover { background: #eef6f0; }
+.report-highlight { color: var(--primary); font-weight: 700; }
+.report-totals-row { background: var(--bg); border-top: 2px solid var(--primary); }
+.report-totals-row td { padding-top: 0.8rem; padding-bottom: 0.8rem; }
+

@@ -9,6 +9,7 @@ export default function MonthlyReport() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [expandedFlock, setExpandedFlock] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -23,9 +24,10 @@ export default function MonthlyReport() {
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';
   const fmtDec = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
 
-  // Generate year options (current year and 2 years back)
   const years = [];
   for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) years.push(y);
+
+  const toggleFlock = (id) => setExpandedFlock(expandedFlock === id ? null : id);
 
   return (
     <div className="page">
@@ -51,114 +53,125 @@ export default function MonthlyReport() {
 
       {!loading && data && data.flocks_count > 0 && (
         <>
-          {/* GRAND SUMMARY */}
-          <h2 className="section-title">{data.month_name} {data.year} — Summary ({data.flocks_count} batch{data.flocks_count > 1 ? 'es' : ''})</h2>
-          <div className="stats-grid stats-grid-wide">
-            <div className="stat-card stat-highlight">
-              <span className="stat-label">Birds Placed</span>
-              <span className="stat-value">{fmt(data.summary.total_birds_placed)}</span>
-            </div>
-            <div className="stat-card stat-alert">
-              <span className="stat-label">Total Mortality</span>
-              <span className="stat-value">{fmt(data.summary.total_mortality)} <small>({data.summary.mortality_pct}%)</small></span>
-            </div>
-            <div className="stat-card stat-success">
-              <span className="stat-label">Sold (Birds)</span>
-              <span className="stat-value">{fmt(data.summary.total_sold_birds)}</span>
-            </div>
-            <div className="stat-card stat-success">
-              <span className="stat-label">Sold (kg)</span>
-              <span className="stat-value">{fmtDec(data.summary.total_sold_weight_kg)} kg</span>
-            </div>
-            <div className="stat-card stat-success">
-              <span className="stat-label">Sale Amount</span>
-              <span className="stat-value">₹{fmtDec(data.summary.total_sale_amount)}</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Total Feed</span>
-              <span className="stat-value">{fmtDec(data.summary.total_feed_kg)} kg</span>
-            </div>
-            <div className="stat-card stat-info">
-              <span className="stat-label">FCR</span>
-              <span className="stat-value">{data.summary.fcr ?? '—'}</span>
-            </div>
-            <div className="stat-card stat-info">
-              <span className="stat-label">Feed Cost / kg</span>
-              <span className="stat-value">{data.summary.cost_per_kg_production != null ? `₹${fmtDec(data.summary.cost_per_kg_production)}` : '—'}</span>
-            </div>
+          <h2 className="section-title">{data.month_name} {data.year} — {data.flocks_count} Batch{data.flocks_count > 1 ? 'es' : ''} Sold</h2>
+
+          {/* MAIN REPORT TABLE — all flocks as rows + totals */}
+          <div className="table-wrapper" style={{ marginBottom: '2rem' }}>
+            <table className="report-table">
+              <thead>
+                <tr>
+                  <th>Farm</th>
+                  <th>Placed</th>
+                  <th>Chicks</th>
+                  <th>Age</th>
+                  <th>Mortality</th>
+                  <th>Mort %</th>
+                  <th>Sold (birds)</th>
+                  <th>Sold (kg)</th>
+                  <th>Avg Wt (kg)</th>
+                  <th>Feed (kg)</th>
+                  <th>Feed (bags)</th>
+                  <th>FCR</th>
+                  <th>Feed Cost (₹)</th>
+                  <th>Cost/kg (₹)</th>
+                  <th>Sale Amt (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.flocks.map(f => (
+                  <tr key={f.flock_id} className="report-row-clickable" onClick={() => toggleFlock(f.flock_id)}>
+                    <td><strong>{f.farm_name}</strong></td>
+                    <td>{f.placement_date}</td>
+                    <td>{fmt(f.chick_count)}</td>
+                    <td>{f.age_days}d</td>
+                    <td>{fmt(f.total_mortality)}</td>
+                    <td className={f.mortality_pct > 5 ? 'text-danger' : ''}>{f.mortality_pct}%</td>
+                    <td>{fmt(f.total_sold_birds)}</td>
+                    <td>{fmtDec(f.total_sold_weight_kg)}</td>
+                    <td>{f.avg_bird_weight_kg ?? '—'}</td>
+                    <td>{fmtDec(f.total_feed_kg)}</td>
+                    <td>{f.total_feed_bags}</td>
+                    <td className="report-highlight">{f.fcr ?? '—'}</td>
+                    <td>{fmtDec(f.feed_cost)}</td>
+                    <td className="report-highlight">{f.cost_per_kg_production != null ? fmtDec(f.cost_per_kg_production) : '—'}</td>
+                    <td>{fmtDec(f.total_sale_amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="report-totals-row">
+                  <td><strong>TOTAL</strong></td>
+                  <td></td>
+                  <td><strong>{fmt(data.summary.total_birds_placed)}</strong></td>
+                  <td></td>
+                  <td><strong>{fmt(data.summary.total_mortality)}</strong></td>
+                  <td className={data.summary.mortality_pct > 5 ? 'text-danger' : ''}><strong>{data.summary.mortality_pct}%</strong></td>
+                  <td><strong>{fmt(data.summary.total_sold_birds)}</strong></td>
+                  <td><strong>{fmtDec(data.summary.total_sold_weight_kg)}</strong></td>
+                  <td><strong>{data.summary.total_sold_weight_kg && data.summary.total_sold_birds ? (data.summary.total_sold_weight_kg / data.summary.total_sold_birds).toFixed(3) : '—'}</strong></td>
+                  <td><strong>{fmtDec(data.summary.total_feed_kg)}</strong></td>
+                  <td><strong>{(data.summary.total_feed_kg / 50).toFixed(1)}</strong></td>
+                  <td className="report-highlight"><strong>{data.summary.fcr ?? '—'}</strong></td>
+                  <td><strong>₹{fmtDec(data.summary.total_feed_cost)}</strong></td>
+                  <td className="report-highlight"><strong>{data.summary.cost_per_kg_production != null ? fmtDec(data.summary.cost_per_kg_production) : '—'}</strong></td>
+                  <td><strong>₹{fmtDec(data.summary.total_sale_amount)}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
 
-          {/* PER BATCH */}
-          {data.flocks.map(flock => (
-            <div key={flock.flock_id} className="report-batch">
-              <div className="report-batch-header">
-                <h3>{flock.farm_name}</h3>
-                <span className="farm-meta">Placed: {flock.placement_date} &middot; {fmt(flock.chick_count)} chicks &middot; Day {flock.age_days}</span>
-              </div>
+          {/* EXPANDED DETAIL — weekly mortality for clicked flock */}
+          {data.flocks.map(f => (
+            expandedFlock === f.flock_id && (
+              <div key={`detail-${f.flock_id}`} className="report-batch">
+                <div className="report-batch-header">
+                  <h3>{f.farm_name} — Weekly Breakdown</h3>
+                  <span className="farm-meta">Placed: {f.placement_date} &middot; {fmt(f.chick_count)} chicks &middot; Day {f.age_days}</span>
+                </div>
 
-              {/* Batch summary row */}
-              <div className="stats-grid" style={{ marginBottom: '1rem' }}>
-                <div className="stat-card stat-alert">
-                  <span className="stat-label">Mortality</span>
-                  <span className="stat-value">{flock.total_mortality} <small>({flock.mortality_pct}%)</small></span>
+                {/* Feed breakdown */}
+                <div className="report-feed-row">
+                  <span className="feed-badge feed-badge-bpsc">BPSC: {fmtDec(f.feed_bpsc_kg)} kg</span>
+                  <span className="feed-badge feed-badge-bsc">BSC: {fmtDec(f.feed_bsc_kg)} kg</span>
+                  <span className="feed-badge feed-badge-bfp">BFP: {fmtDec(f.feed_bfp_kg)} kg</span>
+                  <span>Total: {fmtDec(f.total_feed_kg)} kg ({f.total_feed_bags} bags)</span>
                 </div>
-                <div className="stat-card stat-success">
-                  <span className="stat-label">Sold</span>
-                  <span className="stat-value">{fmt(flock.total_sold_birds)} / {fmtDec(flock.total_sold_weight_kg)} kg</span>
-                </div>
-                <div className="stat-card">
-                  <span className="stat-label">Avg Bird Wt</span>
-                  <span className="stat-value">{flock.avg_bird_weight_kg ? `${flock.avg_bird_weight_kg} kg` : '—'}</span>
-                </div>
-                <div className="stat-card stat-info">
-                  <span className="stat-label">FCR</span>
-                  <span className="stat-value">{flock.fcr ?? '—'}</span>
-                </div>
-                <div className="stat-card stat-info">
-                  <span className="stat-label">Feed Cost/kg</span>
-                  <span className="stat-value">{flock.cost_per_kg_production != null ? `₹${fmtDec(flock.cost_per_kg_production)}` : '—'}</span>
-                </div>
-              </div>
 
-              {/* Feed breakdown */}
-              <div className="report-feed-row">
-                <span className="feed-badge feed-badge-bpsc">BPSC: {fmtDec(flock.feed_bpsc_kg)} kg</span>
-                <span className="feed-badge feed-badge-bsc">BSC: {fmtDec(flock.feed_bsc_kg)} kg</span>
-                <span className="feed-badge feed-badge-bfp">BFP: {fmtDec(flock.feed_bfp_kg)} kg</span>
-                <span>Total: {fmtDec(flock.total_feed_kg)} kg ({flock.total_feed_bags} bags)</span>
-                <span>Feed Cost: ₹{fmtDec(flock.feed_cost)}</span>
-              </div>
+                {/* This month's sales */}
+                <div className="report-month-sales">
+                  Sales this month: {fmt(f.month_sold_birds)} birds &middot; {fmtDec(f.month_sold_weight_kg)} kg &middot; ₹{fmtDec(f.month_sale_amount)}
+                </div>
 
-              {/* This month's sales */}
-              <div className="report-month-sales">
-                <span>This month: {fmt(flock.month_sold_birds)} birds, {fmtDec(flock.month_sold_weight_kg)} kg, ₹{fmtDec(flock.month_sale_amount)}</span>
-              </div>
-
-              {/* Weekly mortality table */}
-              <h4 style={{ margin: '1rem 0 0.5rem' }}>Weekly Mortality</h4>
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr><th>Week</th><th>Days</th><th>Mortality</th><th>Mortality %</th></tr>
-                  </thead>
-                  <tbody>
-                    {flock.weekly_mortality.map(w => (
-                      <tr key={w.week}>
-                        <td>Week {w.week}</td>
-                        <td>{w.days}</td>
-                        <td>{w.mortality}</td>
-                        <td className={w.mortality_pct > 1 ? 'text-danger' : ''}>{w.mortality_pct}%</td>
+                {/* Weekly mortality table */}
+                <h4 style={{ margin: '1rem 0 0.5rem' }}>Weekly Mortality</h4>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr><th>Week</th><th>Days</th><th>Mortality</th><th>Mortality %</th></tr>
+                    </thead>
+                    <tbody>
+                      {f.weekly_mortality.map(w => (
+                        <tr key={w.week}>
+                          <td>Week {w.week}</td>
+                          <td>{w.days}</td>
+                          <td>{w.mortality}</td>
+                          <td className={w.mortality_pct > 1 ? 'text-danger' : ''}>{w.mortality_pct}%</td>
+                        </tr>
+                      ))}
+                      <tr className="table-total-row">
+                        <td colSpan={2}><strong>Total</strong></td>
+                        <td><strong>{f.total_mortality}</strong></td>
+                        <td><strong>{f.mortality_pct}%</strong></td>
                       </tr>
-                    ))}
-                    <tr className="table-total-row">
-                      <td colSpan={2}><strong>Total</strong></td>
-                      <td><strong>{flock.total_mortality}</strong></td>
-                      <td><strong>{flock.mortality_pct}%</strong></td>
-                    </tr>
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
+
+                <button className="btn btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setExpandedFlock(null)}>
+                  Close
+                </button>
               </div>
-            </div>
+            )
           ))}
         </>
       )}
