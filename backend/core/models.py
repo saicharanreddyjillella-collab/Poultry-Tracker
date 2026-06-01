@@ -27,14 +27,13 @@ class Flock(models.Model):
         ('closed', 'Closed'),
     ]
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='flocks')
-    breed = models.CharField(max_length=100, blank=True)
     placement_date = models.DateField()
     chick_count = models.PositiveIntegerField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
 
-    # Feed schedule per bird (kg)
-    bpsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="kg of BPSC per bird")
-    bsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=1.0, help_text="kg of BSC per bird")
+    # Feed estimate per bird (kg) — soft target, not a hard limit
+    bpsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="Estimated BPSC per bird (kg)")
+    bsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=1.0, help_text="Estimated BSC per bird (kg)")
     # BFP = remaining (no fixed limit)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -79,26 +78,24 @@ class Flock(models.Model):
 
     @property
     def feed_schedule_status(self):
-        """How much of each feed type quota has been used."""
+        """How much of each feed type has been used vs estimated target."""
         fb = self.feed_by_type
-        bpsc_quota = float(self.bpsc_per_bird_kg) * self.chick_count
-        bsc_quota = float(self.bsc_per_bird_kg) * self.chick_count
+        bpsc_est = float(self.bpsc_per_bird_kg) * self.chick_count
+        bsc_est = float(self.bsc_per_bird_kg) * self.chick_count
         return {
             'bpsc_used_kg': fb['bpsc_kg'],
             'bpsc_used_bags': fb['bpsc_bags'],
-            'bpsc_quota_kg': round(bpsc_quota, 2),
-            'bpsc_quota_bags': round(bpsc_quota / 50, 2),
-            'bpsc_remaining_kg': round(max(0, bpsc_quota - fb['bpsc_kg']), 2),
-            'bpsc_done': fb['bpsc_kg'] >= bpsc_quota,
+            'bpsc_estimate_kg': round(bpsc_est, 2),
+            'bpsc_estimate_bags': round(bpsc_est / 50, 2),
+            'bpsc_remaining_kg': round(max(0, bpsc_est - fb['bpsc_kg']), 2),
             'bsc_used_kg': fb['bsc_kg'],
             'bsc_used_bags': fb['bsc_bags'],
-            'bsc_quota_kg': round(bsc_quota, 2),
-            'bsc_quota_bags': round(bsc_quota / 50, 2),
-            'bsc_remaining_kg': round(max(0, bsc_quota - fb['bsc_kg']), 2),
-            'bsc_done': fb['bsc_kg'] >= bsc_quota,
+            'bsc_estimate_kg': round(bsc_est, 2),
+            'bsc_estimate_bags': round(bsc_est / 50, 2),
+            'bsc_remaining_kg': round(max(0, bsc_est - fb['bsc_kg']), 2),
             'bfp_used_kg': fb['bfp_kg'],
             'bfp_used_bags': fb['bfp_bags'],
-            'current_feed_type': 'BPSC' if fb['bpsc_kg'] < bpsc_quota else ('BSC' if fb['bsc_kg'] < bsc_quota else 'BFP'),
+            'current_feed_type': 'BPSC' if fb['bpsc_kg'] < bpsc_est else ('BSC' if fb['bsc_kg'] < bsc_est else 'BFP'),
         }
 
     @property

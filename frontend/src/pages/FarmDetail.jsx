@@ -8,7 +8,7 @@ export default function FarmDetail() {
   const [farm, setFarm] = useState(null);
   const [showFlockForm, setShowFlockForm] = useState(false);
   const [flockForm, setFlockForm] = useState({
-    breed: '', placement_date: '', chick_count: '',
+    placement_date: '', chick_count: '',
   });
 
   const load = () => farmAPI.get(id).then(res => setFarm(res.data));
@@ -19,7 +19,7 @@ export default function FarmDetail() {
     e.preventDefault();
     await flockAPI.create({ ...flockForm, farm: id, chick_count: parseInt(flockForm.chick_count) });
     setShowFlockForm(false);
-    setFlockForm({ breed: '', placement_date: '', chick_count: '' });
+    setFlockForm({ placement_date: '', chick_count: '' });
     load();
   };
 
@@ -45,10 +45,6 @@ export default function FarmDetail() {
           <h3>Place New Flock</h3>
           <div className="form-row">
             <div className="form-group">
-              <label>Breed</label>
-              <input value={flockForm.breed} onChange={e => setFlockForm({ ...flockForm, breed: e.target.value })} placeholder="e.g. Cobb 400" />
-            </div>
-            <div className="form-group">
               <label>Placement Date *</label>
               <input type="date" value={flockForm.placement_date} onChange={e => setFlockForm({ ...flockForm, placement_date: e.target.value })} required />
             </div>
@@ -70,7 +66,7 @@ export default function FarmDetail() {
           {farm.active_flocks.map(flock => (
             <Link to={`/flocks/${flock.id}`} key={flock.id} className="flock-card">
               <div className="flock-header">
-                <span className="flock-breed">{flock.breed || 'Unknown breed'}</span>
+                <span className="flock-breed">Placed {flock.placement_date}</span>
                 <span className="flock-age">Day {flock.age_days}</span>
               </div>
               <div className="flock-stats">

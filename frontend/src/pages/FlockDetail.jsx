@@ -73,7 +73,7 @@ export default function FlockDetail() {
       <div className="page-header">
         <div>
           <Link to={`/farms/${flock.farm}`} className="back-link">&larr; Back to Farm</Link>
-          <h1>{flock.farm_name} — {flock.breed || 'Flock'}</h1>
+          <h1>{flock.farm_name} — Flock</h1>
           <p className="farm-meta">Placed: {flock.placement_date} &middot; Day {flock.age_days} &middot; {flock.chick_count.toLocaleString()} chicks</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -98,25 +98,25 @@ export default function FlockDetail() {
         <div className="feed-progress-card">
           <div className="feed-progress-header">
             <span className="feed-badge feed-badge-bpsc">BPSC</span>
-            <span>{fs.bpsc_used_bags} / {fs.bpsc_quota_bags} bags ({fs.bpsc_used_kg} / {fs.bpsc_quota_kg} kg)</span>
+            <span>{fs.bpsc_used_bags} / ~{fs.bpsc_estimate_bags} bags ({fs.bpsc_used_kg} / ~{fs.bpsc_estimate_kg} kg)</span>
           </div>
-          <div className="progress-bar"><div className="progress-fill progress-bpsc" style={{ width: `${pctUsed(fs.bpsc_used_kg, fs.bpsc_quota_kg)}%` }}></div></div>
-          <span className="feed-progress-sub">{fs.bpsc_remaining_kg} kg remaining &middot; {flock.bpsc_per_bird_kg} kg/bird</span>
+          <div className="progress-bar"><div className="progress-fill progress-bpsc" style={{ width: `${pctUsed(fs.bpsc_used_kg, fs.bpsc_estimate_kg)}%` }}></div></div>
+          <span className="feed-progress-sub">{fs.bpsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bpsc_per_bird_kg} kg/bird</span>
         </div>
         <div className="feed-progress-card">
           <div className="feed-progress-header">
             <span className="feed-badge feed-badge-bsc">BSC</span>
-            <span>{fs.bsc_used_bags} / {fs.bsc_quota_bags} bags ({fs.bsc_used_kg} / {fs.bsc_quota_kg} kg)</span>
+            <span>{fs.bsc_used_bags} / ~{fs.bsc_estimate_bags} bags ({fs.bsc_used_kg} / ~{fs.bsc_estimate_kg} kg)</span>
           </div>
-          <div className="progress-bar"><div className="progress-fill progress-bsc" style={{ width: `${pctUsed(fs.bsc_used_kg, fs.bsc_quota_kg)}%` }}></div></div>
-          <span className="feed-progress-sub">{fs.bsc_remaining_kg} kg remaining &middot; {flock.bsc_per_bird_kg} kg/bird</span>
+          <div className="progress-bar"><div className="progress-fill progress-bsc" style={{ width: `${pctUsed(fs.bsc_used_kg, fs.bsc_estimate_kg)}%` }}></div></div>
+          <span className="feed-progress-sub">{fs.bsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bsc_per_bird_kg} kg/bird</span>
         </div>
         <div className="feed-progress-card">
           <div className="feed-progress-header">
             <span className="feed-badge feed-badge-bfp">BFP</span>
             <span>{fs.bfp_used_bags} bags ({fs.bfp_used_kg} kg)</span>
           </div>
-          <span className="feed-progress-sub">No fixed quota — given after BPSC &amp; BSC complete</span>
+          <span className="feed-progress-sub">No fixed target — given after BPSC &amp; BSC</span>
         </div>
       </div>
 

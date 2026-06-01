@@ -218,7 +218,6 @@ def flock_cumulative(request, flock_id):
     return Response({
         'flock_id': flock.id,
         'farm_name': flock.farm.name,
-        'breed': flock.breed,
         'placement_date': flock.placement_date,
         'chick_count': flock.chick_count,
         'age_days': flock.age_days,
