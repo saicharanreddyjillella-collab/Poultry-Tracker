@@ -249,6 +249,7 @@ def dashboard(request):
     farms = Farm.objects.all()
     all_flocks = Flock.objects.all()
     active_flocks = all_flocks.filter(status='active')
+    closed_flocks = all_flocks.filter(status='closed')
 
     total_birds_placed = all_flocks.aggregate(t=Sum('chick_count'))['t'] or 0
     total_mortality = DailyEntry.objects.aggregate(t=Sum('mortality_count'))['t'] or 0
@@ -260,7 +261,7 @@ def dashboard(request):
     for sale in Sale.objects.filter(rate_per_kg__isnull=False):
         total_sale_amount += sale.total_weight_kg * sale.rate_per_kg
 
-    # Feed by type (stored as bags, 1 bag = 50 kg)
+    # Feed by type — ALL flocks (for total feed consumed)
     BAG_KG = 50
     feed_agg = DailyEntry.objects.aggregate(
         bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
@@ -274,21 +275,41 @@ def dashboard(request):
     total_feed_kg = total_bpsc_kg + total_bsc_kg + total_bfp_kg
     total_feed_bags = total_bpsc_bags + total_bsc_bags + total_bfp_bags
 
-    # FCR
-    fcr = None
-    if total_sold_weight_kg and total_sold_weight_kg > 0:
-        fcr = round(total_feed_kg / float(total_sold_weight_kg), 3)
+    # FCR — CLOSED FLOCKS ONLY
+    closed_feed_agg = DailyEntry.objects.filter(flock__status='closed').aggregate(
+        bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
+    )
+    closed_feed_kg = (
+        float(closed_feed_agg['bpsc'] or 0) +
+        float(closed_feed_agg['bsc'] or 0) +
+        float(closed_feed_agg['bfp'] or 0)
+    ) * BAG_KG
+    closed_sold_weight = float(Sale.objects.filter(flock__status='closed').aggregate(t=Sum('total_weight_kg'))['t'] or 0)
 
-    # Cost per kg using latest rates per feed type
+    fcr = None
+    if closed_sold_weight > 0:
+        fcr = round(closed_feed_kg / closed_sold_weight, 3)
+
+    # Cost per kg — CLOSED FLOCKS ONLY
     latest_rates = get_latest_feed_rates()
+    closed_bpsc_kg = float(closed_feed_agg['bpsc'] or 0) * BAG_KG
+    closed_bsc_kg = float(closed_feed_agg['bsc'] or 0) * BAG_KG
+    closed_bfp_kg = float(closed_feed_agg['bfp'] or 0) * BAG_KG
+    closed_feed_cost = (
+        closed_bpsc_kg * latest_rates.get('BPSC', 0) +
+        closed_bsc_kg * latest_rates.get('BSC', 0) +
+        closed_bfp_kg * latest_rates.get('BFP', 0)
+    )
+    cost_per_kg = None
+    if closed_sold_weight > 0:
+        cost_per_kg = round(closed_feed_cost / closed_sold_weight, 2)
+
+    # Total feed cost (all flocks)
     total_feed_cost = (
         total_bpsc_kg * latest_rates.get('BPSC', 0) +
         total_bsc_kg * latest_rates.get('BSC', 0) +
         total_bfp_kg * latest_rates.get('BFP', 0)
     )
-    cost_per_kg = None
-    if total_sold_weight_kg and total_sold_weight_kg > 0:
-        cost_per_kg = round(total_feed_cost / float(total_sold_weight_kg), 2)
 
     # Today
     today = date.today()
@@ -321,6 +342,7 @@ def dashboard(request):
         'total_feed_cost': round(total_feed_cost, 2),
         'fcr': fcr,
         'cost_per_kg_production': cost_per_kg,
+        'closed_flocks_count': closed_flocks.count(),
 
         'latest_feed_rates': latest_rates,
 
@@ -670,6 +692,7 @@ def region_performance(request):
         for s in Sale.objects.filter(flock__in=r_flocks, rate_per_kg__isnull=False):
             sale_amount += float(s.total_weight_kg) * float(s.rate_per_kg)
 
+        # Total feed (all flocks)
         feed_agg = DailyEntry.objects.filter(flock__in=r_flocks).aggregate(
             bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
         )
@@ -678,14 +701,24 @@ def region_performance(request):
         bfp_kg = float(feed_agg['bfp'] or 0) * BAG_KG
         total_feed_kg = bpsc_kg + bsc_kg + bfp_kg
 
-        fcr = round(total_feed_kg / sold_weight, 3) if sold_weight > 0 else None
-
-        feed_cost = (
-            bpsc_kg * latest_rates.get('BPSC', 0) +
-            bsc_kg * latest_rates.get('BSC', 0) +
-            bfp_kg * latest_rates.get('BFP', 0)
+        # FCR + cost/kg — CLOSED FLOCKS ONLY
+        closed_feed_agg = DailyEntry.objects.filter(flock__in=r_closed).aggregate(
+            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
         )
-        cost_per_kg = round(feed_cost / sold_weight, 2) if sold_weight > 0 else None
+        c_feed_kg = (float(closed_feed_agg['bpsc'] or 0) + float(closed_feed_agg['bsc'] or 0) + float(closed_feed_agg['bfp'] or 0)) * BAG_KG
+        c_sold_weight = float(Sale.objects.filter(flock__in=r_closed).aggregate(t=Sum('total_weight_kg'))['t'] or 0)
+
+        fcr = round(c_feed_kg / c_sold_weight, 3) if c_sold_weight > 0 else None
+
+        c_bpsc_kg = float(closed_feed_agg['bpsc'] or 0) * BAG_KG
+        c_bsc_kg = float(closed_feed_agg['bsc'] or 0) * BAG_KG
+        c_bfp_kg = float(closed_feed_agg['bfp'] or 0) * BAG_KG
+        feed_cost = (
+            c_bpsc_kg * latest_rates.get('BPSC', 0) +
+            c_bsc_kg * latest_rates.get('BSC', 0) +
+            c_bfp_kg * latest_rates.get('BFP', 0)
+        )
+        cost_per_kg = round(feed_cost / c_sold_weight, 2) if c_sold_weight > 0 else None
         avg_bird_wt = round(sold_weight / sold_birds, 3) if sold_birds > 0 else None
 
         live_birds = sum(f.live_birds for f in r_active)

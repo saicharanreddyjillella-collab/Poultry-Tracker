@@ -184,6 +184,9 @@ class Flock(models.Model):
 
     @property
     def fcr(self):
+        """FCR only calculated for closed flocks."""
+        if self.status != 'closed':
+            return None
         sold_kg = float(self.total_sold_weight_kg)
         if sold_kg == 0:
             return None
