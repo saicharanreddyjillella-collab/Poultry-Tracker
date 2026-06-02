@@ -9,7 +9,7 @@ export default function FarmForm() {
   const [error, setError] = useState('');
 
   const [form, setForm] = useState({
-    farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', house_count: 1,
+    farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', capacity: 5000,
   });
 
   useEffect(() => {
@@ -77,8 +77,9 @@ export default function FarmForm() {
             <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. Village name, landmark" />
           </div>
           <div className="form-group">
-            <label>Number of Houses</label>
-            <input type="number" min="1" value={form.house_count} onChange={e => setForm({ ...form, house_count: parseInt(e.target.value) || 1 })} />
+            <label>Capacity (birds) *</label>
+            <input type="number" min="100" value={form.capacity} onChange={e => setForm({ ...form, capacity: parseInt(e.target.value) || 0 })} required placeholder="e.g. 5000" />
+            <small className="field-hint">Max birds this farm can hold. Flock size must be within ±5%</small>
           </div>
         </div>
         <div className="form-actions">

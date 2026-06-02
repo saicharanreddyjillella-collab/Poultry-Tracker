@@ -50,9 +50,11 @@ export default function FarmDetail() {
             {showDetails ? 'Hide' : 'Farm'} Details
           </button>
           <Link to={`/farms/${id}/edit`} className="btn btn-secondary">Edit</Link>
-          <button className="btn btn-primary" onClick={() => setShowFlockForm(!showFlockForm)}>
-            + New Flock
-          </button>
+          {activeFlocks.length > 0 ? (
+            <button className="btn btn-secondary" disabled title="Close current flock first">Active Flock Exists</button>
+          ) : (
+            <button className="btn btn-primary" onClick={() => setShowFlockForm(!showFlockForm)}>+ New Flock</button>
+          )}
         </div>
       </div>
 
@@ -66,7 +68,8 @@ export default function FarmDetail() {
             <div><span className="detail-label">Shed Type</span><span className="detail-value"><span className={`shed-badge shed-badge-${(farm.shed_type || 'open').toLowerCase()}`}>{farm.shed_type === 'EC' ? 'EC' : 'Open'}</span></span></div>
             <div><span className="detail-label">Region</span><span className="detail-value">{farm.region || '—'}</span></div>
             <div><span className="detail-label">Location</span><span className="detail-value">{farm.location || '—'}</span></div>
-            <div><span className="detail-label">Houses</span><span className="detail-value">{farm.house_count}</span></div>
+            <div><span className="detail-label">Capacity</span><span className="detail-value">{farm.capacity?.toLocaleString()} birds</span></div>
+            <div><span className="detail-label">Placement Range</span><span className="detail-value">{Math.floor(farm.capacity * 0.95).toLocaleString()} — {Math.floor(farm.capacity * 1.05).toLocaleString()}</span></div>
             <div><span className="detail-label">Total Batches</span><span className="detail-value">{activeFlocks.length + closedFlocks.length}</span></div>
             <div><span className="detail-label">Active</span><span className="detail-value">{activeFlocks.length}</span></div>
             <div><span className="detail-label">Completed</span><span className="detail-value">{closedFlocks.length}</span></div>
@@ -85,7 +88,8 @@ export default function FarmDetail() {
             </div>
             <div className="form-group">
               <label>Chicks Placed *</label>
-              <input type="number" min="1" value={flockForm.chick_count} onChange={e => setFlockForm({ ...flockForm, chick_count: e.target.value })} required placeholder="e.g. 5000" />
+              <input type="number" min="1" value={flockForm.chick_count} onChange={e => setFlockForm({ ...flockForm, chick_count: e.target.value })} required placeholder={`${Math.floor(farm.capacity * 0.95)} — ${Math.floor(farm.capacity * 1.05)}`} />
+              <small className="field-hint">Farm capacity: {farm.capacity?.toLocaleString()} (±5%: {Math.floor(farm.capacity * 0.95).toLocaleString()} — {Math.floor(farm.capacity * 1.05).toLocaleString()})</small>
             </div>
           </div>
           <div className="form-actions">

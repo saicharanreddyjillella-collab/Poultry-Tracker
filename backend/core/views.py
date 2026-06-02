@@ -25,6 +25,15 @@ class FlockViewSet(viewsets.ModelViewSet):
             return FlockSerializer
         return FlockListSerializer
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        try:
+            instance.full_clean()
+        except Exception as e:
+            instance.delete()
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
+
 
 class DailyEntryViewSet(viewsets.ModelViewSet):
     queryset = DailyEntry.objects.select_related('flock', 'flock__farm').all()

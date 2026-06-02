@@ -22,11 +22,25 @@ class Farm(models.Model):
     shed_type = models.CharField(max_length=10, choices=SHED_TYPE_CHOICES, default='OPEN')
     region = models.CharField(max_length=200, blank=True, help_text="Region/area for grouping farms")
     location = models.CharField(max_length=300, blank=True)
-    house_count = models.PositiveIntegerField(default=1)
+    capacity = models.PositiveIntegerField(default=5000, help_text="Farm bird capacity")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.farm_code} - {self.name}"
+
+    @property
+    def capacity_min(self):
+        """Minimum acceptable chick count (capacity - 5%)"""
+        return int(self.capacity * 0.95)
+
+    @property
+    def capacity_max(self):
+        """Maximum acceptable chick count (capacity + 5%)"""
+        return int(self.capacity * 1.05)
+
+    @property
+    def has_active_flock(self):
+        return self.flocks.filter(status='active').exists()
 
 
 class Flock(models.Model):
@@ -43,6 +57,22 @@ class Flock(models.Model):
     bpsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="Estimated BPSC per bird (kg)")
     bsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=1.0, help_text="Estimated BSC per bird (kg)")
     # BFP = remaining (no fixed limit)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.farm_id:
+            farm = self.farm
+            # Only validate on new active flocks
+            if self.status == 'active' and not self.pk:
+                if farm.has_active_flock:
+                    raise ValidationError({'farm': 'This farm already has an active flock. Close the current flock first.'})
+                if self.chick_count < farm.capacity_min or self.chick_count > farm.capacity_max:
+                    raise ValidationError({
+                        'chick_count': f'Chick count must be within ±5% of farm capacity ({farm.capacity}). '
+                                       f'Acceptable range: {farm.capacity_min} — {farm.capacity_max}.'
+                    })
 
     created_at = models.DateTimeField(auto_now_add=True)
 
