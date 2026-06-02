@@ -43,7 +43,7 @@ export default function FarmDetail() {
       <div className="page-header">
         <div>
           <Link to="/farms" className="back-link">&larr; All Farms</Link>
-          <h1>{farm.name}</h1>
+          <h1><span className="farm-code-badge">{farm.farm_code}</span> {farm.name}</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={() => setShowDetails(!showDetails)}>
@@ -61,6 +61,7 @@ export default function FarmDetail() {
         <div className="farm-details-tile">
           <h3>Farm Details</h3>
           <div className="farm-details-grid">
+            <div><span className="detail-label">Farm Code</span><span className="detail-value">{farm.farm_code}</span></div>
             <div><span className="detail-label">Owner</span><span className="detail-value">{farm.owner_name}</span></div>
             <div><span className="detail-label">Location</span><span className="detail-value">{farm.location || '—'}</span></div>
             <div><span className="detail-label">Houses</span><span className="detail-value">{farm.house_count}</span></div>

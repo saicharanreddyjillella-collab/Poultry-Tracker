@@ -80,7 +80,7 @@ export default function MonthlyReport() {
               <tbody>
                 {data.flocks.map(f => (
                   <tr key={f.flock_id} className="report-row-clickable" onClick={() => toggleFlock(f.flock_id)}>
-                    <td><strong>{f.farm_name}</strong></td>
+                    <td><strong><span className="farm-code-badge-sm">{f.farm_code}</span> {f.farm_name}</strong></td>
                     <td>{f.placement_date}</td>
                     <td>{fmt(f.chick_count)}</td>
                     <td>{f.age_days}d</td>

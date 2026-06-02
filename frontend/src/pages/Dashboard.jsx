@@ -145,7 +145,10 @@ export default function Dashboard() {
         <div className="card-grid">
           {data.farms.map(farm => (
             <Link to={`/farms/${farm.id}`} key={farm.id} className="farm-card">
-              <h3>{farm.name}</h3>
+              <div className="farm-card-header">
+                <span className="farm-code-badge">{farm.farm_code}</span>
+                <h3>{farm.name}</h3>
+              </div>
               <p className="farm-meta">{farm.owner_name} &middot; {farm.location}</p>
               {farm.active_flocks.length > 0 ? (
                 <div className="flock-summary">

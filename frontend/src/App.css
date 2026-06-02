@@ -129,6 +129,50 @@ tbody tr:hover { background: #fafaf8; }
 .empty-state .btn { margin-top: 1rem; }
 .error-msg { background: #fdecea; color: var(--danger); padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem; }
 
+/* Search bar */
+.search-bar { position: relative; margin-bottom: 1.5rem; }
+.search-bar input {
+  width: 100%; padding: 0.75rem 1rem; padding-right: 2.5rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 0.95rem; font-family: inherit; background: var(--surface);
+  box-shadow: var(--shadow); transition: border-color 0.2s;
+}
+.search-bar input:focus { outline: none; border-color: var(--primary); }
+.search-bar input::placeholder { color: #aaa; }
+.search-clear {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  background: none; border: none; font-size: 1.25rem; color: var(--text-muted);
+  cursor: pointer; padding: 0.25rem;
+}
+
+/* Farm code badge */
+.farm-code-badge {
+  display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em;
+  background: #e8f0fe; color: #1a56db; font-family: monospace;
+  margin-right: 0.5rem; vertical-align: middle;
+}
+.farm-code-badge-sm {
+  display: inline-block; padding: 0.1rem 0.35rem; border-radius: 3px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+  background: #e8f0fe; color: #1a56db; font-family: monospace;
+  margin-right: 0.3rem;
+}
+.farm-card-header { display: flex; align-items: center; margin-bottom: 0.25rem; }
+.farm-card-header h3 { margin: 0; }
+
+/* Delete button (inline) */
+.btn-delete {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 1.1rem; padding: 0.15rem 0.4rem; border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-delete:hover { background: #fdecea; color: var(--danger); }
+
+/* Danger button */
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { background: #a93226; }
+
 /* Section title */
 .section-title { font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 0.75rem; }
 

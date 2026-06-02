@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { flockAPI, dailyEntryAPI, saleAPI } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 
 export default function FlockDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [flock, setFlock] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [showEntryForm, setShowEntryForm] = useState(false);
@@ -79,6 +80,14 @@ export default function FlockDetail() {
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); }}>+ Daily Entry</button>
           <button className="btn btn-secondary" onClick={() => { setShowSaleForm(!showSaleForm); setShowEntryForm(false); }}>+ Record Sale</button>
+          {flock.status === 'active' && (
+            <button className="btn btn-danger" onClick={async () => {
+              if (window.confirm('Close this flock? This will mark it as completed. Bill generation coming soon.')) {
+                await flockAPI.update(id, { ...flock, status: 'closed', farm: flock.farm });
+                navigate(`/farms/${flock.farm}`);
+              }
+            }}>Close Flock</button>
+          )}
         </div>
       </div>
 
@@ -217,7 +226,7 @@ export default function FlockDetail() {
               <thead>
                 <tr>
                   <th>Day</th><th>Date</th><th>Mort.</th><th>Cum.M</th><th>M%</th>
-                  <th>BPSC</th><th>BSC</th><th>BFP</th><th>Total (bags)</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th>
+                  <th>BPSC</th><th>BSC</th><th>BFP</th><th>Total (bags)</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -229,6 +238,13 @@ export default function FlockDetail() {
                     <td>{e.feed_bpsc_bags}</td><td>{e.feed_bsc_bags}</td><td>{e.feed_bfp_bags}</td>
                     <td>{e.daily_feed_bags}</td><td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
                     <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td>
+                    <td><button className="btn-delete" onClick={async (ev) => {
+                      ev.stopPropagation();
+                      if (window.confirm(`Delete entry for ${e.date}?`)) {
+                        await dailyEntryAPI.delete(e.id);
+                        load();
+                      }
+                    }}>&times;</button></td>
                   </tr>
                 ))}
               </tbody>

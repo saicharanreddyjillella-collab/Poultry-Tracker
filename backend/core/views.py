@@ -193,6 +193,7 @@ def flock_cumulative(request, flock_id):
         day_number = (entry.date - flock.placement_date).days
 
         result.append({
+            'id': entry.id,
             'date': entry.date,
             'day_number': day_number,
             'daily_mortality': entry.mortality_count,
@@ -329,6 +330,7 @@ def monthly_report(request):
         flock_data = {
             'flock_id': flock.id,
             'farm_name': flock.farm.name,
+            'farm_code': flock.farm.farm_code,
             'farm_location': flock.farm.location,
             'placement_date': flock.placement_date,
             'chick_count': flock.chick_count,
