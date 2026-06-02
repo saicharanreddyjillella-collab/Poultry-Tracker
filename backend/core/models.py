@@ -11,9 +11,15 @@ FEED_TYPES = [
 
 
 class Farm(models.Model):
+    SHED_TYPE_CHOICES = [
+        ('EC', 'EC (Environmentally Controlled)'),
+        ('OPEN', 'Open Shed'),
+    ]
+
     farm_code = models.CharField(max_length=50, unique=True, default='', help_text="Unique farm code given by user")
     name = models.CharField(max_length=200)
     owner_name = models.CharField(max_length=200)
+    shed_type = models.CharField(max_length=10, choices=SHED_TYPE_CHOICES, default='OPEN')
     region = models.CharField(max_length=200, blank=True, help_text="Region/area for grouping farms")
     location = models.CharField(max_length=300, blank=True)
     house_count = models.PositiveIntegerField(default=1)

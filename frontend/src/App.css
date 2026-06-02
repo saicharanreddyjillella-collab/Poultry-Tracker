@@ -161,6 +161,14 @@ tbody tr:hover { background: #fafaf8; }
 .farm-card-header { display: flex; align-items: center; margin-bottom: 0.25rem; }
 .farm-card-header h3 { margin: 0; }
 
+/* Shed type badge */
+.shed-badge {
+  display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+}
+.shed-badge-ec { background: #f3e8ff; color: #7c3aed; }
+.shed-badge-open { background: #fef3c7; color: #92400e; }
+
 /* Delete button (inline) */
 .btn-delete {
   background: none; border: none; color: var(--text-muted); cursor: pointer;

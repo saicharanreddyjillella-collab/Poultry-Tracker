@@ -9,7 +9,7 @@ export default function FarmForm() {
   const [error, setError] = useState('');
 
   const [form, setForm] = useState({
-    farm_code: '', name: '', owner_name: '', region: '', location: '', house_count: 1,
+    farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', house_count: 1,
   });
 
   useEffect(() => {
@@ -60,6 +60,13 @@ export default function FarmForm() {
           <input value={form.owner_name} onChange={e => setForm({ ...form, owner_name: e.target.value })} required />
         </div>
         <div className="form-row">
+          <div className="form-group">
+            <label>Shed Type *</label>
+            <select value={form.shed_type} onChange={e => setForm({ ...form, shed_type: e.target.value })}>
+              <option value="OPEN">Open Shed</option>
+              <option value="EC">EC (Environmentally Controlled)</option>
+            </select>
+          </div>
           <div className="form-group">
             <label>Region</label>
             <input value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} placeholder="e.g. Medchal, Ranga Reddy, North" />

@@ -60,6 +60,7 @@ export default function FarmsList() {
               <div className="farm-card-header">
                 <span className="farm-code-badge">{farm.farm_code}</span>
                 <h3>{farm.name}</h3>
+                <span className={`shed-badge shed-badge-${(farm.shed_type || 'open').toLowerCase()}`} style={{ marginLeft: 'auto' }}>{farm.shed_type === 'EC' ? 'EC' : 'Open'}</span>
               </div>
               <p className="farm-meta">{farm.owner_name} &middot; {farm.region ? `${farm.region} · ` : ''}{farm.location}</p>
               {farm.active_flocks.length > 0 ? (
