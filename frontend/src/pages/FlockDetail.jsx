@@ -263,18 +263,85 @@ export default function FlockDetail() {
             </ResponsiveContainer>
           </div>
 
-          {cumulative.entries.some(e => e.avg_body_weight_grams) && (
+          {/* Body Weight vs Standard Curve */}
+          {(cumulative.entries.some(e => e.avg_body_weight_grams) || cumulative.standard_curve) && (
             <>
-              <h2 style={{ margin: '2rem 0 1rem' }}>Body Weight (g)</h2>
+              <h2 style={{ margin: '2rem 0 1rem' }}>Body Weight vs Cobb 400 Standard</h2>
               <div className="chart-container">
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={cumulative.entries.filter(e => e.avg_body_weight_grams)}>
+                <ResponsiveContainer width="100%" height={350}>
+                  <LineChart>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis dataKey="day_number" /><YAxis /><Tooltip />
-                    <Line type="monotone" dataKey="avg_body_weight_grams" name="Avg Weight (g)" stroke="#3498db" strokeWidth={2} dot={{ r: 4 }} />
+                    <XAxis
+                      dataKey="day_number"
+                      type="number"
+                      domain={[0, 'auto']}
+                      allowDuplicatedCategory={false}
+                      label={{ value: 'Day', position: 'bottom', offset: 0 }}
+                    />
+                    <YAxis label={{ value: 'Weight (g)', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip />
+                    <Legend />
+                    {/* Standard curve — dashed line */}
+                    <Line
+                      data={cumulative.standard_curve || []}
+                      type="monotone"
+                      dataKey="standard_weight_grams"
+                      name="Cobb 400 Standard"
+                      stroke="#bdc3c7"
+                      strokeWidth={2}
+                      strokeDasharray="6 4"
+                      dot={false}
+                    />
+                    {/* Actual weights — solid line with dots */}
+                    <Line
+                      data={cumulative.entries.filter(e => e.avg_body_weight_grams)}
+                      type="monotone"
+                      dataKey="avg_body_weight_grams"
+                      name="Actual Weight"
+                      stroke="#3498db"
+                      strokeWidth={2.5}
+                      dot={{ r: 5, fill: '#3498db' }}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+              {/* Weight comparison table */}
+              {cumulative.entries.some(e => e.avg_body_weight_grams) && (
+                <div className="weight-comparison" style={{ marginTop: '1rem' }}>
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Day</th><th>Date</th><th>Actual (g)</th><th>Standard (g)</th><th>Difference</th><th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cumulative.entries.filter(e => e.avg_body_weight_grams).map((e, i) => {
+                          const diff = e.avg_body_weight_grams - e.standard_weight_grams;
+                          const pct = ((diff / e.standard_weight_grams) * 100).toFixed(1);
+                          const isGood = diff >= 0;
+                          return (
+                            <tr key={i}>
+                              <td>{e.day_number}</td>
+                              <td>{e.date}</td>
+                              <td><strong>{e.avg_body_weight_grams}</strong></td>
+                              <td>{e.standard_weight_grams}</td>
+                              <td className={isGood ? 'text-ok' : 'text-danger'}>
+                                {diff > 0 ? '+' : ''}{diff.toFixed(0)} g ({pct}%)
+                              </td>
+                              <td>
+                                <span className={`weight-status ${isGood ? 'weight-above' : 'weight-below'}`}>
+                                  {isGood ? '▲ Above' : '▼ Below'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -284,7 +351,7 @@ export default function FlockDetail() {
               <thead>
                 <tr>
                   <th>Day</th><th>Date</th><th>Mort.</th><th>Cum.M</th><th>M%</th>
-                  <th>BPSC</th><th>BSC</th><th>BFP</th><th>Total (bags)</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th></th>
+                  <th>BPSC</th><th>BSC</th><th>BFP</th><th>Total (bags)</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th>Std(g)</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -295,7 +362,7 @@ export default function FlockDetail() {
                     <td className={e.mortality_percentage > 5 ? 'text-danger' : ''}>{e.mortality_percentage}%</td>
                     <td>{e.feed_bpsc_bags}</td><td>{e.feed_bsc_bags}</td><td>{e.feed_bfp_bags}</td>
                     <td>{e.daily_feed_bags}</td><td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
-                    <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td>
+                    <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td><td className="text-muted-cell">{e.standard_weight_grams}</td>
                     <td><button className="btn-delete" onClick={async (ev) => {
                       ev.stopPropagation();
                       if (window.confirm(`Delete entry for ${e.date}?`)) {

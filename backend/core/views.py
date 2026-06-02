@@ -385,6 +385,8 @@ def dashboard(request):
 
 @api_view(['GET'])
 def flock_cumulative(request, flock_id):
+    from .standards import get_standard_weight
+
     entries = DailyEntry.objects.filter(flock_id=flock_id).order_by('date')
     flock = Flock.objects.get(id=flock_id)
     sales = Sale.objects.filter(flock_id=flock_id).order_by('date')
@@ -424,7 +426,14 @@ def flock_cumulative(request, flock_id):
             'cum_bfp_kg': round(cum_bfp_bags * BAG_KG, 2),
             'water_liters': float(entry.water_consumed_liters),
             'avg_body_weight_grams': float(entry.avg_body_weight_grams) if entry.avg_body_weight_grams else None,
+            'standard_weight_grams': get_standard_weight(day_number),
         })
+
+    # Generate full standard curve for chart (day 0 to current age)
+    standard_curve = [
+        {'day_number': d, 'standard_weight_grams': get_standard_weight(d)}
+        for d in range(0, flock.age_days + 1)
+    ]
 
     return Response({
         'flock_id': flock.id,
@@ -441,6 +450,7 @@ def flock_cumulative(request, flock_id):
         'live_birds': flock.live_birds,
         'fcr': flock.fcr,
         'entries': result,
+        'standard_curve': standard_curve,
         'sales': SaleSerializer(sales, many=True).data,
     })
 
