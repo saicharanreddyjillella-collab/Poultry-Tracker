@@ -135,6 +135,10 @@ class Flock(models.Model):
             return None
         return round(float(self.total_feed_kg) / sold_kg, 3)
 
+    @property
+    def total_medication_cost(self):
+        return self.medications.aggregate(total=models.Sum('cost'))['total'] or 0
+
 
 class DailyEntry(models.Model):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='daily_entries')
@@ -159,6 +163,21 @@ class DailyEntry(models.Model):
 
     def __str__(self):
         return f"{self.flock} - {self.date}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        from datetime import date as dt_date
+        errors = {}
+        if self.date and self.date > dt_date.today():
+            errors['date'] = 'Date cannot be in the future.'
+        if self.flock_id:
+            flock = self.flock
+            if self.date and self.date < flock.placement_date:
+                errors['date'] = 'Date cannot be before placement date.'
+            if self.mortality_count and self.mortality_count > flock.live_birds:
+                errors['mortality_count'] = f'Mortality ({self.mortality_count}) exceeds live birds ({flock.live_birds}).'
+        if errors:
+            raise ValidationError(errors)
 
     @property
     def feed_bpsc_kg(self):
@@ -226,12 +245,24 @@ class FeedRate(models.Model):
 
 
 class Medication(models.Model):
+    ROUTE_CHOICES = [
+        ('water', 'Drinking Water'),
+        ('feed', 'Feed'),
+        ('injection', 'Injection'),
+        ('spray', 'Spray'),
+        ('eye_drop', 'Eye Drop'),
+        ('other', 'Other'),
+    ]
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='medications')
     date = models.DateField()
     name = models.CharField(max_length=200)
     dose = models.CharField(max_length=100, blank=True)
-    route = models.CharField(max_length=100, blank=True)
+    route = models.CharField(max_length=20, choices=ROUTE_CHOICES, blank=True)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total cost in ₹")
     reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-date']
 
     def __str__(self):
         return f"{self.name} - {self.date}"

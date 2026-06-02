@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { flockAPI, dailyEntryAPI, saleAPI } from '../api/client';
+import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 
 export default function FlockDetail() {
@@ -10,6 +10,7 @@ export default function FlockDetail() {
   const [cumulative, setCumulative] = useState(null);
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [showSaleForm, setShowSaleForm] = useState(false);
+  const [showMedForm, setShowMedForm] = useState(false);
   const [entryForm, setEntryForm] = useState({
     date: new Date().toISOString().split('T')[0],
     mortality_count: '', feed_bpsc_bags: '', feed_bsc_bags: '', feed_bfp_bags: '',
@@ -18,6 +19,10 @@ export default function FlockDetail() {
   const [saleForm, setSaleForm] = useState({
     date: new Date().toISOString().split('T')[0],
     bird_count: '', total_weight_kg: '', rate_per_kg: '', notes: '',
+  });
+  const [medForm, setMedForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    name: '', dose: '', route: '', cost: '', reason: '',
   });
   const [error, setError] = useState('');
 
@@ -64,6 +69,24 @@ export default function FlockDetail() {
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
 
+  const handleMed = async (e) => {
+    e.preventDefault(); setError('');
+    try {
+      await medicationAPI.create({
+        flock: id, date: medForm.date, name: medForm.name,
+        dose: medForm.dose, route: medForm.route,
+        cost: parseFloat(medForm.cost) || 0, reason: medForm.reason,
+      });
+      setShowMedForm(false);
+      setMedForm({ date: new Date().toISOString().split('T')[0], name: '', dose: '', route: '', cost: '', reason: '' });
+      load();
+    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+  };
+
+  const exportFlock = () => {
+    window.open(`http://localhost:8000/api/flocks/${id}/export/`, '_blank');
+  };
+
   if (!flock || !cumulative) return <div className="loading">Loading flock data...</div>;
 
   const fs = cumulative.feed_schedule_status || {};
@@ -78,8 +101,10 @@ export default function FlockDetail() {
           <p className="farm-meta">Placed: {flock.placement_date} &middot; Day {flock.age_days} &middot; {flock.chick_count.toLocaleString()} chicks</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); }}>+ Daily Entry</button>
-          <button className="btn btn-secondary" onClick={() => { setShowSaleForm(!showSaleForm); setShowEntryForm(false); }}>+ Record Sale</button>
+          <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); setShowMedForm(false); }}>+ Daily Entry</button>
+          <button className="btn btn-secondary" onClick={() => { setShowSaleForm(!showSaleForm); setShowEntryForm(false); setShowMedForm(false); }}>+ Sale</button>
+          <button className="btn btn-secondary" onClick={() => { setShowMedForm(!showMedForm); setShowEntryForm(false); setShowSaleForm(false); }}>+ Medicine</button>
+          <button className="btn btn-secondary" onClick={exportFlock}>Export</button>
           {flock.status === 'active' && (
             <button className="btn btn-danger" onClick={async () => {
               if (window.confirm('Close this flock? This will mark it as completed. Bill generation coming soon.')) {
@@ -98,6 +123,7 @@ export default function FlockDetail() {
         <div className="stat-card stat-success"><span className="stat-label">Sold</span><span className="stat-value">{cumulative.total_sold_birds.toLocaleString()} / {cumulative.total_sold_weight_kg.toLocaleString()} kg</span></div>
         <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{(cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags).toFixed(1)} bags<br/><small>{cumulative.total_feed_kg.toLocaleString()} kg</small></span></div>
         <div className="stat-card stat-info"><span className="stat-label">FCR</span><span className="stat-value">{cumulative.fcr ?? '—'}</span></div>
+        <div className="stat-card"><span className="stat-label">Med Cost</span><span className="stat-value">₹{parseFloat(flock.total_medication_cost).toLocaleString()}</span></div>
         <div className="stat-card"><span className="stat-label">Current Feed</span><span className="stat-value"><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></span></div>
       </div>
 
@@ -172,6 +198,38 @@ export default function FlockDetail() {
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setShowSaleForm(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save Sale</button>
+          </div>
+        </form>
+      )}
+
+      {/* Medication Form */}
+      {showMedForm && (
+        <form onSubmit={handleMed} className="form-card" style={{ margin: '1.5rem 0' }}>
+          <h3>Add Medication / Vaccine</h3>
+          <div className="form-row">
+            <div className="form-group"><label>Date *</label><input type="date" value={medForm.date} onChange={e => setMedForm({ ...medForm, date: e.target.value })} required /></div>
+            <div className="form-group"><label>Medicine Name *</label><input value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} required placeholder="e.g. Lasota, Enrofloxacin" /></div>
+            <div className="form-group"><label>Dose</label><input value={medForm.dose} onChange={e => setMedForm({ ...medForm, dose: e.target.value })} placeholder="e.g. 1ml/L water" /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Route</label>
+              <select value={medForm.route} onChange={e => setMedForm({ ...medForm, route: e.target.value })}>
+                <option value="">Select...</option>
+                <option value="water">Drinking Water</option>
+                <option value="feed">Feed</option>
+                <option value="injection">Injection</option>
+                <option value="spray">Spray</option>
+                <option value="eye_drop">Eye Drop</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="form-group"><label>Cost (₹)</label><input type="number" step="0.01" min="0" value={medForm.cost} onChange={e => setMedForm({ ...medForm, cost: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Reason</label><input value={medForm.reason} onChange={e => setMedForm({ ...medForm, reason: e.target.value })} placeholder="e.g. Vaccination schedule, treatment" /></div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowMedForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Save</button>
           </div>
         </form>
       )}
@@ -269,6 +327,31 @@ export default function FlockDetail() {
                     <td>{s.rate_per_kg ? `₹${s.rate_per_kg}` : '—'}</td>
                     <td>{s.total_amount ? `₹${parseFloat(s.total_amount).toLocaleString()}` : '—'}</td>
                     <td>{s.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Medications */}
+      {flock.medications && flock.medications.length > 0 && (
+        <>
+          <h2 style={{ margin: '2rem 0 1rem' }}>Medications / Vaccines <small style={{ fontWeight: 400, color: '#6b6b6b' }}>(Total: ₹{parseFloat(flock.total_medication_cost).toLocaleString()})</small></h2>
+          <div className="table-wrapper">
+            <table>
+              <thead><tr><th>Date</th><th>Day</th><th>Name</th><th>Dose</th><th>Route</th><th>Cost (₹)</th><th>Reason</th></tr></thead>
+              <tbody>
+                {flock.medications.map(m => (
+                  <tr key={m.id}>
+                    <td>{m.date}</td>
+                    <td>{Math.floor((new Date(m.date) - new Date(flock.placement_date)) / 86400000)}</td>
+                    <td><strong>{m.name}</strong></td>
+                    <td>{m.dose || '—'}</td>
+                    <td>{m.route || '—'}</td>
+                    <td>₹{parseFloat(m.cost).toLocaleString()}</td>
+                    <td>{m.reason || '—'}</td>
                   </tr>
                 ))}
               </tbody>

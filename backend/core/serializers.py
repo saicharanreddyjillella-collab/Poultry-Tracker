@@ -47,8 +47,10 @@ class FlockSerializer(serializers.ModelSerializer):
     livability_percentage = serializers.ReadOnlyField()
     live_birds = serializers.ReadOnlyField()
     fcr = serializers.ReadOnlyField()
+    total_medication_cost = serializers.ReadOnlyField()
     daily_entries = DailyEntrySerializer(many=True, read_only=True)
     sales = SaleSerializer(many=True, read_only=True)
+    medications = MedicationSerializer(many=True, read_only=True)
     farm_name = serializers.CharField(source='farm.name', read_only=True)
 
     class Meta:
@@ -68,6 +70,7 @@ class FlockListSerializer(serializers.ModelSerializer):
     livability_percentage = serializers.ReadOnlyField()
     live_birds = serializers.ReadOnlyField()
     fcr = serializers.ReadOnlyField()
+    total_medication_cost = serializers.ReadOnlyField()
     farm_name = serializers.CharField(source='farm.name', read_only=True)
 
     class Meta:

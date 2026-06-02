@@ -16,5 +16,7 @@ urlpatterns = [
     path('flocks/<int:flock_id>/cumulative/', views.flock_cumulative),
     path('farms/<int:farm_id>/cumulative/', views.farm_cumulative),
     path('reports/monthly/', views.monthly_report),
+    path('reports/monthly/export/', views.export_monthly_report),
     path('reports/region/', views.region_performance),
+    path('flocks/<int:flock_id>/export/', views.export_flock_report),
 ]

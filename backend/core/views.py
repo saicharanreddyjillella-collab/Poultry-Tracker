@@ -37,6 +37,23 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
             qs = qs.filter(flock_id=flock_id)
         return qs
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        try:
+            instance.full_clean()
+        except Exception as e:
+            instance.delete()
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        try:
+            instance.full_clean()
+        except Exception as e:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
+
 
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.select_related('flock', 'flock__farm').all()
@@ -547,3 +564,236 @@ def region_performance(request):
         'regions': all_regions,
         'data': regions_data,
     })
+
+
+@api_view(['GET'])
+def export_monthly_report(request):
+    """Export monthly report as Excel. ?year=2026&month=6"""
+    import calendar
+    import io
+    from django.http import HttpResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+    year = int(request.query_params.get('year', date.today().year))
+    month = int(request.query_params.get('month', date.today().month))
+    month_start = date(year, month, 1)
+    month_end = date(year, month, calendar.monthrange(year, month)[1])
+
+    flock_ids = Sale.objects.filter(
+        date__gte=month_start, date__lte=month_end
+    ).values_list('flock_id', flat=True).distinct()
+
+    BAG_KG = 50
+    latest_rates = get_latest_feed_rates()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"{calendar.month_abbr[month]} {year}"
+
+    # Styles
+    header_font = Font(bold=True, size=11, color="FFFFFF")
+    header_fill = PatternFill(start_color="2D6A4F", end_color="2D6A4F", fill_type="solid")
+    total_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
+    total_font = Font(bold=True, size=11)
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    # Title
+    ws.merge_cells('A1:O1')
+    ws['A1'] = f"Monthly Report — {calendar.month_name[month]} {year}"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws['A1'].alignment = Alignment(horizontal='center')
+
+    # Headers
+    headers = ['Farm', 'Farm Code', 'Placed', 'Chicks', 'Age', 'Mortality', 'Mort%',
+               'Sold (birds)', 'Sold (kg)', 'Avg Wt', 'Feed (kg)', 'Feed (bags)',
+               'FCR', 'Feed Cost (₹)', 'Cost/kg (₹)', 'Sale Amt (₹)', 'Med Cost (₹)']
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal='center')
+
+    # Data rows
+    row = 4
+    grand = {'birds': 0, 'mort': 0, 'sold_b': 0, 'sold_w': 0, 'feed': 0, 'feed_cost': 0, 'sale': 0, 'med': 0}
+
+    for flock in Flock.objects.filter(id__in=flock_ids).select_related('farm'):
+        entries = DailyEntry.objects.filter(flock=flock)
+        sales = Sale.objects.filter(flock=flock)
+
+        mortality = entries.aggregate(t=Sum('mortality_count'))['t'] or 0
+        feed_agg = entries.aggregate(bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'))
+        feed_kg = (float(feed_agg['bpsc'] or 0) + float(feed_agg['bsc'] or 0) + float(feed_agg['bfp'] or 0)) * BAG_KG
+        bpsc_kg = float(feed_agg['bpsc'] or 0) * BAG_KG
+        bsc_kg = float(feed_agg['bsc'] or 0) * BAG_KG
+        bfp_kg = float(feed_agg['bfp'] or 0) * BAG_KG
+
+        sold_birds = sales.aggregate(t=Sum('bird_count'))['t'] or 0
+        sold_weight = float(sales.aggregate(t=Sum('total_weight_kg'))['t'] or 0)
+        sale_amount = sum(float(s.total_weight_kg) * float(s.rate_per_kg) for s in sales.filter(rate_per_kg__isnull=False))
+        med_cost = float(flock.total_medication_cost)
+
+        fcr = round(feed_kg / sold_weight, 3) if sold_weight > 0 else None
+        feed_cost = bpsc_kg * latest_rates.get('BPSC', 0) + bsc_kg * latest_rates.get('BSC', 0) + bfp_kg * latest_rates.get('BFP', 0)
+        cost_per_kg = round(feed_cost / sold_weight, 2) if sold_weight > 0 else None
+        avg_wt = round(sold_weight / sold_birds, 3) if sold_birds > 0 else None
+
+        values = [
+            flock.farm.name, flock.farm.farm_code, str(flock.placement_date), flock.chick_count,
+            flock.age_days, mortality, f"{round((mortality/flock.chick_count)*100,2) if flock.chick_count else 0}%",
+            sold_birds, round(sold_weight, 2), avg_wt or '', round(feed_kg, 2), round(feed_kg / BAG_KG, 1),
+            fcr or '', round(feed_cost, 2), cost_per_kg or '', round(sale_amount, 2), round(med_cost, 2)
+        ]
+        for col, v in enumerate(values, 1):
+            cell = ws.cell(row=row, column=col, value=v)
+            cell.border = thin_border
+        row += 1
+
+        grand['birds'] += flock.chick_count
+        grand['mort'] += mortality
+        grand['sold_b'] += sold_birds
+        grand['sold_w'] += sold_weight
+        grand['feed'] += feed_kg
+        grand['feed_cost'] += feed_cost
+        grand['sale'] += sale_amount
+        grand['med'] += med_cost
+
+    # Totals row
+    g_fcr = round(grand['feed'] / grand['sold_w'], 3) if grand['sold_w'] > 0 else ''
+    g_cpk = round(grand['feed_cost'] / grand['sold_w'], 2) if grand['sold_w'] > 0 else ''
+    g_avg = round(grand['sold_w'] / grand['sold_b'], 3) if grand['sold_b'] > 0 else ''
+    totals = [
+        'TOTAL', '', '', grand['birds'], '',
+        grand['mort'], f"{round((grand['mort']/grand['birds'])*100,2) if grand['birds'] else 0}%",
+        grand['sold_b'], round(grand['sold_w'], 2), g_avg, round(grand['feed'], 2),
+        round(grand['feed'] / BAG_KG, 1), g_fcr, round(grand['feed_cost'], 2), g_cpk,
+        round(grand['sale'], 2), round(grand['med'], 2)
+    ]
+    for col, v in enumerate(totals, 1):
+        cell = ws.cell(row=row, column=col, value=v)
+        cell.font = total_font
+        cell.fill = total_fill
+        cell.border = thin_border
+
+    # Auto-width
+    for col in ws.columns:
+        max_len = max(len(str(c.value or '')) for c in col) + 2
+        ws.column_dimensions[col[0].column_letter].width = min(max_len, 20)
+
+    # Write response
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="monthly_report_{year}_{month:02d}.xlsx"'
+    return response
+
+
+@api_view(['GET'])
+def export_flock_report(request, flock_id):
+    """Export single flock data as Excel."""
+    import io
+    from django.http import HttpResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+
+    flock = Flock.objects.select_related('farm').get(id=flock_id)
+    entries = DailyEntry.objects.filter(flock=flock).order_by('date')
+    sales = Sale.objects.filter(flock=flock).order_by('date')
+    medications = flock.medications.order_by('date')
+
+    BAG_KG = 50
+    wb = Workbook()
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="2D6A4F", end_color="2D6A4F", fill_type="solid")
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Sheet 1: Summary
+    ws = wb.active
+    ws.title = "Summary"
+    info = [
+        ('Farm', flock.farm.name), ('Farm Code', flock.farm.farm_code),
+        ('Placement Date', str(flock.placement_date)), ('Chicks Placed', flock.chick_count),
+        ('Age (days)', flock.age_days), ('Status', flock.status),
+        ('Live Birds', flock.live_birds), ('Total Mortality', flock.total_mortality),
+        ('Mortality %', f"{flock.mortality_percentage}%"),
+        ('Total Feed (kg)', float(flock.total_feed_kg)),
+        ('Sold Birds', flock.total_sold_birds),
+        ('Sold Weight (kg)', float(flock.total_sold_weight_kg)),
+        ('FCR', flock.fcr or ''), ('Medication Cost (₹)', float(flock.total_medication_cost)),
+    ]
+    for r, (label, val) in enumerate(info, 1):
+        ws.cell(row=r, column=1, value=label).font = Font(bold=True)
+        ws.cell(row=r, column=2, value=val)
+
+    # Sheet 2: Daily Entries
+    ws2 = wb.create_sheet("Daily Entries")
+    headers = ['Day', 'Date', 'Mortality', 'BPSC (bags)', 'BSC (bags)', 'BFP (bags)', 'Total (bags)', 'Total (kg)', 'Water (L)', 'Body Wt (g)', 'Notes']
+    for col, h in enumerate(headers, 1):
+        cell = ws2.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+
+    for r, entry in enumerate(entries, 2):
+        day = (entry.date - flock.placement_date).days
+        vals = [day, str(entry.date), entry.mortality_count,
+                float(entry.feed_bpsc_bags), float(entry.feed_bsc_bags), float(entry.feed_bfp_bags),
+                entry.total_feed_bags, entry.total_feed_kg,
+                float(entry.water_consumed_liters),
+                float(entry.avg_body_weight_grams) if entry.avg_body_weight_grams else '',
+                entry.notes]
+        for col, v in enumerate(vals, 1):
+            ws2.cell(row=r, column=col, value=v).border = thin_border
+
+    # Sheet 3: Sales
+    ws3 = wb.create_sheet("Sales")
+    s_headers = ['Date', 'Birds', 'Weight (kg)', 'Avg/Bird (kg)', 'Rate (₹/kg)', 'Amount (₹)', 'Notes']
+    for col, h in enumerate(s_headers, 1):
+        cell = ws3.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+
+    for r, sale in enumerate(sales, 2):
+        vals = [str(sale.date), sale.bird_count, float(sale.total_weight_kg),
+                sale.avg_bird_weight_kg, float(sale.rate_per_kg) if sale.rate_per_kg else '',
+                sale.total_amount or '', sale.notes]
+        for col, v in enumerate(vals, 1):
+            ws3.cell(row=r, column=col, value=v).border = thin_border
+
+    # Sheet 4: Medications
+    ws4 = wb.create_sheet("Medications")
+    m_headers = ['Date', 'Name', 'Dose', 'Route', 'Cost (₹)', 'Reason']
+    for col, h in enumerate(m_headers, 1):
+        cell = ws4.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+
+    for r, med in enumerate(medications, 2):
+        vals = [str(med.date), med.name, med.dose, med.get_route_display() if med.route else '', float(med.cost), med.reason]
+        for col, v in enumerate(vals, 1):
+            ws4.cell(row=r, column=col, value=v).border = thin_border
+
+    # Auto-width all sheets
+    for sheet in wb.sheetnames:
+        for col in wb[sheet].columns:
+            max_len = max(len(str(c.value or '')) for c in col) + 2
+            wb[sheet].column_dimensions[col[0].column_letter].width = min(max_len, 25)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    fname = f"flock_{flock.farm.farm_code}_{flock.placement_date}.xlsx"
+    response = HttpResponse(buffer.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    return response

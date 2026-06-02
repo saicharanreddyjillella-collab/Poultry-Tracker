@@ -40,6 +40,9 @@ export default function MonthlyReport() {
           <select value={year} onChange={e => setYear(parseInt(e.target.value))}>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
+          <button className="btn btn-secondary" onClick={() => window.open(`http://localhost:8000/api/reports/monthly/export/?year=${year}&month=${month}`, '_blank')}>
+            Export Excel
+          </button>
         </div>
       </div>
 
