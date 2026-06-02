@@ -14,6 +14,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('auth/login/', views.login_view),
     path('auth/me/', views.me_view),
+    path('auth/change-password/', views.change_password),
     path('auth/users/', views.manage_users),
     path('auth/users/<int:user_id>/', views.manage_user_detail),
     path('dashboard/', views.dashboard),

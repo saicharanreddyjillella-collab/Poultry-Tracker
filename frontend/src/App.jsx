@@ -10,12 +10,13 @@ import MonthlyReport from './pages/MonthlyReport';
 import TillDateReport from './pages/TillDateReport';
 import RegionPerformance from './pages/RegionPerformance';
 import UserManagement from './pages/UserManagement';
+import ChangePassword from './pages/ChangePassword';
 import './App.css';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="loading">Loading...</div>;
-  if (!user) return <Navigate to="/login" />;
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -27,7 +28,7 @@ function NavBar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -40,11 +41,16 @@ function NavBar() {
         <Link to="/reports/region">Region</Link>
         <Link to="/reports/till-date">Till Date</Link>
         {isAdmin && <Link to="/users">Users</Link>}
-        <span className="nav-user">
-          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-          {user.first_name || user.username}
-        </span>
-        <button className="nav-logout" onClick={handleLogout}>Logout</button>
+        <div className="nav-user-menu">
+          <span className="nav-user-trigger">
+            <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
+            {user.first_name || user.username} ▾
+          </span>
+          <div className="nav-dropdown">
+            <Link to="/change-password" className="nav-dropdown-item">Change Password</Link>
+            <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
+          </div>
+        </div>
       </div>
     </nav>
   );
@@ -67,6 +73,7 @@ function AppRoutes() {
           <Route path="/reports/region" element={<ProtectedRoute><RegionPerformance /></ProtectedRoute>} />
           <Route path="/reports/till-date" element={<ProtectedRoute><TillDateReport /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+          <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         </Routes>
       </main>
     </>

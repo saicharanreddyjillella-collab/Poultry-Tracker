@@ -59,6 +59,27 @@ def me_view(request):
     })
 
 
+@api_view(['POST'])
+def change_password(request):
+    user = request.user
+    current = request.data.get('current_password', '')
+    new_pass = request.data.get('new_password', '')
+    if not user.check_password(current):
+        return Response({'error': 'Current password is incorrect'}, status=400)
+    if len(new_pass) < 6:
+        return Response({'error': 'New password must be at least 6 characters'}, status=400)
+    user.set_password(new_pass)
+    user.save()
+    # Return new tokens since password changed
+    from rest_framework_simplejwt.tokens import RefreshToken
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'message': 'Password changed successfully',
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAdmin])
 def manage_users(request):
