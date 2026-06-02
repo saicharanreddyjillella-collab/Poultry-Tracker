@@ -4,6 +4,37 @@ const API = axios.create({
   baseURL: 'http://localhost:8000/api',
 });
 
+// Add auth token to every request
+API.interceptors.request.use(config => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// On 401, redirect to login
+API.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+
+export const authAPI = {
+  login: (username, password) => API.post('/auth/login/', { username, password }),
+  me: () => API.get('/auth/me/'),
+  listUsers: () => API.get('/auth/users/'),
+  createUser: (data) => API.post('/auth/users/', data),
+  updateUser: (id, data) => API.put(`/auth/users/${id}/`, data),
+  deleteUser: (id) => API.delete(`/auth/users/${id}/`),
+};
+
 export const farmAPI = {
   list: () => API.get('/farms/'),
   create: (data) => API.post('/farms/', data),

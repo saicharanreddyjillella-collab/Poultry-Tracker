@@ -103,7 +103,54 @@ a { color: inherit; text-decoration: none; }
   transition: background 0.2s, transform 0.1s; white-space: nowrap;
 }
 .btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: var(--primary); color: white; }
+
+/* Login page */
+.login-page {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; background: var(--bg); padding: 1rem;
+}
+.login-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 2.5rem; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+.login-header { text-align: center; margin-bottom: 1.5rem; }
+.login-header h1 { margin: 0.5rem 0 0.25rem; }
+.login-header p { color: var(--text-muted); font-size: 0.9rem; }
+.login-btn { width: 100%; margin-top: 0.5rem; padding: 0.75rem; font-size: 1rem; }
+
+/* Nav user info */
+.nav-user {
+  display: flex; align-items: center; gap: 0.4rem;
+  color: rgba(255,255,255,0.85); font-size: 0.85rem; font-weight: 500;
+}
+.nav-logout {
+  background: rgba(255,255,255,0.15); border: none; color: white;
+  padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.8rem;
+  cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.nav-logout:hover { background: rgba(255,255,255,0.25); }
+
+/* Role badges */
+.role-badge {
+  display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.role-badge-admin { background: #fce4ec; color: #c0392b; }
+.role-badge-supervisor { background: #e3f2fd; color: #1565c0; }
+
+/* Farm checkbox grid (user management) */
+.farm-checkbox-grid {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem;
+}
+.farm-checkbox {
+  display: flex; align-items: center; gap: 0.3rem;
+  padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.85rem; cursor: pointer; transition: background 0.15s;
+}
+.farm-checkbox input { margin: 0; }
+.farm-checkbox-active { background: #e8f0fe; border-color: #1a56db; }
 .btn-primary:hover { background: var(--primary-light); }
 .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--border); }

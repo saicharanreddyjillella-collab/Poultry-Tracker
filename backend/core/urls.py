@@ -12,6 +12,10 @@ router.register(r'medications', views.MedicationViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('auth/login/', views.login_view),
+    path('auth/me/', views.me_view),
+    path('auth/users/', views.manage_users),
+    path('auth/users/<int:user_id>/', views.manage_user_detail),
     path('dashboard/', views.dashboard),
     path('flocks/<int:flock_id>/cumulative/', views.flock_cumulative),
     path('farms/<int:farm_id>/cumulative/', views.farm_cumulative),

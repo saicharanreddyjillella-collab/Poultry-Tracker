@@ -1,4 +1,6 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import FarmsList from './pages/FarmsList';
 import FarmForm from './pages/FarmForm';
@@ -7,34 +9,76 @@ import FlockDetail from './pages/FlockDetail';
 import MonthlyReport from './pages/MonthlyReport';
 import TillDateReport from './pages/TillDateReport';
 import RegionPerformance from './pages/RegionPerformance';
+import UserManagement from './pages/UserManagement';
 import './App.css';
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="loading">Loading...</div>;
+  if (!user) return <Navigate to="/login" />;
+  return children;
+}
+
+function NavBar() {
+  const { user, logout, isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  if (!user) return null;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  return (
+    <nav className="navbar">
+      <Link to="/" className="nav-brand">🐔 PoultryTrack</Link>
+      <div className="nav-links">
+        <Link to="/">Today</Link>
+        <Link to="/farms">Farms</Link>
+        <Link to="/reports/monthly">Monthly</Link>
+        <Link to="/reports/region">Region</Link>
+        <Link to="/reports/till-date">Till Date</Link>
+        {isAdmin && <Link to="/users">Users</Link>}
+        <span className="nav-user">
+          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
+          {user.first_name || user.username}
+        </span>
+        <button className="nav-logout" onClick={handleLogout}>Logout</button>
+      </div>
+    </nav>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <>
+      <NavBar />
+      <main className="main-content">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/farms" element={<ProtectedRoute><FarmsList /></ProtectedRoute>} />
+          <Route path="/farms/new" element={<ProtectedRoute><FarmForm /></ProtectedRoute>} />
+          <Route path="/farms/:id/edit" element={<ProtectedRoute><FarmForm /></ProtectedRoute>} />
+          <Route path="/farms/:id" element={<ProtectedRoute><FarmDetail /></ProtectedRoute>} />
+          <Route path="/flocks/:id" element={<ProtectedRoute><FlockDetail /></ProtectedRoute>} />
+          <Route path="/reports/monthly" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
+          <Route path="/reports/region" element={<ProtectedRoute><RegionPerformance /></ProtectedRoute>} />
+          <Route path="/reports/till-date" element={<ProtectedRoute><TillDateReport /></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+        </Routes>
+      </main>
+    </>
+  );
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <nav className="navbar">
-        <Link to="/" className="nav-brand">🐔 PoultryTrack</Link>
-        <div className="nav-links">
-          <Link to="/">Today</Link>
-          <Link to="/farms">Farms</Link>
-          <Link to="/reports/monthly">Monthly</Link>
-          <Link to="/reports/region">Region</Link>
-          <Link to="/reports/till-date">Till Date</Link>
-        </div>
-      </nav>
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/farms" element={<FarmsList />} />
-          <Route path="/farms/new" element={<FarmForm />} />
-          <Route path="/farms/:id/edit" element={<FarmForm />} />
-          <Route path="/farms/:id" element={<FarmDetail />} />
-          <Route path="/flocks/:id" element={<FlockDetail />} />
-          <Route path="/reports/monthly" element={<MonthlyReport />} />
-          <Route path="/reports/region" element={<RegionPerformance />} />
-          <Route path="/reports/till-date" element={<TillDateReport />} />
-        </Routes>
-      </main>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

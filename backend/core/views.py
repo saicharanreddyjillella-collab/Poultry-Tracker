@@ -1,24 +1,154 @@
-from rest_framework import viewsets
-from rest_framework.decorators import api_view
+from rest_framework import viewsets, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.db.models import Sum
+from django.contrib.auth.models import User
 from datetime import date
 from decimal import Decimal
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile
 from .serializers import (
     FarmSerializer, FlockSerializer, FlockListSerializer,
     DailyEntrySerializer, SaleSerializer, FeedRateSerializer,
     MedicationSerializer
 )
+from .permissions import IsAdmin, IsAdminOrReadOnly, CanEditFarm, CanEditFlock, CanEditFlockData
 
+
+# ─── AUTH VIEWS ───
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    from django.contrib.auth import authenticate
+    username = request.data.get('username', '')
+    password = request.data.get('password', '')
+    user = authenticate(username=username, password=password)
+    if user is None:
+        return Response({'error': 'Invalid credentials'}, status=400)
+    if not hasattr(user, 'profile'):
+        UserProfile.objects.create(user=user, role='admin')
+    from rest_framework_simplejwt.tokens import RefreshToken
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.profile.role,
+            'assigned_farm_ids': list(user.profile.assigned_farms.values_list('id', flat=True)),
+        }
+    })
+
+
+@api_view(['GET'])
+def me_view(request):
+    user = request.user
+    if not hasattr(user, 'profile'):
+        UserProfile.objects.create(user=user, role='admin')
+    return Response({
+        'id': user.id,
+        'username': user.username,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'role': user.profile.role,
+        'assigned_farm_ids': list(user.profile.assigned_farms.values_list('id', flat=True)),
+    })
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdmin])
+def manage_users(request):
+    if request.method == 'GET':
+        users = User.objects.select_related('profile').all()
+        data = []
+        for u in users:
+            profile = getattr(u, 'profile', None)
+            data.append({
+                'id': u.id,
+                'username': u.username,
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+                'is_active': u.is_active,
+                'role': profile.role if profile else 'admin',
+                'phone': profile.phone if profile else '',
+                'assigned_farm_ids': list(profile.assigned_farms.values_list('id', flat=True)) if profile else [],
+            })
+        return Response(data)
+
+    # POST — create user
+    username = request.data.get('username')
+    password = request.data.get('password')
+    first_name = request.data.get('first_name', '')
+    last_name = request.data.get('last_name', '')
+    role = request.data.get('role', 'supervisor')
+    phone = request.data.get('phone', '')
+    assigned_farm_ids = request.data.get('assigned_farm_ids', [])
+
+    if User.objects.filter(username=username).exists():
+        return Response({'error': 'Username already exists'}, status=400)
+
+    user = User.objects.create_user(username=username, password=password,
+                                     first_name=first_name, last_name=last_name)
+    profile = UserProfile.objects.create(user=user, role=role, phone=phone)
+    if assigned_farm_ids:
+        profile.assigned_farms.set(assigned_farm_ids)
+    return Response({'id': user.id, 'username': user.username}, status=201)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAdmin])
+def manage_user_detail(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+    if request.method == 'DELETE':
+        user.delete()
+        return Response(status=204)
+
+    # PUT — update
+    user.first_name = request.data.get('first_name', user.first_name)
+    user.last_name = request.data.get('last_name', user.last_name)
+    if request.data.get('password'):
+        user.set_password(request.data['password'])
+    user.is_active = request.data.get('is_active', user.is_active)
+    user.save()
+
+    if not hasattr(user, 'profile'):
+        UserProfile.objects.create(user=user)
+    user.profile.role = request.data.get('role', user.profile.role)
+    user.profile.phone = request.data.get('phone', user.profile.phone)
+    user.profile.save()
+    if 'assigned_farm_ids' in request.data:
+        user.profile.assigned_farms.set(request.data['assigned_farm_ids'])
+    return Response({'id': user.id, 'username': user.username})
+
+
+# ─── DATA VIEWSETS ───
 
 class FarmViewSet(viewsets.ModelViewSet):
     queryset = Farm.objects.all()
     serializer_class = FarmSerializer
+    permission_classes = [IsAuthenticated, CanEditFarm]
+
+    def perform_create(self, serializer):
+        # Supervisors can only create farms (admin always can)
+        if not self.request.user.profile.is_admin:
+            # Supervisor can create, farm gets auto-assigned to them
+            farm = serializer.save()
+            self.request.user.profile.assigned_farms.add(farm)
+        else:
+            serializer.save()
 
 
 class FlockViewSet(viewsets.ModelViewSet):
     queryset = Flock.objects.select_related('farm').all()
+    permission_classes = [IsAuthenticated, CanEditFlock]
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -26,6 +156,13 @@ class FlockViewSet(viewsets.ModelViewSet):
         return FlockListSerializer
 
     def perform_create(self, serializer):
+        # Check farm permission
+        farm_id = self.request.data.get('farm')
+        if farm_id:
+            farm = Farm.objects.get(id=farm_id)
+            if not self.request.user.profile.can_edit_farm(farm):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('You do not have permission to add flocks to this farm.')
         instance = serializer.save()
         try:
             instance.full_clean()
@@ -38,6 +175,7 @@ class FlockViewSet(viewsets.ModelViewSet):
 class DailyEntryViewSet(viewsets.ModelViewSet):
     queryset = DailyEntry.objects.select_related('flock', 'flock__farm').all()
     serializer_class = DailyEntrySerializer
+    permission_classes = [IsAuthenticated, CanEditFlockData]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -67,6 +205,7 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.select_related('flock', 'flock__farm').all()
     serializer_class = SaleSerializer
+    permission_classes = [IsAuthenticated, CanEditFlockData]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -79,11 +218,13 @@ class SaleViewSet(viewsets.ModelViewSet):
 class FeedRateViewSet(viewsets.ModelViewSet):
     queryset = FeedRate.objects.all()
     serializer_class = FeedRateSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
 
 
 class MedicationViewSet(viewsets.ModelViewSet):
     queryset = Medication.objects.all()
     serializer_class = MedicationSerializer
+    permission_classes = [IsAuthenticated, CanEditFlockData]
 
     def get_queryset(self):
         qs = super().get_queryset()

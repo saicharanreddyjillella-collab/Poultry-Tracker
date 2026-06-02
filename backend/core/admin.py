@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'role', 'phone')
+    filter_horizontal = ('assigned_farms',)
 
 @admin.register(Farm)
 class FarmAdmin(admin.ModelAdmin):
