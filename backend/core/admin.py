@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile, FeedOrder
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
@@ -29,3 +29,7 @@ class FeedRateAdmin(admin.ModelAdmin):
 @admin.register(Medication)
 class MedicationAdmin(admin.ModelAdmin):
     list_display = ('flock', 'date', 'name', 'dose')
+
+@admin.register(FeedOrder)
+class FeedOrderAdmin(admin.ModelAdmin):
+    list_display = ('farm', 'feed_type', 'quantity_bags', 'status', 'ordered_by', 'order_date')

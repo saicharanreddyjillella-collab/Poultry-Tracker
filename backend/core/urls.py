@@ -9,6 +9,7 @@ router.register(r'daily-entries', views.DailyEntryViewSet)
 router.register(r'sales', views.SaleViewSet)
 router.register(r'feed-rates', views.FeedRateViewSet)
 router.register(r'medications', views.MedicationViewSet)
+router.register(r'feed-orders', views.FeedOrderViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -24,4 +25,8 @@ urlpatterns = [
     path('reports/monthly/export/', views.export_monthly_report),
     path('reports/region/', views.region_performance),
     path('flocks/<int:flock_id>/export/', views.export_flock_report),
+    path('feed-orders/<int:order_id>/mark-sent/', views.mark_order_sent),
+    path('feed-orders/<int:order_id>/mark-delivered/', views.mark_order_delivered),
+    path('feed-orders/<int:order_id>/cancel/', views.cancel_order),
+    path('feed-stock/', views.feed_stock),
 ]

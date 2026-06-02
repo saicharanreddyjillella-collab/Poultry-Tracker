@@ -74,6 +74,18 @@ export const feedRateAPI = {
   delete: (id) => API.delete(`/feed-rates/${id}/`),
 };
 
+export const feedOrderAPI = {
+  list: (params) => API.get('/feed-orders/', { params }),
+  create: (data) => API.post('/feed-orders/', data),
+  markSent: (id) => API.post(`/feed-orders/${id}/mark-sent/`),
+  markDelivered: (id) => API.post(`/feed-orders/${id}/mark-delivered/`),
+  cancel: (id) => API.post(`/feed-orders/${id}/cancel/`),
+};
+
+export const feedStockAPI = {
+  list: (farmId) => API.get(`/feed-stock/${farmId ? `?farm=${farmId}` : ''}`),
+};
+
 export const medicationAPI = {
   list: (flockId) => API.get(`/medications/?flock=${flockId}`),
   create: (data) => API.post('/medications/', data),

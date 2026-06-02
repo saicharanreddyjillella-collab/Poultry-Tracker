@@ -301,6 +301,41 @@ tbody tr:hover { background: #fafaf8; }
 .weight-below { background: #fdecea; color: var(--danger); }
 .text-muted-cell { color: var(--text-muted); font-size: 0.8rem; }
 
+/* Feed stock & orders */
+.text-warning { color: #e67e22; font-weight: 600; }
+.order-pending-badge {
+  display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+  font-size: 0.75rem; font-weight: 600; background: #fff3cd; color: #856404;
+}
+.order-status {
+  display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.order-status-pending { background: #fff3cd; color: #856404; }
+.order-status-sent { background: #d4e6f1; color: #1a5276; }
+.order-status-delivered { background: #d5f5e3; color: #196f3d; }
+.order-status-cancelled { background: #f5f5f5; color: #999; }
+.order-filters { display: flex; gap: 0.25rem; }
+.order-filter-btn {
+  padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.8rem; cursor: pointer; background: var(--surface); font-family: inherit;
+  transition: background 0.15s;
+}
+.order-filter-btn:hover { background: var(--bg); }
+.order-filter-active { background: var(--primary); color: white; border-color: var(--primary); }
+.order-actions { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.btn-action {
+  padding: 0.25rem 0.5rem; border: none; border-radius: 4px;
+  font-size: 0.75rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  white-space: nowrap;
+}
+.btn-action-send { background: #d4e6f1; color: #1a5276; }
+.btn-action-send:hover { background: #aed6f1; }
+.btn-action-deliver { background: #d5f5e3; color: #196f3d; }
+.btn-action-deliver:hover { background: #a9dfbf; }
+.btn-action-cancel { background: #f5f5f5; color: #999; }
+.btn-action-cancel:hover { background: #e0e0e0; color: #666; }
+
 /* Mobile */
 @media (max-width: 640px) {
   .navbar { padding: 0.75rem 1rem; }

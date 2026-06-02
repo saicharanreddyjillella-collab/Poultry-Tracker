@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
@@ -93,3 +93,18 @@ class FarmSerializer(serializers.ModelSerializer):
     def get_closed_flocks(self, obj):
         flocks = obj.flocks.filter(status='closed')
         return FlockListSerializer(flocks, many=True).data
+
+
+class FeedOrderSerializer(serializers.ModelSerializer):
+    farm_name = serializers.CharField(source='farm.name', read_only=True)
+    farm_code = serializers.CharField(source='farm.farm_code', read_only=True)
+    ordered_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FeedOrder
+        fields = '__all__'
+
+    def get_ordered_by_name(self, obj):
+        if obj.ordered_by:
+            return f"{obj.ordered_by.first_name} {obj.ordered_by.last_name}".strip() or obj.ordered_by.username
+        return ''

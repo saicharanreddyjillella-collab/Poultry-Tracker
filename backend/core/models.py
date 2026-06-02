@@ -323,3 +323,27 @@ class Medication(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.date}"
+
+
+class FeedOrder(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('delivered', 'Delivered'),
+        ('cancelled', 'Cancelled'),
+    ]
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_orders')
+    feed_type = models.CharField(max_length=10, choices=FEED_TYPES)
+    quantity_bags = models.DecimalField(max_digits=10, decimal_places=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    ordered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='feed_orders')
+    order_date = models.DateTimeField(auto_now_add=True)
+    sent_date = models.DateTimeField(null=True, blank=True)
+    delivered_date = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-order_date']
+
+    def __str__(self):
+        return f"{self.farm.farm_code} - {self.feed_type} x{self.quantity_bags} bags ({self.status})"

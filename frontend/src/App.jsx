@@ -11,6 +11,7 @@ import TillDateReport from './pages/TillDateReport';
 import RegionPerformance from './pages/RegionPerformance';
 import UserManagement from './pages/UserManagement';
 import ChangePassword from './pages/ChangePassword';
+import FeedStock from './pages/FeedStock';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -37,6 +38,7 @@ function NavBar() {
       <div className="nav-links">
         <Link to="/">Today</Link>
         <Link to="/farms">Farms</Link>
+        <Link to="/feed">Feed</Link>
         <Link to="/reports/monthly">Monthly</Link>
         <Link to="/reports/region">Region</Link>
         <Link to="/reports/till-date">Till Date</Link>
@@ -68,6 +70,7 @@ function AppRoutes() {
           <Route path="/farms/new" element={<ProtectedRoute><FarmForm /></ProtectedRoute>} />
           <Route path="/farms/:id/edit" element={<ProtectedRoute><FarmForm /></ProtectedRoute>} />
           <Route path="/farms/:id" element={<ProtectedRoute><FarmDetail /></ProtectedRoute>} />
+          <Route path="/feed" element={<ProtectedRoute><FeedStock /></ProtectedRoute>} />
           <Route path="/flocks/:id" element={<ProtectedRoute><FlockDetail /></ProtectedRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
           <Route path="/reports/region" element={<ProtectedRoute><RegionPerformance /></ProtectedRoute>} />
