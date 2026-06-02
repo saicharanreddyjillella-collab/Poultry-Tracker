@@ -63,6 +63,7 @@ export default function FarmDetail() {
           <div className="farm-details-grid">
             <div><span className="detail-label">Farm Code</span><span className="detail-value">{farm.farm_code}</span></div>
             <div><span className="detail-label">Owner</span><span className="detail-value">{farm.owner_name}</span></div>
+            <div><span className="detail-label">Region</span><span className="detail-value">{farm.region || '—'}</span></div>
             <div><span className="detail-label">Location</span><span className="detail-value">{farm.location || '—'}</span></div>
             <div><span className="detail-label">Houses</span><span className="detail-value">{farm.house_count}</span></div>
             <div><span className="detail-label">Total Batches</span><span className="detail-value">{activeFlocks.length + closedFlocks.length}</span></div>

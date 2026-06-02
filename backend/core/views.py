@@ -461,3 +461,89 @@ def farm_cumulative(request, farm_id):
         'total_feed_cost': round(total_feed_cost, 2),
         'cost_per_kg_production': cost_per_kg,
     })
+
+
+@api_view(['GET'])
+def region_performance(request):
+    """
+    Performance metrics grouped by region.
+    Optional: ?region=XYZ to filter one region.
+    """
+    region_filter = request.query_params.get('region')
+    BAG_KG = 50
+
+    farms_qs = Farm.objects.all()
+    if region_filter:
+        farms_qs = farms_qs.filter(region=region_filter)
+
+    # Get all distinct regions
+    all_regions = list(Farm.objects.exclude(region='').values_list('region', flat=True).distinct().order_by('region'))
+
+    # Build per-region data
+    regions_data = []
+    latest_rates = get_latest_feed_rates()
+
+    region_list = [region_filter] if region_filter else all_regions
+    if not region_filter and farms_qs.filter(region='').exists():
+        region_list.append('')  # include unassigned
+
+    for region in region_list:
+        r_farms = farms_qs.filter(region=region)
+        r_flocks = Flock.objects.filter(farm__in=r_farms)
+        r_closed = r_flocks.filter(status='closed')
+        r_active = r_flocks.filter(status='active')
+
+        birds_placed = r_flocks.aggregate(t=Sum('chick_count'))['t'] or 0
+        mortality = DailyEntry.objects.filter(flock__in=r_flocks).aggregate(t=Sum('mortality_count'))['t'] or 0
+
+        sold_birds = Sale.objects.filter(flock__in=r_flocks).aggregate(t=Sum('bird_count'))['t'] or 0
+        sold_weight = float(Sale.objects.filter(flock__in=r_flocks).aggregate(t=Sum('total_weight_kg'))['t'] or 0)
+
+        sale_amount = 0
+        for s in Sale.objects.filter(flock__in=r_flocks, rate_per_kg__isnull=False):
+            sale_amount += float(s.total_weight_kg) * float(s.rate_per_kg)
+
+        feed_agg = DailyEntry.objects.filter(flock__in=r_flocks).aggregate(
+            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
+        )
+        bpsc_kg = float(feed_agg['bpsc'] or 0) * BAG_KG
+        bsc_kg = float(feed_agg['bsc'] or 0) * BAG_KG
+        bfp_kg = float(feed_agg['bfp'] or 0) * BAG_KG
+        total_feed_kg = bpsc_kg + bsc_kg + bfp_kg
+
+        fcr = round(total_feed_kg / sold_weight, 3) if sold_weight > 0 else None
+
+        feed_cost = (
+            bpsc_kg * latest_rates.get('BPSC', 0) +
+            bsc_kg * latest_rates.get('BSC', 0) +
+            bfp_kg * latest_rates.get('BFP', 0)
+        )
+        cost_per_kg = round(feed_cost / sold_weight, 2) if sold_weight > 0 else None
+        avg_bird_wt = round(sold_weight / sold_birds, 3) if sold_birds > 0 else None
+
+        live_birds = sum(f.live_birds for f in r_active)
+
+        regions_data.append({
+            'region': region or 'Unassigned',
+            'farm_count': r_farms.count(),
+            'active_flocks': r_active.count(),
+            'closed_flocks': r_closed.count(),
+            'live_birds': live_birds,
+            'total_birds_placed': birds_placed,
+            'total_mortality': mortality,
+            'mortality_pct': round((mortality / birds_placed) * 100, 2) if birds_placed else 0,
+            'total_sold_birds': sold_birds,
+            'total_sold_weight_kg': round(sold_weight, 2),
+            'avg_bird_weight_kg': avg_bird_wt,
+            'total_sale_amount': round(sale_amount, 2),
+            'total_feed_kg': round(total_feed_kg, 2),
+            'total_feed_bags': round(total_feed_kg / BAG_KG, 2),
+            'fcr': fcr,
+            'total_feed_cost': round(feed_cost, 2),
+            'cost_per_kg_production': cost_per_kg,
+        })
+
+    return Response({
+        'regions': all_regions,
+        'data': regions_data,
+    })

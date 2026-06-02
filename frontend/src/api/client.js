@@ -53,6 +53,7 @@ export const dashboardAPI = {
 
 export const reportAPI = {
   monthly: (year, month) => API.get(`/reports/monthly/?year=${year}&month=${month}`),
+  region: (region) => API.get(`/reports/region/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
 };
 
 export default API;

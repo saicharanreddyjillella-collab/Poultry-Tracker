@@ -286,3 +286,15 @@ tbody tr:hover { background: #fafaf8; }
   background: var(--bg); color: var(--text-muted);
 }
 
+/* Region comparison */
+.region-compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.region-compare-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.25rem; box-shadow: var(--shadow);
+}
+.region-compare-card h3 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+.region-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+.region-metric { display: flex; flex-direction: column; }
+.region-metric-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.region-metric-value { font-size: 1.25rem; font-weight: 700; }
+

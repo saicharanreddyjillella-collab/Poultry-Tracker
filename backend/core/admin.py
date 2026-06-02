@@ -3,7 +3,7 @@ from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
 
 @admin.register(Farm)
 class FarmAdmin(admin.ModelAdmin):
-    list_display = ('farm_code', 'name', 'owner_name', 'location', 'house_count')
+    list_display = ('farm_code', 'name', 'owner_name', 'region', 'location', 'house_count')
 
 @admin.register(Flock)
 class FlockAdmin(admin.ModelAdmin):

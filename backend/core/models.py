@@ -14,6 +14,7 @@ class Farm(models.Model):
     farm_code = models.CharField(max_length=50, unique=True, default='', help_text="Unique farm code given by user")
     name = models.CharField(max_length=200)
     owner_name = models.CharField(max_length=200)
+    region = models.CharField(max_length=200, blank=True, help_text="Region/area for grouping farms")
     location = models.CharField(max_length=300, blank=True)
     house_count = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)

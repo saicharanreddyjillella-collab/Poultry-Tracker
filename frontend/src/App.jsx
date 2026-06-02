@@ -6,6 +6,7 @@ import FarmDetail from './pages/FarmDetail';
 import FlockDetail from './pages/FlockDetail';
 import MonthlyReport from './pages/MonthlyReport';
 import TillDateReport from './pages/TillDateReport';
+import RegionPerformance from './pages/RegionPerformance';
 import './App.css';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Link to="/">Today</Link>
           <Link to="/farms">Farms</Link>
           <Link to="/reports/monthly">Monthly</Link>
+          <Link to="/reports/region">Region</Link>
           <Link to="/reports/till-date">Till Date</Link>
         </div>
       </nav>
@@ -29,6 +31,7 @@ function App() {
           <Route path="/farms/:id" element={<FarmDetail />} />
           <Route path="/flocks/:id" element={<FlockDetail />} />
           <Route path="/reports/monthly" element={<MonthlyReport />} />
+          <Route path="/reports/region" element={<RegionPerformance />} />
           <Route path="/reports/till-date" element={<TillDateReport />} />
         </Routes>
       </main>

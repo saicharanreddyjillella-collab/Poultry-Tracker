@@ -20,6 +20,7 @@ export default function FarmsList() {
       f.farm_code.toLowerCase().includes(q) ||
       f.name.toLowerCase().includes(q) ||
       f.owner_name.toLowerCase().includes(q) ||
+      (f.region || '').toLowerCase().includes(q) ||
       (f.location || '').toLowerCase().includes(q)
     );
   });
@@ -60,7 +61,7 @@ export default function FarmsList() {
                 <span className="farm-code-badge">{farm.farm_code}</span>
                 <h3>{farm.name}</h3>
               </div>
-              <p className="farm-meta">{farm.owner_name} &middot; {farm.location}</p>
+              <p className="farm-meta">{farm.owner_name} &middot; {farm.region ? `${farm.region} · ` : ''}{farm.location}</p>
               {farm.active_flocks.length > 0 ? (
                 <div className="flock-summary">
                   {farm.active_flocks.map(f => (

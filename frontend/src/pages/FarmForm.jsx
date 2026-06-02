@@ -9,7 +9,7 @@ export default function FarmForm() {
   const [error, setError] = useState('');
 
   const [form, setForm] = useState({
-    farm_code: '', name: '', owner_name: '', location: '', house_count: 1,
+    farm_code: '', name: '', owner_name: '', region: '', location: '', house_count: 1,
   });
 
   useEffect(() => {
@@ -61,8 +61,13 @@ export default function FarmForm() {
         </div>
         <div className="form-row">
           <div className="form-group">
+            <label>Region</label>
+            <input value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} placeholder="e.g. Medchal, Ranga Reddy, North" />
+            <small className="field-hint">Used for grouping farms in region reports</small>
+          </div>
+          <div className="form-group">
             <label>Location</label>
-            <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. Medchal, Hyderabad" />
+            <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. Village name, landmark" />
           </div>
           <div className="form-group">
             <label>Number of Houses</label>
