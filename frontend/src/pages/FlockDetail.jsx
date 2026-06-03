@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI } from '../api/client';
+import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 
 export default function FlockDetail() {
@@ -8,9 +8,11 @@ export default function FlockDetail() {
   const navigate = useNavigate();
   const [flock, setFlock] = useState(null);
   const [cumulative, setCumulative] = useState(null);
+  const [farmStock, setFarmStock] = useState(null);
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [showMedForm, setShowMedForm] = useState(false);
+  const [showFeedOrderForm, setShowFeedOrderForm] = useState(false);
   const [entryForm, setEntryForm] = useState({
     date: new Date().toISOString().split('T')[0],
     mortality_count: '', feed_bpsc_bags: '', feed_bsc_bags: '', feed_bfp_bags: '',
@@ -24,12 +26,18 @@ export default function FlockDetail() {
     date: new Date().toISOString().split('T')[0],
     name: '', dose: '', route: '', cost: '', reason: '',
   });
+  const [feedOrderForm, setFeedOrderForm] = useState({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
   const [error, setError] = useState('');
 
   const load = async () => {
     const [flockRes, cumRes] = await Promise.all([flockAPI.get(id), flockAPI.cumulative(id)]);
     setFlock(flockRes.data);
     setCumulative(cumRes.data);
+    // Load farm stock
+    try {
+      const stockRes = await feedStockAPI.list(flockRes.data.farm);
+      if (stockRes.data.length > 0) setFarmStock(stockRes.data[0]);
+    } catch {}
   };
 
   useEffect(() => { load(); }, [id]);
@@ -83,6 +91,21 @@ export default function FlockDetail() {
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
 
+  const handleFeedOrder = async (e) => {
+    e.preventDefault(); setError('');
+    try {
+      await feedOrderAPI.create({
+        farm: flock.farm,
+        feed_type: feedOrderForm.feed_type,
+        quantity_bags: parseFloat(feedOrderForm.quantity_bags),
+        notes: feedOrderForm.notes,
+      });
+      setShowFeedOrderForm(false);
+      setFeedOrderForm({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
+      load();
+    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+  };
+
   const exportFlock = () => {
     window.open(`http://localhost:8000/api/flocks/${id}/export/`, '_blank');
   };
@@ -101,9 +124,10 @@ export default function FlockDetail() {
           <p className="farm-meta">Placed: {flock.placement_date} &middot; Day {flock.age_days} &middot; {flock.chick_count.toLocaleString()} chicks</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); setShowMedForm(false); }}>+ Daily Entry</button>
-          <button className="btn btn-secondary" onClick={() => { setShowSaleForm(!showSaleForm); setShowEntryForm(false); setShowMedForm(false); }}>+ Sale</button>
-          <button className="btn btn-secondary" onClick={() => { setShowMedForm(!showMedForm); setShowEntryForm(false); setShowSaleForm(false); }}>+ Medicine</button>
+          <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); setShowMedForm(false); setShowFeedOrderForm(false); }}>+ Daily Entry</button>
+          <button className="btn btn-secondary" onClick={() => { setShowSaleForm(!showSaleForm); setShowEntryForm(false); setShowMedForm(false); setShowFeedOrderForm(false); }}>+ Sale</button>
+          <button className="btn btn-secondary" onClick={() => { setShowMedForm(!showMedForm); setShowEntryForm(false); setShowSaleForm(false); setShowFeedOrderForm(false); }}>+ Medicine</button>
+          <button className="btn btn-secondary" onClick={() => { setShowFeedOrderForm(!showFeedOrderForm); setShowEntryForm(false); setShowSaleForm(false); setShowMedForm(false); }}>+ Order Feed</button>
           <button className="btn btn-secondary" onClick={exportFlock}>Export</button>
           {flock.status === 'active' && (
             <button className="btn btn-danger" onClick={async () => {
@@ -232,6 +256,55 @@ export default function FlockDetail() {
             <button type="submit" className="btn btn-primary">Save</button>
           </div>
         </form>
+      )}
+
+      {/* Feed Order Form */}
+      {showFeedOrderForm && (
+        <form onSubmit={handleFeedOrder} className="form-card" style={{ margin: '1.5rem 0' }}>
+          <h3>Order Feed for {flock.farm_name}</h3>
+          {farmStock && (
+            <div className="stock-inline">
+              Current stock:
+              <span className={`feed-badge feed-badge-bpsc`}>BPSC: {farmStock.stock.bpsc} bags</span>
+              <span className={`feed-badge feed-badge-bsc`}>BSC: {farmStock.stock.bsc} bags</span>
+              <span className={`feed-badge feed-badge-bfp`}>BFP: {farmStock.stock.bfp} bags</span>
+            </div>
+          )}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Feed Type *</label>
+              <select value={feedOrderForm.feed_type} onChange={e => setFeedOrderForm({ ...feedOrderForm, feed_type: e.target.value })}>
+                <option value="BPSC">BPSC (Pre-Starter)</option>
+                <option value="BSC">BSC (Starter)</option>
+                <option value="BFP">BFP (Finisher)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Quantity (bags) *</label>
+              <input type="number" step="0.5" min="0.5" value={feedOrderForm.quantity_bags} onChange={e => setFeedOrderForm({ ...feedOrderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
+              <small className="field-hint">1 bag = 50 kg</small>
+            </div>
+            <div className="form-group">
+              <label>Notes</label>
+              <input value={feedOrderForm.notes} onChange={e => setFeedOrderForm({ ...feedOrderForm, notes: e.target.value })} placeholder="Optional" />
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowFeedOrderForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Place Order</button>
+          </div>
+        </form>
+      )}
+
+      {/* Farm Feed Stock */}
+      {farmStock && (
+        <div className="farm-stock-bar">
+          <strong>Feed Stock at Farm:</strong>
+          <span className={`feed-badge feed-badge-bpsc ${farmStock.stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {farmStock.stock.bpsc} bags</span>
+          <span className={`feed-badge feed-badge-bsc ${farmStock.stock.bsc <= 2 ? 'stock-low' : ''}`}>BSC: {farmStock.stock.bsc} bags</span>
+          <span className={`feed-badge feed-badge-bfp ${farmStock.stock.bfp <= 2 ? 'stock-low' : ''}`}>BFP: {farmStock.stock.bfp} bags</span>
+          <span>Total: {farmStock.stock.total} bags</span>
+        </div>
       )}
 
       {/* Charts */}
