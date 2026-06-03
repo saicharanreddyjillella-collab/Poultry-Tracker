@@ -88,7 +88,7 @@ export default function FarmDetail() {
             </div>
             <div className="form-group">
               <label>Chicks Placed *</label>
-              <input type="number" min="1" value={flockForm.chick_count} onChange={e => setFlockForm({ ...flockForm, chick_count: e.target.value })} required placeholder={`${Math.floor(farm.capacity * 0.95)} — ${Math.floor(farm.capacity * 1.05)}`} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={flockForm.chick_count} onChange={e => setFlockForm({ ...flockForm, chick_count: e.target.value })} required />
               <small className="field-hint">Farm capacity: {farm.capacity?.toLocaleString()} (±5%: {Math.floor(farm.capacity * 0.95).toLocaleString()} — {Math.floor(farm.capacity * 1.05).toLocaleString()})</small>
             </div>
           </div>

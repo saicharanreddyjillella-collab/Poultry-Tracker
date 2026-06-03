@@ -126,7 +126,7 @@ export default function FeedStock() {
             </div>
             <div className="form-group">
               <label>Quantity (bags) *</label>
-              <input type="number" step="1" min="1" value={orderForm.quantity_bags} onChange={e => setOrderForm({ ...orderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" min="1" value={orderForm.quantity_bags} onChange={e => setOrderForm({ ...orderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
             </div>
           </div>
           <div className="form-group">

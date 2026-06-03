@@ -187,16 +187,16 @@ export default function FlockDetail() {
           <h3>Add Daily Entry</h3>
           <div className="form-row">
             <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required /></div>
-            <div className="form-group"><label>Mortality</label><input type="number" min="0" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Mortality</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>BPSC (bags)</label><input type="number" step="1" min="0" value={entryForm.feed_bpsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bpsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
-            <div className="form-group"><label>BSC (bags)</label><input type="number" step="1" min="0" value={entryForm.feed_bsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
-            <div className="form-group"><label>BFP (bags)</label><input type="number" step="1" min="0" value={entryForm.feed_bfp_bags} onChange={e => setEntryForm({ ...entryForm, feed_bfp_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BPSC (bags)</label><input type="text" inputMode="numeric" pattern="[0-9]*" min="0" value={entryForm.feed_bpsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bpsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BSC (bags)</label><input type="text" inputMode="numeric" pattern="[0-9]*" min="0" value={entryForm.feed_bsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BFP (bags)</label><input type="text" inputMode="numeric" pattern="[0-9]*" min="0" value={entryForm.feed_bfp_bags} onChange={e => setEntryForm({ ...entryForm, feed_bfp_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>Water (L)</label><input type="number" step="0.01" min="0" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
-            <div className="form-group"><label>Body Weight (g)</label><input type="number" step="0.01" min="0" value={entryForm.avg_body_weight_grams} onChange={e => setEntryForm({ ...entryForm, avg_body_weight_grams: e.target.value })} placeholder="Optional" /></div>
+            <div className="form-group"><label>Water (L)</label><input type="text" inputMode="decimal" min="0" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Body Weight (g)</label><input type="text" inputMode="decimal" min="0" value={entryForm.avg_body_weight_grams} onChange={e => setEntryForm({ ...entryForm, avg_body_weight_grams: e.target.value })} placeholder="Optional" /></div>
             <div className="form-group"><label>Notes</label><input value={entryForm.notes} onChange={e => setEntryForm({ ...entryForm, notes: e.target.value })} /></div>
           </div>
           <div className="form-actions">
@@ -212,11 +212,11 @@ export default function FlockDetail() {
           <h3>Record Sale / Lifting</h3>
           <div className="form-row">
             <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required /></div>
-            <div className="form-group"><label>Birds *</label><input type="number" min="1" value={saleForm.bird_count} onChange={e => setSaleForm({ ...saleForm, bird_count: e.target.value })} required /></div>
-            <div className="form-group"><label>Total Weight (kg) *</label><input type="number" step="0.01" min="0" value={saleForm.total_weight_kg} onChange={e => setSaleForm({ ...saleForm, total_weight_kg: e.target.value })} required /></div>
+            <div className="form-group"><label>Birds *</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={saleForm.bird_count} onChange={e => setSaleForm({ ...saleForm, bird_count: e.target.value })} required /></div>
+            <div className="form-group"><label>Total Weight (kg) *</label><input type="text" inputMode="decimal" min="0" value={saleForm.total_weight_kg} onChange={e => setSaleForm({ ...saleForm, total_weight_kg: e.target.value })} required /></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>Rate (₹/kg)</label><input type="number" step="0.01" min="0" value={saleForm.rate_per_kg} onChange={e => setSaleForm({ ...saleForm, rate_per_kg: e.target.value })} /></div>
+            <div className="form-group"><label>Rate (₹/kg)</label><input type="text" inputMode="decimal" min="0" value={saleForm.rate_per_kg} onChange={e => setSaleForm({ ...saleForm, rate_per_kg: e.target.value })} /></div>
             <div className="form-group"><label>Notes</label><input value={saleForm.notes} onChange={e => setSaleForm({ ...saleForm, notes: e.target.value })} /></div>
           </div>
           <div className="form-actions">
@@ -248,7 +248,7 @@ export default function FlockDetail() {
                 <option value="other">Other</option>
               </select>
             </div>
-            <div className="form-group"><label>Cost (₹)</label><input type="number" step="0.01" min="0" value={medForm.cost} onChange={e => setMedForm({ ...medForm, cost: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Cost (₹)</label><input type="text" inputMode="decimal" min="0" value={medForm.cost} onChange={e => setMedForm({ ...medForm, cost: e.target.value })} placeholder="0" /></div>
             <div className="form-group"><label>Reason</label><input value={medForm.reason} onChange={e => setMedForm({ ...medForm, reason: e.target.value })} placeholder="e.g. Vaccination schedule, treatment" /></div>
           </div>
           <div className="form-actions">
@@ -281,7 +281,7 @@ export default function FlockDetail() {
             </div>
             <div className="form-group">
               <label>Quantity (bags) *</label>
-              <input type="number" step="1" min="1" value={feedOrderForm.quantity_bags} onChange={e => setFeedOrderForm({ ...feedOrderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" min="1" value={feedOrderForm.quantity_bags} onChange={e => setFeedOrderForm({ ...feedOrderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
               <small className="field-hint">1 bag = 50 kg</small>
             </div>
             <div className="form-group">

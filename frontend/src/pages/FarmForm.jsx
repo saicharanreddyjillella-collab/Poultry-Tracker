@@ -22,10 +22,11 @@ export default function FarmForm() {
     e.preventDefault();
     setError('');
     try {
+      const submitData = { ...form, capacity: parseInt(form.capacity) || 0 };
       if (isEdit) {
-        await farmAPI.update(id, form);
+        await farmAPI.update(id, submitData);
       } else {
-        await farmAPI.create(form);
+        await farmAPI.create(submitData);
       }
       navigate('/farms');
     } catch (err) {
@@ -78,7 +79,7 @@ export default function FarmForm() {
           </div>
           <div className="form-group">
             <label>Capacity (birds) *</label>
-            <input type="number" min="100" value={form.capacity} onChange={e => setForm({ ...form, capacity: parseInt(e.target.value) || 0 })} required placeholder="e.g. 5000" />
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.capacity} onChange={e => setForm({ ...form, capacity: e.target.value })} required placeholder="e.g. 5000" />
             <small className="field-hint">Max birds this farm can hold. Flock size must be within ±5%</small>
           </div>
         </div>
