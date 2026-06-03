@@ -2,6 +2,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
 :root {
   --bg: #f5f3f0;
   --surface: #ffffff;
