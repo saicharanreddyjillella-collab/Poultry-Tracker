@@ -175,6 +175,131 @@ export default function FlockDetail() {
         </div>
       </div>
 
+      {error && <div className="error-msg">{error}</div>}
+
+      {/* === ALL FORMS — appear right below buttons === */}
+
+      {/* Daily Entry Form */}
+      {showEntryForm && (
+        <form onSubmit={handleEntry} className="form-card" style={{ marginBottom: '1.5rem' }}>
+          <h3>{editingEntry ? 'Edit Daily Entry' : 'Add Daily Entry'}</h3>
+          <div className="form-row">
+            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} /></div>
+            <div className="form-group"><label>Mortality</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Feed Type</label>
+              <select value={entryForm.feed_type} onChange={e => setEntryForm({ ...entryForm, feed_type: e.target.value })}>
+                <option value="BPSC">BPSC (Pre-Starter)</option>
+                <option value="BSC">BSC (Starter)</option>
+                <option value="BFP">BFP (Finisher)</option>
+              </select>
+            </div>
+            <div className="form-group"><label>Bags</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.feed_bags} onChange={e => setEntryForm({ ...entryForm, feed_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label>Water (L)</label><input type="text" inputMode="decimal" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Body Weight (g)</label><input type="text" inputMode="decimal" value={entryForm.avg_body_weight_grams} onChange={e => setEntryForm({ ...entryForm, avg_body_weight_grams: e.target.value })} placeholder="Optional" /></div>
+            <div className="form-group"><label>Notes</label><input value={entryForm.notes} onChange={e => setEntryForm({ ...entryForm, notes: e.target.value })} /></div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => { setShowEntryForm(false); resetEntryForm(); }}>Cancel</button>
+            <button type="submit" className="btn btn-primary">{editingEntry ? 'Update' : 'Save'}</button>
+          </div>
+        </form>
+      )}
+
+      {/* Sale Form */}
+      {showSaleForm && (
+        <form onSubmit={handleSale} className="form-card" style={{ marginBottom: '1.5rem' }}>
+          <h3>Record Sale / Lifting</h3>
+          <div className="form-row">
+            <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required /></div>
+            <div className="form-group"><label>Birds *</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={saleForm.bird_count} onChange={e => setSaleForm({ ...saleForm, bird_count: e.target.value })} required /></div>
+            <div className="form-group"><label>Total Weight (kg) *</label><input type="text" inputMode="decimal" value={saleForm.total_weight_kg} onChange={e => setSaleForm({ ...saleForm, total_weight_kg: e.target.value })} required /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label>Rate (₹/kg)</label><input type="text" inputMode="decimal" value={saleForm.rate_per_kg} onChange={e => setSaleForm({ ...saleForm, rate_per_kg: e.target.value })} /></div>
+            <div className="form-group"><label>Notes</label><input value={saleForm.notes} onChange={e => setSaleForm({ ...saleForm, notes: e.target.value })} /></div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowSaleForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Save Sale</button>
+          </div>
+        </form>
+      )}
+
+      {/* Medication Form */}
+      {showMedForm && (
+        <form onSubmit={handleMed} className="form-card" style={{ marginBottom: '1.5rem' }}>
+          <h3>Add Medication / Vaccine</h3>
+          <div className="form-row">
+            <div className="form-group"><label>Date *</label><input type="date" value={medForm.date} onChange={e => setMedForm({ ...medForm, date: e.target.value })} required /></div>
+            <div className="form-group"><label>Medicine Name *</label><input value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} required placeholder="e.g. Lasota, Enrofloxacin" /></div>
+            <div className="form-group"><label>Dose</label><input value={medForm.dose} onChange={e => setMedForm({ ...medForm, dose: e.target.value })} placeholder="e.g. 1ml/L water" /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Route</label>
+              <select value={medForm.route} onChange={e => setMedForm({ ...medForm, route: e.target.value })}>
+                <option value="">Select...</option>
+                <option value="water">Drinking Water</option>
+                <option value="feed">Feed</option>
+                <option value="injection">Injection</option>
+                <option value="spray">Spray</option>
+                <option value="eye_drop">Eye Drop</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="form-group"><label>Cost (₹)</label><input type="text" inputMode="decimal" value={medForm.cost} onChange={e => setMedForm({ ...medForm, cost: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Reason</label><input value={medForm.reason} onChange={e => setMedForm({ ...medForm, reason: e.target.value })} placeholder="e.g. Vaccination schedule" /></div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowMedForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Save</button>
+          </div>
+        </form>
+      )}
+
+      {/* Feed Order Form */}
+      {showFeedOrderForm && (
+        <form onSubmit={handleFeedOrder} className="form-card" style={{ marginBottom: '1.5rem' }}>
+          <h3>Order Feed for {flock.farm_name}</h3>
+          {farmStock && (
+            <div className="stock-inline">
+              Current stock:
+              <span className="feed-badge feed-badge-bpsc">BPSC: {farmStock.stock.bpsc} bags</span>
+              <span className="feed-badge feed-badge-bsc">BSC: {farmStock.stock.bsc} bags</span>
+              <span className="feed-badge feed-badge-bfp">BFP: {farmStock.stock.bfp} bags</span>
+            </div>
+          )}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Feed Type *</label>
+              <select value={feedOrderForm.feed_type} onChange={e => setFeedOrderForm({ ...feedOrderForm, feed_type: e.target.value })}>
+                <option value="BPSC">BPSC (Pre-Starter)</option>
+                <option value="BSC">BSC (Starter)</option>
+                <option value="BFP">BFP (Finisher)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Quantity (bags) *</label>
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={feedOrderForm.quantity_bags} onChange={e => setFeedOrderForm({ ...feedOrderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
+              <small className="field-hint">1 bag = 50 kg</small>
+            </div>
+            <div className="form-group">
+              <label>Notes</label>
+              <input value={feedOrderForm.notes} onChange={e => setFeedOrderForm({ ...feedOrderForm, notes: e.target.value })} placeholder="Optional" />
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowFeedOrderForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Place Order</button>
+          </div>
+        </form>
+      )}
+
       {/* Stats */}
       <div className="stats-grid stats-grid-wide">
         <div className="stat-card"><span className="stat-label">Live Birds</span><span className="stat-value">{cumulative.live_birds.toLocaleString()}</span></div>
@@ -214,139 +339,6 @@ export default function FlockDetail() {
         </div>
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
-
-      {/* Daily Entry Form */}
-      {showEntryForm && (
-        <form onSubmit={handleEntry} className="form-card" style={{ margin: '1.5rem 0' }}>
-          <h3>{editingEntry ? 'Edit Daily Entry' : 'Add Daily Entry'}</h3>
-          <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} /></div>
-            <div className="form-group"><label>Mortality</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Feed Type</label>
-              <select value={entryForm.feed_type} onChange={e => setEntryForm({ ...entryForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
-              </select>
-            </div>
-            <div className="form-group"><label>Bags</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.feed_bags} onChange={e => setEntryForm({ ...entryForm, feed_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
-          </div>
-          <div className="form-row">
-            <div className="form-group"><label>Water (L)</label><input type="text" inputMode="decimal" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
-            <div className="form-group"><label>Body Weight (g)</label><input type="text" inputMode="decimal" value={entryForm.avg_body_weight_grams} onChange={e => setEntryForm({ ...entryForm, avg_body_weight_grams: e.target.value })} placeholder="Optional" /></div>
-            <div className="form-group"><label>Notes</label><input value={entryForm.notes} onChange={e => setEntryForm({ ...entryForm, notes: e.target.value })} /></div>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => { setShowEntryForm(false); resetEntryForm(); }}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{editingEntry ? 'Update' : 'Save'}</button>
-          </div>
-        </form>
-      )}
-
-      {/* Sale Form */}
-      {showSaleForm && (
-        <form onSubmit={handleSale} className="form-card" style={{ margin: '1.5rem 0' }}>
-          <h3>Record Sale / Lifting</h3>
-          <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required /></div>
-            <div className="form-group"><label>Birds *</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={saleForm.bird_count} onChange={e => setSaleForm({ ...saleForm, bird_count: e.target.value })} required /></div>
-            <div className="form-group"><label>Total Weight (kg) *</label><input type="text" inputMode="decimal" min="0" value={saleForm.total_weight_kg} onChange={e => setSaleForm({ ...saleForm, total_weight_kg: e.target.value })} required /></div>
-          </div>
-          <div className="form-row">
-            <div className="form-group"><label>Rate (₹/kg)</label><input type="text" inputMode="decimal" min="0" value={saleForm.rate_per_kg} onChange={e => setSaleForm({ ...saleForm, rate_per_kg: e.target.value })} /></div>
-            <div className="form-group"><label>Notes</label><input value={saleForm.notes} onChange={e => setSaleForm({ ...saleForm, notes: e.target.value })} /></div>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowSaleForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save Sale</button>
-          </div>
-        </form>
-      )}
-
-      {/* Medication Form */}
-      {showMedForm && (
-        <form onSubmit={handleMed} className="form-card" style={{ margin: '1.5rem 0' }}>
-          <h3>Add Medication / Vaccine</h3>
-          <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={medForm.date} onChange={e => setMedForm({ ...medForm, date: e.target.value })} required /></div>
-            <div className="form-group"><label>Medicine Name *</label><input value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} required placeholder="e.g. Lasota, Enrofloxacin" /></div>
-            <div className="form-group"><label>Dose</label><input value={medForm.dose} onChange={e => setMedForm({ ...medForm, dose: e.target.value })} placeholder="e.g. 1ml/L water" /></div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Route</label>
-              <select value={medForm.route} onChange={e => setMedForm({ ...medForm, route: e.target.value })}>
-                <option value="">Select...</option>
-                <option value="water">Drinking Water</option>
-                <option value="feed">Feed</option>
-                <option value="injection">Injection</option>
-                <option value="spray">Spray</option>
-                <option value="eye_drop">Eye Drop</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div className="form-group"><label>Cost (₹)</label><input type="text" inputMode="decimal" min="0" value={medForm.cost} onChange={e => setMedForm({ ...medForm, cost: e.target.value })} placeholder="0" /></div>
-            <div className="form-group"><label>Reason</label><input value={medForm.reason} onChange={e => setMedForm({ ...medForm, reason: e.target.value })} placeholder="e.g. Vaccination schedule, treatment" /></div>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowMedForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save</button>
-          </div>
-        </form>
-      )}
-
-      {/* Feed Order Form */}
-      {showFeedOrderForm && (
-        <form onSubmit={handleFeedOrder} className="form-card" style={{ margin: '1.5rem 0' }}>
-          <h3>Order Feed for {flock.farm_name}</h3>
-          {farmStock && (
-            <div className="stock-inline">
-              Current stock:
-              <span className={`feed-badge feed-badge-bpsc`}>BPSC: {farmStock.stock.bpsc} bags</span>
-              <span className={`feed-badge feed-badge-bsc`}>BSC: {farmStock.stock.bsc} bags</span>
-              <span className={`feed-badge feed-badge-bfp`}>BFP: {farmStock.stock.bfp} bags</span>
-            </div>
-          )}
-          <div className="form-row">
-            <div className="form-group">
-              <label>Feed Type *</label>
-              <select value={feedOrderForm.feed_type} onChange={e => setFeedOrderForm({ ...feedOrderForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Quantity (bags) *</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" min="1" value={feedOrderForm.quantity_bags} onChange={e => setFeedOrderForm({ ...feedOrderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
-              <small className="field-hint">1 bag = 50 kg</small>
-            </div>
-            <div className="form-group">
-              <label>Notes</label>
-              <input value={feedOrderForm.notes} onChange={e => setFeedOrderForm({ ...feedOrderForm, notes: e.target.value })} placeholder="Optional" />
-            </div>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowFeedOrderForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Place Order</button>
-          </div>
-        </form>
-      )}
-
-      {/* Farm Feed Stock */}
-      {farmStock && (
-        <div className="farm-stock-bar">
-          <strong>Feed Stock at Farm:</strong>
-          <span className={`feed-badge feed-badge-bpsc ${farmStock.stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {farmStock.stock.bpsc} bags</span>
-          <span className={`feed-badge feed-badge-bsc ${farmStock.stock.bsc <= 2 ? 'stock-low' : ''}`}>BSC: {farmStock.stock.bsc} bags</span>
-          <span className={`feed-badge feed-badge-bfp ${farmStock.stock.bfp <= 2 ? 'stock-low' : ''}`}>BFP: {farmStock.stock.bfp} bags</span>
-          <span>Total: {farmStock.stock.total} bags</span>
-        </div>
-      )}
 
       {/* Charts */}
       {cumulative.entries.length > 0 && (
