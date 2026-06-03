@@ -48,9 +48,9 @@ export default function FlockDetail() {
       await dailyEntryAPI.create({
         flock: id, date: entryForm.date,
         mortality_count: parseInt(entryForm.mortality_count) || 0,
-        feed_bpsc_bags: parseFloat(entryForm.feed_bpsc_bags) || 0,
-        feed_bsc_bags: parseFloat(entryForm.feed_bsc_bags) || 0,
-        feed_bfp_bags: parseFloat(entryForm.feed_bfp_bags) || 0,
+        feed_bpsc_bags: parseInt(entryForm.feed_bpsc_bags) || 0,
+        feed_bsc_bags: parseInt(entryForm.feed_bsc_bags) || 0,
+        feed_bfp_bags: parseInt(entryForm.feed_bfp_bags) || 0,
         water_consumed_liters: parseFloat(entryForm.water_consumed_liters) || 0,
         avg_body_weight_grams: entryForm.avg_body_weight_grams ? parseFloat(entryForm.avg_body_weight_grams) : null,
         notes: entryForm.notes,
@@ -97,7 +97,7 @@ export default function FlockDetail() {
       await feedOrderAPI.create({
         farm: flock.farm,
         feed_type: feedOrderForm.feed_type,
-        quantity_bags: parseFloat(feedOrderForm.quantity_bags),
+        quantity_bags: parseInt(feedOrderForm.quantity_bags),
         notes: feedOrderForm.notes,
       });
       setShowFeedOrderForm(false);
@@ -190,9 +190,9 @@ export default function FlockDetail() {
             <div className="form-group"><label>Mortality</label><input type="number" min="0" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>BPSC (bags)</label><input type="number" step="0.5" min="0" value={entryForm.feed_bpsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bpsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
-            <div className="form-group"><label>BSC (bags)</label><input type="number" step="0.5" min="0" value={entryForm.feed_bsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
-            <div className="form-group"><label>BFP (bags)</label><input type="number" step="0.5" min="0" value={entryForm.feed_bfp_bags} onChange={e => setEntryForm({ ...entryForm, feed_bfp_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BPSC (bags)</label><input type="number" step="1" min="0" value={entryForm.feed_bpsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bpsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BSC (bags)</label><input type="number" step="1" min="0" value={entryForm.feed_bsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group"><label>BFP (bags)</label><input type="number" step="1" min="0" value={entryForm.feed_bfp_bags} onChange={e => setEntryForm({ ...entryForm, feed_bfp_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
           </div>
           <div className="form-row">
             <div className="form-group"><label>Water (L)</label><input type="number" step="0.01" min="0" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
@@ -281,7 +281,7 @@ export default function FlockDetail() {
             </div>
             <div className="form-group">
               <label>Quantity (bags) *</label>
-              <input type="number" step="0.5" min="0.5" value={feedOrderForm.quantity_bags} onChange={e => setFeedOrderForm({ ...feedOrderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
+              <input type="number" step="1" min="1" value={feedOrderForm.quantity_bags} onChange={e => setFeedOrderForm({ ...feedOrderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
               <small className="field-hint">1 bag = 50 kg</small>
             </div>
             <div className="form-group">

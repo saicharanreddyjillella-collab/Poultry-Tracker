@@ -210,9 +210,9 @@ class DailyEntry(models.Model):
     BAG_WEIGHT_KG = 50
 
     # Feed by type (in bags — each bag = 50 kg)
-    feed_bpsc_bags = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BPSC (bags)")
-    feed_bsc_bags = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BSC (bags)")
-    feed_bfp_bags = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="BFP (bags)")
+    feed_bpsc_bags = models.PositiveIntegerField(default=0, verbose_name="BPSC (bags)")
+    feed_bsc_bags = models.PositiveIntegerField(default=0, verbose_name="BSC (bags)")
+    feed_bfp_bags = models.PositiveIntegerField(default=0, verbose_name="BFP (bags)")
 
     water_consumed_liters = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     avg_body_weight_grams = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -339,7 +339,7 @@ class FeedOrder(models.Model):
     ]
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_orders')
     feed_type = models.CharField(max_length=10, choices=FEED_TYPES)
-    quantity_bags = models.DecimalField(max_digits=10, decimal_places=1)
+    quantity_bags = models.PositiveIntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     ordered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='feed_orders')
     order_date = models.DateTimeField(auto_now_add=True)
