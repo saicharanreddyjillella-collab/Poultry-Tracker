@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { feedOrderAPI, feedStockAPI, farmAPI } from '../api/client';
+import { feedOrderAPI, feedStockAPI, feedRateAPI, farmAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function FeedStock() {
@@ -7,22 +7,27 @@ export default function FeedStock() {
   const [stock, setStock] = useState([]);
   const [orders, setOrders] = useState([]);
   const [farms, setFarms] = useState([]);
+  const [feedRates, setFeedRates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [showRateForm, setShowRateForm] = useState(false);
   const [orderForm, setOrderForm] = useState({ farm: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
-  const [filter, setFilter] = useState('all'); // all, pending, sent, delivered
+  const [rateForm, setRateForm] = useState({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
+  const [filter, setFilter] = useState('all');
   const [error, setError] = useState('');
 
   const load = async () => {
     try {
-      const [stockRes, ordersRes, farmsRes] = await Promise.all([
+      const [stockRes, ordersRes, farmsRes, ratesRes] = await Promise.all([
         feedStockAPI.list(),
         feedOrderAPI.list({ status: filter !== 'all' ? filter : undefined }),
         farmAPI.list(),
+        feedRateAPI.list(),
       ]);
       setStock(stockRes.data);
       setOrders(ordersRes.data);
       setFarms(farmsRes.data);
+      setFeedRates(ratesRes.data);
     } catch {}
     setLoading(false);
   };
@@ -30,8 +35,7 @@ export default function FeedStock() {
   useEffect(() => { load(); }, [filter]);
 
   const handleOrder = async (e) => {
-    e.preventDefault();
-    setError('');
+    e.preventDefault(); setError('');
     try {
       await feedOrderAPI.create({
         farm: parseInt(orderForm.farm),
@@ -42,9 +46,17 @@ export default function FeedStock() {
       setShowOrderForm(false);
       setOrderForm({ farm: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
       load();
-    } catch (err) {
-      setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed to place order');
-    }
+    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+  };
+
+  const handleRate = async (e) => {
+    e.preventDefault(); setError('');
+    try {
+      await feedRateAPI.create(rateForm);
+      setShowRateForm(false);
+      setRateForm({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
+      load();
+    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
 
   const handleAction = async (orderId, action) => {
@@ -53,12 +65,14 @@ export default function FeedStock() {
       else if (action === 'delivered') await feedOrderAPI.markDelivered(orderId);
       else if (action === 'cancel') await feedOrderAPI.cancel(orderId);
       load();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Action failed');
-    }
+    } catch (err) { alert(err.response?.data?.error || 'Action failed'); }
   };
 
   const fmtDec = (n) => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  // Get latest rate per type
+  const latestRates = {};
+  feedRates.forEach(r => { if (!latestRates[r.feed_type]) latestRates[r.feed_type] = r; });
 
   if (loading) return <div className="loading">Loading...</div>;
 
@@ -66,8 +80,126 @@ export default function FeedStock() {
     <div className="page">
       <div className="page-header">
         <h1>Feed Stock & Orders</h1>
-        {!isPlant && <button className="btn btn-primary" onClick={() => setShowOrderForm(!showOrderForm)}>+ Order Feed</button>}
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {!isPlant && <button className="btn btn-secondary" onClick={() => { setShowRateForm(!showRateForm); setShowOrderForm(false); }}>Update Rate</button>}
+          {!isPlant && <button className="btn btn-primary" onClick={() => { setShowOrderForm(!showOrderForm); setShowRateForm(false); }}>+ Order Feed</button>}
+        </div>
       </div>
+
+      {error && <div className="error-msg">{error}</div>}
+
+      {/* RATE FORM */}
+      {showRateForm && (
+        <form onSubmit={handleRate} className="form-card" style={{ marginBottom: '1.5rem' }}>
+          <h3>Update Feed Rate</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Week Start Date *</label>
+              <input type="date" value={rateForm.week_start_date} onChange={e => setRateForm({ ...rateForm, week_start_date: e.target.value })} required />
+            </div>
+            <div className="form-group">
+              <label>Feed Type *</label>
+              <select value={rateForm.feed_type} onChange={e => setRateForm({ ...rateForm, feed_type: e.target.value })}>
+                <option value="BPSC">BPSC (Pre-Starter)</option>
+                <option value="BSC">BSC (Starter)</option>
+                <option value="BFP">BFP (Finisher)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Rate per kg (₹) *</label>
+              <input type="text" inputMode="decimal" value={rateForm.rate_per_kg} onChange={e => setRateForm({ ...rateForm, rate_per_kg: e.target.value })} required placeholder="e.g. 32.50" />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <input value={rateForm.notes} onChange={e => setRateForm({ ...rateForm, notes: e.target.value })} placeholder="Optional" />
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowRateForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Save Rate</button>
+          </div>
+        </form>
+      )}
+
+      {/* ORDER FORM */}
+      {showOrderForm && (
+        <form onSubmit={handleOrder} className="form-card" style={{ marginBottom: '1.5rem' }}>
+          <h3>Place Feed Order</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Farm *</label>
+              <select value={orderForm.farm} onChange={e => setOrderForm({ ...orderForm, farm: e.target.value })} required>
+                <option value="">Select farm...</option>
+                {farms.map(f => (
+                  <option key={f.id} value={f.id}>{f.farm_code} — {f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Feed Type *</label>
+              <select value={orderForm.feed_type} onChange={e => setOrderForm({ ...orderForm, feed_type: e.target.value })}>
+                <option value="BPSC">BPSC (Pre-Starter)</option>
+                <option value="BSC">BSC (Starter)</option>
+                <option value="BFP">BFP (Finisher)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Quantity (bags) *</label>
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={orderForm.quantity_bags} onChange={e => setOrderForm({ ...orderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <input value={orderForm.notes} onChange={e => setOrderForm({ ...orderForm, notes: e.target.value })} placeholder="Optional" />
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowOrderForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Place Order</button>
+          </div>
+        </form>
+      )}
+
+      {/* CURRENT RATES */}
+      <h2 className="section-title">Current Feed Rates</h2>
+      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-card feed-card-bpsc">
+          <span className="stat-label">BPSC</span>
+          <span className="stat-value">{latestRates.BPSC ? `₹${latestRates.BPSC.rate_per_kg}/kg` : 'Not set'}</span>
+          {latestRates.BPSC && <span className="stat-sub">from {latestRates.BPSC.week_start_date}</span>}
+        </div>
+        <div className="stat-card feed-card-bsc">
+          <span className="stat-label">BSC</span>
+          <span className="stat-value">{latestRates.BSC ? `₹${latestRates.BSC.rate_per_kg}/kg` : 'Not set'}</span>
+          {latestRates.BSC && <span className="stat-sub">from {latestRates.BSC.week_start_date}</span>}
+        </div>
+        <div className="stat-card feed-card-bfp">
+          <span className="stat-label">BFP</span>
+          <span className="stat-value">{latestRates.BFP ? `₹${latestRates.BFP.rate_per_kg}/kg` : 'Not set'}</span>
+          {latestRates.BFP && <span className="stat-sub">from {latestRates.BFP.week_start_date}</span>}
+        </div>
+      </div>
+
+      {/* RATE HISTORY */}
+      {feedRates.length > 0 && (
+        <details className="feed-history" style={{ marginBottom: '1.5rem' }}>
+          <summary>Feed Rate History ({feedRates.length} entries)</summary>
+          <div className="table-wrapper" style={{ marginTop: '0.5rem' }}>
+            <table>
+              <thead><tr><th>Week Start</th><th>Type</th><th>Rate (₹/kg)</th><th>Notes</th></tr></thead>
+              <tbody>
+                {feedRates.map(r => (
+                  <tr key={r.id}>
+                    <td>{r.week_start_date}</td>
+                    <td><span className={`feed-badge feed-badge-${r.feed_type.toLowerCase()}`}>{r.feed_type}</span></td>
+                    <td>₹{r.rate_per_kg}</td>
+                    <td>{r.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
 
       {/* STOCK TABLE */}
       <h2 className="section-title">Current Stock (bags at farm)</h2>
@@ -76,9 +208,9 @@ export default function FeedStock() {
           <thead>
             <tr>
               <th>Farm</th>
-              <th className="stock-col-bpsc">BPSC</th>
-              <th className="stock-col-bsc">BSC</th>
-              <th className="stock-col-bfp">BFP</th>
+              <th>BPSC</th>
+              <th>BSC</th>
+              <th>BFP</th>
               <th>Total</th>
               <th>Pending Orders</th>
             </tr>
@@ -100,45 +232,6 @@ export default function FeedStock() {
           </tbody>
         </table>
       </div>
-
-      {/* ORDER FORM */}
-      {showOrderForm && (
-        <form onSubmit={handleOrder} className="form-card" style={{ marginBottom: '1.5rem' }}>
-          <h3>Place Feed Order</h3>
-          {error && <div className="error-msg">{error}</div>}
-          <div className="form-row">
-            <div className="form-group">
-              <label>Farm *</label>
-              <select value={orderForm.farm} onChange={e => setOrderForm({ ...orderForm, farm: e.target.value })} required>
-                <option value="">Select farm...</option>
-                {farms.map(f => (
-                  <option key={f.id} value={f.id}>{f.farm_code} — {f.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Feed Type *</label>
-              <select value={orderForm.feed_type} onChange={e => setOrderForm({ ...orderForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Quantity (bags) *</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" min="1" value={orderForm.quantity_bags} onChange={e => setOrderForm({ ...orderForm, quantity_bags: e.target.value })} required placeholder="e.g. 10" />
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Notes</label>
-            <input value={orderForm.notes} onChange={e => setOrderForm({ ...orderForm, notes: e.target.value })} placeholder="Optional" />
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowOrderForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Place Order</button>
-          </div>
-        </form>
-      )}
 
       {/* ORDERS TABLE */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>

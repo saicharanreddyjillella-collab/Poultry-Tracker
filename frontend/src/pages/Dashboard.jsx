@@ -1,34 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { dashboardAPI, feedRateAPI } from '../api/client';
+import { dashboardAPI } from '../api/client';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showFeedForm, setShowFeedForm] = useState(false);
-  const [feedForm, setFeedForm] = useState({
-    week_start_date: new Date().toISOString().split('T')[0],
-    feed_type: 'BFP',
-    rate_per_kg: '',
-    notes: '',
-  });
 
-  const load = () => {
+  useEffect(() => {
     dashboardAPI.get().then(res => {
       setData(res.data);
       setLoading(false);
     }).catch(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const handleFeedRate = async (e) => {
-    e.preventDefault();
-    await feedRateAPI.create(feedForm);
-    setShowFeedForm(false);
-    setFeedForm({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
-    load();
-  };
+  }, []);
 
   if (loading) return <div className="loading">Loading...</div>;
   if (!data) return <div className="empty-state">Could not load dashboard. Is the Django server running?</div>;
@@ -37,6 +20,7 @@ export default function Dashboard() {
   const fmtDec = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
   const feedToday = data.feed_today || {};
   const todayTotalBags = (feedToday.bpsc_bags || 0) + (feedToday.bsc_bags || 0) + (feedToday.bfp_bags || 0);
+  const rates = data.latest_feed_rates || {};
 
   return (
     <div className="page">
@@ -45,10 +29,7 @@ export default function Dashboard() {
           <h1>Today's Dashboard</h1>
           <p className="farm-meta">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => setShowFeedForm(!showFeedForm)}>Update Feed Rate</button>
-          <Link to="/farms/new" className="btn btn-primary">+ Add Farm</Link>
-        </div>
+        <Link to="/farms/new" className="btn btn-primary">+ Add Farm</Link>
       </div>
 
       {/* TODAY STATS */}
@@ -96,45 +77,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* FEED RATE */}
-      {data.latest_feed_rates && Object.keys(data.latest_feed_rates).length > 0 && (
+      {/* FEED RATES */}
+      {Object.keys(rates).length > 0 && (
         <div className="feed-rate-bar" style={{ marginTop: '1rem' }}>
           Current Rates:
-          {data.latest_feed_rates.BPSC && <span> <strong>BPSC ₹{data.latest_feed_rates.BPSC}/kg</strong></span>}
-          {data.latest_feed_rates.BSC && <span> · <strong>BSC ₹{data.latest_feed_rates.BSC}/kg</strong></span>}
-          {data.latest_feed_rates.BFP && <span> · <strong>BFP ₹{data.latest_feed_rates.BFP}/kg</strong></span>}
+          {rates.BPSC && <span> <strong>BPSC ₹{rates.BPSC}/kg</strong></span>}
+          {rates.BSC && <span> · <strong>BSC ₹{rates.BSC}/kg</strong></span>}
+          {rates.BFP && <span> · <strong>BFP ₹{rates.BFP}/kg</strong></span>}
+          <Link to="/feed" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>Update →</Link>
         </div>
       )}
 
-      {showFeedForm && (
-        <form onSubmit={handleFeedRate} className="form-card" style={{ margin: '1rem 0 1.5rem' }}>
-          <h3>Update Feed Rate</h3>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Week Start Date *</label>
-              <input type="date" value={feedForm.week_start_date} onChange={e => setFeedForm({ ...feedForm, week_start_date: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label>Feed Type *</label>
-              <select value={feedForm.feed_type} onChange={e => setFeedForm({ ...feedForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Rate per kg (₹) *</label>
-              <input type="number" step="0.01" min="0" value={feedForm.rate_per_kg} onChange={e => setFeedForm({ ...feedForm, rate_per_kg: e.target.value })} required placeholder="e.g. 32.50" />
-            </div>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowFeedForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save</button>
-          </div>
-        </form>
-      )}
-
-      {/* FARMS LIST */}
+      {/* FARMS */}
       <h2 className="section-title" style={{ marginTop: '2rem' }}>Farms</h2>
       {data.farms.length === 0 ? (
         <div className="empty-state">

@@ -239,7 +239,7 @@ class SaleViewSet(viewsets.ModelViewSet):
 class FeedRateViewSet(viewsets.ModelViewSet):
     queryset = FeedRate.objects.all()
     serializer_class = FeedRateSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
 
 class MedicationViewSet(viewsets.ModelViewSet):
