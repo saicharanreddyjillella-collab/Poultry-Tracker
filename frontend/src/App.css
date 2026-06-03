@@ -341,6 +341,9 @@ tbody tr:hover { background: #fafaf8; }
 .btn-action-deliver:hover { background: #a9dfbf; }
 .btn-action-cancel { background: #f5f5f5; color: #999; }
 .btn-action-cancel:hover { background: #e0e0e0; color: #666; }
+.btn-action-edit { background: #fff3cd; color: #856404; }
+.btn-action-edit:hover { background: #ffeaa7; }
+.entry-actions { display: flex; gap: 0.25rem; }
 
 /* Farm stock bar (on flock page) */
 .farm-stock-bar {

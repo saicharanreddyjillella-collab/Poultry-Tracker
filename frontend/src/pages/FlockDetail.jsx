@@ -13,9 +13,10 @@ export default function FlockDetail() {
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [showMedForm, setShowMedForm] = useState(false);
   const [showFeedOrderForm, setShowFeedOrderForm] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [entryForm, setEntryForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    mortality_count: '', feed_bpsc_bags: '', feed_bsc_bags: '', feed_bfp_bags: '',
+    mortality_count: '', feed_type: 'BPSC', feed_bags: '',
     water_consumed_liters: '', avg_body_weight_grams: '', notes: '',
   });
   const [saleForm, setSaleForm] = useState({
@@ -42,21 +43,55 @@ export default function FlockDetail() {
 
   useEffect(() => { load(); }, [id]);
 
+  const resetEntryForm = () => {
+    setEntryForm({ date: new Date().toISOString().split('T')[0], mortality_count: '', feed_type: 'BPSC', feed_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
+    setEditingEntry(null);
+  };
+
+  const startEditEntry = (entry) => {
+    // Figure out which feed type was used
+    let feed_type = 'BPSC', feed_bags = '';
+    if (entry.feed_bpsc_bags > 0) { feed_type = 'BPSC'; feed_bags = entry.feed_bpsc_bags; }
+    else if (entry.feed_bsc_bags > 0) { feed_type = 'BSC'; feed_bags = entry.feed_bsc_bags; }
+    else if (entry.feed_bfp_bags > 0) { feed_type = 'BFP'; feed_bags = entry.feed_bfp_bags; }
+
+    setEntryForm({
+      date: entry.date,
+      mortality_count: entry.daily_mortality || '',
+      feed_type,
+      feed_bags: feed_bags || '',
+      water_consumed_liters: entry.water_liters || '',
+      avg_body_weight_grams: entry.avg_body_weight_grams || '',
+      notes: '',
+    });
+    setEditingEntry(entry);
+    setShowEntryForm(true);
+    setShowSaleForm(false);
+    setShowMedForm(false);
+    setShowFeedOrderForm(false);
+  };
+
   const handleEntry = async (e) => {
     e.preventDefault(); setError('');
+    const bags = parseInt(entryForm.feed_bags) || 0;
+    const data = {
+      flock: id, date: entryForm.date,
+      mortality_count: parseInt(entryForm.mortality_count) || 0,
+      feed_bpsc_bags: entryForm.feed_type === 'BPSC' ? bags : 0,
+      feed_bsc_bags: entryForm.feed_type === 'BSC' ? bags : 0,
+      feed_bfp_bags: entryForm.feed_type === 'BFP' ? bags : 0,
+      water_consumed_liters: parseFloat(entryForm.water_consumed_liters) || 0,
+      avg_body_weight_grams: entryForm.avg_body_weight_grams ? parseFloat(entryForm.avg_body_weight_grams) : null,
+      notes: entryForm.notes,
+    };
     try {
-      await dailyEntryAPI.create({
-        flock: id, date: entryForm.date,
-        mortality_count: parseInt(entryForm.mortality_count) || 0,
-        feed_bpsc_bags: parseInt(entryForm.feed_bpsc_bags) || 0,
-        feed_bsc_bags: parseInt(entryForm.feed_bsc_bags) || 0,
-        feed_bfp_bags: parseInt(entryForm.feed_bfp_bags) || 0,
-        water_consumed_liters: parseFloat(entryForm.water_consumed_liters) || 0,
-        avg_body_weight_grams: entryForm.avg_body_weight_grams ? parseFloat(entryForm.avg_body_weight_grams) : null,
-        notes: entryForm.notes,
-      });
+      if (editingEntry) {
+        await dailyEntryAPI.update(editingEntry.id, data);
+      } else {
+        await dailyEntryAPI.create(data);
+      }
       setShowEntryForm(false);
-      setEntryForm({ date: new Date().toISOString().split('T')[0], mortality_count: '', feed_bpsc_bags: '', feed_bsc_bags: '', feed_bfp_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
+      resetEntryForm();
       load();
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
@@ -184,24 +219,30 @@ export default function FlockDetail() {
       {/* Daily Entry Form */}
       {showEntryForm && (
         <form onSubmit={handleEntry} className="form-card" style={{ margin: '1.5rem 0' }}>
-          <h3>Add Daily Entry</h3>
+          <h3>{editingEntry ? 'Edit Daily Entry' : 'Add Daily Entry'}</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} /></div>
             <div className="form-group"><label>Mortality</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>BPSC (bags)</label><input type="text" inputMode="numeric" pattern="[0-9]*" min="0" value={entryForm.feed_bpsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bpsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
-            <div className="form-group"><label>BSC (bags)</label><input type="text" inputMode="numeric" pattern="[0-9]*" min="0" value={entryForm.feed_bsc_bags} onChange={e => setEntryForm({ ...entryForm, feed_bsc_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
-            <div className="form-group"><label>BFP (bags)</label><input type="text" inputMode="numeric" pattern="[0-9]*" min="0" value={entryForm.feed_bfp_bags} onChange={e => setEntryForm({ ...entryForm, feed_bfp_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
+            <div className="form-group">
+              <label>Feed Type</label>
+              <select value={entryForm.feed_type} onChange={e => setEntryForm({ ...entryForm, feed_type: e.target.value })}>
+                <option value="BPSC">BPSC (Pre-Starter)</option>
+                <option value="BSC">BSC (Starter)</option>
+                <option value="BFP">BFP (Finisher)</option>
+              </select>
+            </div>
+            <div className="form-group"><label>Bags</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.feed_bags} onChange={e => setEntryForm({ ...entryForm, feed_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>Water (L)</label><input type="text" inputMode="decimal" min="0" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
-            <div className="form-group"><label>Body Weight (g)</label><input type="text" inputMode="decimal" min="0" value={entryForm.avg_body_weight_grams} onChange={e => setEntryForm({ ...entryForm, avg_body_weight_grams: e.target.value })} placeholder="Optional" /></div>
+            <div className="form-group"><label>Water (L)</label><input type="text" inputMode="decimal" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Body Weight (g)</label><input type="text" inputMode="decimal" value={entryForm.avg_body_weight_grams} onChange={e => setEntryForm({ ...entryForm, avg_body_weight_grams: e.target.value })} placeholder="Optional" /></div>
             <div className="form-group"><label>Notes</label><input value={entryForm.notes} onChange={e => setEntryForm({ ...entryForm, notes: e.target.value })} /></div>
           </div>
           <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowEntryForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save</button>
+            <button type="button" className="btn btn-secondary" onClick={() => { setShowEntryForm(false); resetEntryForm(); }}>Cancel</button>
+            <button type="submit" className="btn btn-primary">{editingEntry ? 'Update' : 'Save'}</button>
           </div>
         </form>
       )}
@@ -424,27 +465,34 @@ export default function FlockDetail() {
               <thead>
                 <tr>
                   <th>Day</th><th>Date</th><th>Mort.</th><th>Cum.M</th><th>M%</th>
-                  <th>BPSC</th><th>BSC</th><th>BFP</th><th>Total (bags)</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th>Std(g)</th><th></th>
+                  <th>Feed</th><th>Bags</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th>Std(g)</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {cumulative.entries.map((e, i) => (
-                  <tr key={i}>
-                    <td>{e.day_number}</td><td>{e.date}</td>
-                    <td>{e.daily_mortality}</td><td>{e.cumulative_mortality}</td>
-                    <td className={e.mortality_percentage > 5 ? 'text-danger' : ''}>{e.mortality_percentage}%</td>
-                    <td>{e.feed_bpsc_bags}</td><td>{e.feed_bsc_bags}</td><td>{e.feed_bfp_bags}</td>
-                    <td>{e.daily_feed_bags}</td><td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
-                    <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td><td className="text-muted-cell">{e.standard_weight_grams}</td>
-                    <td><button className="btn-delete" onClick={async (ev) => {
-                      ev.stopPropagation();
-                      if (window.confirm(`Delete entry for ${e.date}?`)) {
-                        await dailyEntryAPI.delete(e.id);
-                        load();
-                      }
-                    }}>&times;</button></td>
-                  </tr>
-                ))}
+                {cumulative.entries.map((e, i) => {
+                  const feedType = e.feed_bpsc_bags > 0 ? 'BPSC' : e.feed_bsc_bags > 0 ? 'BSC' : e.feed_bfp_bags > 0 ? 'BFP' : '—';
+                  const feedBags = e.feed_bpsc_bags || e.feed_bsc_bags || e.feed_bfp_bags || 0;
+                  return (
+                    <tr key={i}>
+                      <td>{e.day_number}</td><td>{e.date}</td>
+                      <td>{e.daily_mortality}</td><td>{e.cumulative_mortality}</td>
+                      <td className={e.mortality_percentage > 5 ? 'text-danger' : ''}>{e.mortality_percentage}%</td>
+                      <td>{feedType !== '—' ? <span className={`feed-badge feed-badge-${feedType.toLowerCase()}`}>{feedType}</span> : '—'}</td>
+                      <td>{feedBags || '—'}</td>
+                      <td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
+                      <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td><td className="text-muted-cell">{e.standard_weight_grams}</td>
+                      <td className="entry-actions">
+                        <button className="btn-action btn-action-edit" onClick={() => startEditEntry(e)}>Edit</button>
+                        <button className="btn-action btn-action-cancel" onClick={async () => {
+                          if (window.confirm(`Delete entry for ${e.date}?`)) {
+                            await dailyEntryAPI.delete(e.id);
+                            load();
+                          }
+                        }}>Delete</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
