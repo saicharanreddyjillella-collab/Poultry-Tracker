@@ -1036,10 +1036,11 @@ class FeedOrderViewSet(viewsets.ModelViewSet):
 
 @api_view(['POST'])
 def mark_order_sent(request, order_id):
-    """Admin marks an order as sent from plant."""
+    """Plant marks an order as sent."""
     from django.utils import timezone
-    if not request.user.profile.is_admin:
-        return Response({'error': 'Only admins can mark orders as sent'}, status=403)
+    profile = getattr(request.user, 'profile', None)
+    if not profile or (not profile.is_plant and not profile.is_admin):
+        return Response({'error': 'Only plant users can mark orders as sent'}, status=403)
     try:
         order = FeedOrder.objects.get(id=order_id)
     except FeedOrder.DoesNotExist:

@@ -100,6 +100,7 @@ export default function UserManagement() {
               <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
                 <option value="admin">Admin</option>
                 <option value="supervisor">Supervisor</option>
+                <option value="plant">Feed Plant</option>
               </select>
             </div>
           </div>

@@ -153,6 +153,7 @@ a { color: inherit; text-decoration: none; }
 }
 .role-badge-admin { background: #fce4ec; color: #c0392b; }
 .role-badge-supervisor { background: #e3f2fd; color: #1565c0; }
+.role-badge-plant { background: #fff3e0; color: #e65100; }
 
 /* Farm checkbox grid (user management) */
 .farm-checkbox-grid {

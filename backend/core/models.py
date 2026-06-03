@@ -12,6 +12,7 @@ FEED_TYPES = [
 ROLE_CHOICES = [
     ('admin', 'Admin'),
     ('supervisor', 'Supervisor'),
+    ('plant', 'Feed Plant'),
 ]
 
 
@@ -27,6 +28,10 @@ class UserProfile(models.Model):
     @property
     def is_admin(self):
         return self.role == 'admin'
+
+    @property
+    def is_plant(self):
+        return self.role == 'plant'
 
     def can_edit_farm(self, farm):
         if self.is_admin:

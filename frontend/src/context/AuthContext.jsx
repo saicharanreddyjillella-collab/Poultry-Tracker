@@ -43,13 +43,14 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = user?.role === 'admin';
+  const isPlant = user?.role === 'plant';
   const canEditFarm = (farmId) => {
     if (isAdmin) return true;
     return user?.assigned_farm_ids?.includes(farmId);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAdmin, canEditFarm }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, isAdmin, isPlant, canEditFarm }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,16 +10,16 @@ export default function Login() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  // If already logged in, redirect to dashboard
-  if (user) return <Navigate to="/" replace />;
+  // If already logged in, redirect to appropriate page
+  if (user) return <Navigate to={user.role === 'plant' ? '/feed' : '/'} replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(username, password);
-      navigate('/', { replace: true });
+      const u = await login(username, password);
+      navigate(u.role === 'plant' ? '/feed' : '/', { replace: true });
     } catch {
       setError('Invalid username or password');
     }

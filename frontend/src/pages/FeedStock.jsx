@@ -3,7 +3,7 @@ import { feedOrderAPI, feedStockAPI, farmAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function FeedStock() {
-  const { isAdmin, canEditFarm } = useAuth();
+  const { isAdmin, isPlant, canEditFarm } = useAuth();
   const [stock, setStock] = useState([]);
   const [orders, setOrders] = useState([]);
   const [farms, setFarms] = useState([]);
@@ -66,7 +66,7 @@ export default function FeedStock() {
     <div className="page">
       <div className="page-header">
         <h1>Feed Stock & Orders</h1>
-        <button className="btn btn-primary" onClick={() => setShowOrderForm(!showOrderForm)}>+ Order Feed</button>
+        {!isPlant && <button className="btn btn-primary" onClick={() => setShowOrderForm(!showOrderForm)}>+ Order Feed</button>}
       </div>
 
       {/* STOCK TABLE */}
@@ -173,13 +173,13 @@ export default function FeedStock() {
                 <td>{o.delivered_date ? new Date(o.delivered_date).toLocaleDateString('en-IN') : '—'}</td>
                 <td>{o.notes || '—'}</td>
                 <td className="order-actions">
-                  {o.status === 'pending' && isAdmin && (
+                  {o.status === 'pending' && (isPlant || isAdmin) && (
                     <button className="btn-action btn-action-send" onClick={() => handleAction(o.id, 'sent')}>Mark Sent</button>
                   )}
-                  {o.status === 'sent' && (
+                  {o.status === 'sent' && !isPlant && (
                     <button className="btn-action btn-action-deliver" onClick={() => handleAction(o.id, 'delivered')}>Confirm Delivery</button>
                   )}
-                  {(o.status === 'pending' || o.status === 'sent') && (
+                  {(o.status === 'pending' || o.status === 'sent') && !isPlant && (
                     <button className="btn-action btn-action-cancel" onClick={() => handleAction(o.id, 'cancel')}>Cancel</button>
                   )}
                 </td>

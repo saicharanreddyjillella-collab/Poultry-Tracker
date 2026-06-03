@@ -22,7 +22,7 @@ function ProtectedRoute({ children }) {
 }
 
 function NavBar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isPlant } = useAuth();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -34,14 +34,22 @@ function NavBar() {
 
   return (
     <nav className="navbar">
-      <Link to="/" className="nav-brand">🐔 PoultryTrack</Link>
+      <Link to={isPlant ? '/feed' : '/'} className="nav-brand">🐔 PoultryTrack</Link>
       <div className="nav-links">
-        <Link to="/">Today</Link>
-        <Link to="/farms">Farms</Link>
+        {!isPlant && (
+          <>
+            <Link to="/">Today</Link>
+            <Link to="/farms">Farms</Link>
+          </>
+        )}
         <Link to="/feed">Feed</Link>
-        <Link to="/reports/monthly">Monthly</Link>
-        <Link to="/reports/region">Region</Link>
-        <Link to="/reports/till-date">Till Date</Link>
+        {!isPlant && (
+          <>
+            <Link to="/reports/monthly">Monthly</Link>
+            <Link to="/reports/region">Region</Link>
+            <Link to="/reports/till-date">Till Date</Link>
+          </>
+        )}
         {isAdmin && <Link to="/users">Users</Link>}
         <div className="nav-user-menu">
           <span className="nav-user-trigger">
