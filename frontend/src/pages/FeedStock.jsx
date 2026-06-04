@@ -81,7 +81,7 @@ export default function FeedStock() {
       <div className="page-header">
         <h1>Feed Stock & Orders</h1>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {!isPlant && <button className="btn btn-secondary" onClick={() => { setShowRateForm(!showRateForm); setShowOrderForm(false); }}>Update Rate</button>}
+          {!isPlant && isAdmin && <button className="btn btn-secondary" onClick={() => { setShowRateForm(!showRateForm); setShowOrderForm(false); }}>Update Rate</button>}
           {!isPlant && <button className="btn btn-primary" onClick={() => { setShowOrderForm(!showOrderForm); setShowRateForm(false); }}>+ Order Feed</button>}
         </div>
       </div>
