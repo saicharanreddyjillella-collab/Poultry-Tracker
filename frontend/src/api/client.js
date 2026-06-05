@@ -34,6 +34,7 @@ export const authAPI = {
   createUser: (data) => API.post('/auth/users/', data),
   updateUser: (id, data) => API.put(`/auth/users/${id}/`, data),
   deleteUser: (id) => API.delete(`/auth/users/${id}/`),
+  listRegions: () => API.get('/auth/regions/'),
 };
 
 export const farmAPI = {

@@ -21,6 +21,7 @@ class UserProfile(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='supervisor')
     phone = models.CharField(max_length=20, blank=True)
     assigned_farms = models.ManyToManyField('Farm', blank=True, related_name='assigned_supervisors')
+    assigned_regions = models.JSONField(default=list, blank=True, help_text="List of region names assigned to this supervisor")
 
     def __str__(self):
         return f"{self.user.username} ({self.role})"
@@ -36,7 +37,19 @@ class UserProfile(models.Model):
     def can_edit_farm(self, farm):
         if self.is_admin:
             return True
+        # Check by region first, then by direct assignment
+        if farm.region and farm.region in (self.assigned_regions or []):
+            return True
         return self.assigned_farms.filter(id=farm.id).exists()
+
+    def sync_farms_from_regions(self):
+        """Auto-assign all farms in assigned regions to this user."""
+        if self.assigned_regions:
+            from django.db.models import Q
+            region_farms = Farm.objects.filter(region__in=self.assigned_regions)
+            # Add region farms without removing directly assigned ones
+            for farm in region_farms:
+                self.assigned_farms.add(farm)
 
 
 class Farm(models.Model):

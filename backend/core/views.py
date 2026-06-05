@@ -40,6 +40,7 @@ def login_view(request):
             'last_name': user.last_name,
             'role': user.profile.role,
             'assigned_farm_ids': list(user.profile.assigned_farms.values_list('id', flat=True)),
+            'assigned_regions': user.profile.assigned_regions or [],
         }
     })
 
@@ -56,6 +57,7 @@ def me_view(request):
         'last_name': user.last_name,
         'role': user.profile.role,
         'assigned_farm_ids': list(user.profile.assigned_farms.values_list('id', flat=True)),
+        'assigned_regions': user.profile.assigned_regions or [],
     })
 
 
@@ -97,6 +99,7 @@ def manage_users(request):
                 'role': profile.role if profile else 'admin',
                 'phone': profile.phone if profile else '',
                 'assigned_farm_ids': list(profile.assigned_farms.values_list('id', flat=True)) if profile else [],
+                'assigned_regions': profile.assigned_regions if profile else [],
             })
         return Response(data)
 
@@ -108,15 +111,17 @@ def manage_users(request):
     role = request.data.get('role', 'supervisor')
     phone = request.data.get('phone', '')
     assigned_farm_ids = request.data.get('assigned_farm_ids', [])
+    assigned_regions = request.data.get('assigned_regions', [])
 
     if User.objects.filter(username=username).exists():
         return Response({'error': 'Username already exists'}, status=400)
 
     user = User.objects.create_user(username=username, password=password,
                                      first_name=first_name, last_name=last_name)
-    profile = UserProfile.objects.create(user=user, role=role, phone=phone)
+    profile = UserProfile.objects.create(user=user, role=role, phone=phone, assigned_regions=assigned_regions)
     if assigned_farm_ids:
         profile.assigned_farms.set(assigned_farm_ids)
+    profile.sync_farms_from_regions()
     return Response({'id': user.id, 'username': user.username}, status=201)
 
 
@@ -147,7 +152,17 @@ def manage_user_detail(request, user_id):
     user.profile.save()
     if 'assigned_farm_ids' in request.data:
         user.profile.assigned_farms.set(request.data['assigned_farm_ids'])
+    if 'assigned_regions' in request.data:
+        user.profile.assigned_regions = request.data['assigned_regions']
+        user.profile.save()
+        user.profile.sync_farms_from_regions()
     return Response({'id': user.id, 'username': user.username})
+
+
+@api_view(['GET'])
+def list_regions(request):
+    regions = list(Farm.objects.exclude(region='').values_list('region', flat=True).distinct().order_by('region'))
+    return Response(regions)
 
 
 # ─── DATA VIEWSETS ───

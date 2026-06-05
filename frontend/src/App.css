@@ -177,6 +177,23 @@ a { color: inherit; text-decoration: none; }
 }
 .farm-checkbox input { margin: 0; }
 .farm-checkbox-active { background: #e8f0fe; border-color: #1a56db; }
+
+/* Region assignment */
+.region-checkbox-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; margin-bottom: 0.75rem; }
+.region-farm-count { color: var(--text-muted); font-size: 0.75rem; }
+.add-region-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+.add-region-row input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-family: inherit; }
+.selected-regions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.region-tag {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.2rem 0.6rem; background: #e8f0fe; border-radius: 6px;
+  font-size: 0.8rem; font-weight: 600; color: #1a56db;
+}
+.region-tag button { background: none; border: none; color: #1a56db; cursor: pointer; font-size: 1rem; padding: 0; line-height: 1; }
+.region-tag-sm {
+  display: inline-block; padding: 0.1rem 0.4rem; background: #e8f0fe; border-radius: 4px;
+  font-size: 0.75rem; font-weight: 600; color: #1a56db; margin-right: 0.25rem;
+}
 .btn-primary:hover { background: var(--primary-light); }
 .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--border); }

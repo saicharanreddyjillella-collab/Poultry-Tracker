@@ -6,18 +6,23 @@ export default function UserManagement() {
   const { isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   const [farms, setFarms] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({
     username: '', password: '', first_name: '', last_name: '',
-    role: 'supervisor', phone: '', assigned_farm_ids: [],
+    role: 'supervisor', phone: '', assigned_regions: [],
   });
+  const [newRegion, setNewRegion] = useState('');
   const [error, setError] = useState('');
 
   const load = async () => {
-    const [usersRes, farmsRes] = await Promise.all([authAPI.listUsers(), farmAPI.list()]);
+    const [usersRes, farmsRes, regionsRes] = await Promise.all([
+      authAPI.listUsers(), farmAPI.list(), authAPI.listRegions(),
+    ]);
     setUsers(usersRes.data);
     setFarms(farmsRes.data);
+    setRegions(regionsRes.data);
   };
 
   useEffect(() => { load(); }, []);
@@ -25,16 +30,17 @@ export default function UserManagement() {
   if (!isAdmin) return <div className="empty-state"><p>Admin access required.</p></div>;
 
   const resetForm = () => {
-    setForm({ username: '', password: '', first_name: '', last_name: '', role: 'supervisor', phone: '', assigned_farm_ids: [] });
+    setForm({ username: '', password: '', first_name: '', last_name: '', role: 'supervisor', phone: '', assigned_regions: [] });
     setEditingUser(null);
     setShowForm(false);
     setError('');
+    setNewRegion('');
   };
 
   const startEdit = (u) => {
     setForm({
       username: u.username, password: '', first_name: u.first_name, last_name: u.last_name,
-      role: u.role, phone: u.phone, assigned_farm_ids: u.assigned_farm_ids,
+      role: u.role, phone: u.phone, assigned_regions: u.assigned_regions || [],
     });
     setEditingUser(u);
     setShowForm(true);
@@ -66,12 +72,29 @@ export default function UserManagement() {
     }
   };
 
-  const toggleFarm = (farmId) => {
-    const ids = form.assigned_farm_ids.includes(farmId)
-      ? form.assigned_farm_ids.filter(id => id !== farmId)
-      : [...form.assigned_farm_ids, farmId];
-    setForm({ ...form, assigned_farm_ids: ids });
+  const toggleRegion = (region) => {
+    const rs = form.assigned_regions.includes(region)
+      ? form.assigned_regions.filter(r => r !== region)
+      : [...form.assigned_regions, region];
+    setForm({ ...form, assigned_regions: rs });
   };
+
+  const addNewRegion = () => {
+    const r = newRegion.trim();
+    if (r && !form.assigned_regions.includes(r)) {
+      setForm({ ...form, assigned_regions: [...form.assigned_regions, r] });
+      if (!regions.includes(r)) setRegions([...regions, r].sort());
+    }
+    setNewRegion('');
+  };
+
+  // Get farms count per region for display
+  const farmsByRegion = {};
+  farms.forEach(f => {
+    if (f.region) {
+      farmsByRegion[f.region] = (farmsByRegion[f.region] || 0) + 1;
+    }
+  });
 
   return (
     <div className="page">
@@ -121,16 +144,26 @@ export default function UserManagement() {
 
           {form.role === 'supervisor' && (
             <div className="form-group">
-              <label>Assigned Farms</label>
-              <div className="farm-checkbox-grid">
-                {farms.map(f => (
-                  <label key={f.id} className={`farm-checkbox ${form.assigned_farm_ids.includes(f.id) ? 'farm-checkbox-active' : ''}`}>
-                    <input type="checkbox" checked={form.assigned_farm_ids.includes(f.id)} onChange={() => toggleFarm(f.id)} />
-                    <span className="farm-code-badge-sm">{f.farm_code}</span> {f.name}
+              <label>Assigned Regions</label>
+              <div className="region-checkbox-grid">
+                {regions.map(r => (
+                  <label key={r} className={`farm-checkbox ${form.assigned_regions.includes(r) ? 'farm-checkbox-active' : ''}`}>
+                    <input type="checkbox" checked={form.assigned_regions.includes(r)} onChange={() => toggleRegion(r)} />
+                    {r} <small className="region-farm-count">({farmsByRegion[r] || 0} farms)</small>
                   </label>
                 ))}
-                {farms.length === 0 && <span className="farm-meta">No farms created yet</span>}
               </div>
+              <div className="add-region-row">
+                <input value={newRegion} onChange={e => setNewRegion(e.target.value)} placeholder="New region name..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNewRegion(); } }} />
+                <button type="button" className="btn btn-secondary" onClick={addNewRegion}>+ Add Region</button>
+              </div>
+              {form.assigned_regions.length > 0 && (
+                <div className="selected-regions">
+                  Selected: {form.assigned_regions.map(r => (
+                    <span key={r} className="region-tag">{r} <button type="button" onClick={() => toggleRegion(r)}>&times;</button></span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -144,7 +177,7 @@ export default function UserManagement() {
       <div className="table-wrapper">
         <table>
           <thead>
-            <tr><th>Username</th><th>Name</th><th>Role</th><th>Phone</th><th>Assigned Farms</th><th></th></tr>
+            <tr><th>Username</th><th>Name</th><th>Role</th><th>Phone</th><th>Regions</th><th></th></tr>
           </thead>
           <tbody>
             {users.map(u => (
@@ -155,19 +188,20 @@ export default function UserManagement() {
                 <td>{u.phone || '—'}</td>
                 <td>
                   {u.role === 'admin' ? (
-                    <span className="farm-meta">All farms</span>
-                  ) : u.assigned_farm_ids.length > 0 ? (
-                    u.assigned_farm_ids.map(fid => {
-                      const farm = farms.find(f => f.id === fid);
-                      return farm ? <span key={fid} className="farm-code-badge-sm" style={{ marginRight: '0.3rem' }}>{farm.farm_code}</span> : null;
-                    })
+                    <span className="farm-meta">All regions</span>
+                  ) : u.role === 'plant' ? (
+                    <span className="farm-meta">Feed only</span>
+                  ) : (u.assigned_regions || []).length > 0 ? (
+                    (u.assigned_regions || []).map(r => (
+                      <span key={r} className="region-tag-sm">{r}</span>
+                    ))
                   ) : (
                     <span className="farm-meta">None</span>
                   )}
                 </td>
                 <td>
-                  <button className="btn-delete" onClick={() => startEdit(u)} title="Edit" style={{ marginRight: '0.25rem' }}>✎</button>
-                  <button className="btn-delete" onClick={() => handleDelete(u)} title="Delete">&times;</button>
+                  <button className="btn-action btn-action-edit" onClick={() => startEdit(u)}>Edit</button>
+                  <button className="btn-action btn-action-cancel" onClick={() => handleDelete(u)} style={{ marginLeft: '0.25rem' }}>Delete</button>
                 </td>
               </tr>
             ))}

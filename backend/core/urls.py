@@ -18,6 +18,7 @@ urlpatterns = [
     path('auth/change-password/', views.change_password),
     path('auth/users/', views.manage_users),
     path('auth/users/<int:user_id>/', views.manage_user_detail),
+    path('auth/regions/', views.list_regions),
     path('dashboard/', views.dashboard),
     path('flocks/<int:flock_id>/cumulative/', views.flock_cumulative),
     path('farms/<int:farm_id>/cumulative/', views.farm_cumulative),
