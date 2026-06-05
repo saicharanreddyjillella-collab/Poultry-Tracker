@@ -405,6 +405,77 @@ def dashboard(request):
         'feed_rates': FeedRateSerializer(FeedRate.objects.all()[:30], many=True).data,
         'farms': FarmSerializer(farms, many=True).data,
     }
+
+    # ─── ALERTS ───
+    alerts = []
+    for flock in active_flocks.select_related('farm'):
+        today_entry = DailyEntry.objects.filter(flock=flock, date=today).first()
+
+        # High mortality today (> 0.5% of live birds)
+        if today_entry and today_entry.mortality_count > 0:
+            live = flock.live_birds + today_entry.mortality_count  # live before today's death
+            if live > 0:
+                daily_pct = round((today_entry.mortality_count / live) * 100, 2)
+                if daily_pct >= 0.5:
+                    alerts.append({
+                        'type': 'danger',
+                        'farm_code': flock.farm.farm_code,
+                        'farm_name': flock.farm.name,
+                        'flock_id': flock.id,
+                        'message': f'{today_entry.mortality_count} deaths today ({daily_pct}% of live birds)',
+                    })
+
+        # Flock nearing sale age (> 35 days)
+        if flock.age_days >= 35:
+            alerts.append({
+                'type': 'warning',
+                'farm_code': flock.farm.farm_code,
+                'farm_name': flock.farm.name,
+                'flock_id': flock.id,
+                'message': f'Day {flock.age_days} — nearing sale age',
+            })
+
+        # High cumulative mortality (> 5%)
+        if flock.mortality_percentage > 5:
+            alerts.append({
+                'type': 'danger',
+                'farm_code': flock.farm.farm_code,
+                'farm_name': flock.farm.name,
+                'flock_id': flock.id,
+                'message': f'Cumulative mortality {flock.mortality_percentage}% (above 5% threshold)',
+            })
+
+        # No entry today
+        if not today_entry:
+            alerts.append({
+                'type': 'info',
+                'farm_code': flock.farm.farm_code,
+                'farm_name': flock.farm.name,
+                'flock_id': flock.id,
+                'message': 'No daily entry recorded today',
+            })
+
+    # Low feed stock (any farm with stock <= 2 bags of any type)
+    for farm in farms:
+        delivered = FeedOrder.objects.filter(farm=farm, status='delivered').values('feed_type').annotate(total=Sum('quantity_bags'))
+        delivered_map = {d['feed_type']: float(d['total']) for d in delivered}
+        consumed = DailyEntry.objects.filter(flock__farm=farm).aggregate(
+            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
+        )
+        has_active = farm.flocks.filter(status='active').exists()
+        if has_active:
+            for ft, consumed_key in [('BPSC', 'bpsc'), ('BSC', 'bsc'), ('BFP', 'bfp')]:
+                stock = delivered_map.get(ft, 0) - float(consumed[consumed_key] or 0)
+                if stock <= 2:
+                    alerts.append({
+                        'type': 'warning',
+                        'farm_code': farm.farm_code,
+                        'farm_name': farm.name,
+                        'flock_id': None,
+                        'message': f'{ft} stock low: {round(stock, 1)} bags remaining',
+                    })
+
+    data['alerts'] = alerts
     return Response(data)
 
 
