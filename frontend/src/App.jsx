@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
@@ -24,44 +25,60 @@ function ProtectedRoute({ children }) {
 function NavBar() {
   const { user, logout, isAdmin, isPlant } = useAuth();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (!user) return null;
 
   const handleLogout = () => {
     logout();
+    setMenuOpen(false);
     navigate('/login', { replace: true });
   };
 
+  const closeMenu = () => setMenuOpen(false);
+
   return (
     <nav className="navbar">
-      <Link to={isPlant ? '/feed' : '/'} className="nav-brand">🐔 PoultryTrack</Link>
-      <div className="nav-links">
+      <Link to={isPlant ? '/feed' : '/'} className="nav-brand" onClick={closeMenu}>🐔 PoultryTrack</Link>
+      <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
+        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
+        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
+      </button>
+      <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
         {!isPlant && (
           <>
-            <Link to="/">Today</Link>
-            <Link to="/farms">Farms</Link>
+            <Link to="/" onClick={closeMenu}>Today</Link>
+            <Link to="/farms" onClick={closeMenu}>Farms</Link>
           </>
         )}
-        <Link to="/feed">Feed</Link>
+        <Link to="/feed" onClick={closeMenu}>Feed</Link>
         {!isPlant && (
           <>
-            <Link to="/reports/monthly">Monthly</Link>
-            <Link to="/reports/region">Region</Link>
-            <Link to="/reports/till-date">Till Date</Link>
+            <Link to="/reports/monthly" onClick={closeMenu}>Monthly</Link>
+            <Link to="/reports/region" onClick={closeMenu}>Region</Link>
+            <Link to="/reports/till-date" onClick={closeMenu}>Till Date</Link>
           </>
         )}
-        {isAdmin && <Link to="/users">Users</Link>}
+        {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
+        <div className="nav-mobile-user">
+          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
+          {user.first_name || user.username}
+        </div>
+        <Link to="/change-password" className="nav-mobile-link" onClick={closeMenu}>Change Password</Link>
+        <button className="nav-mobile-logout" onClick={handleLogout}>Logout</button>
         <div className="nav-user-menu">
           <span className="nav-user-trigger">
             <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
             {user.first_name || user.username} ▾
           </span>
           <div className="nav-dropdown">
-            <Link to="/change-password" className="nav-dropdown-item">Change Password</Link>
+            <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
             <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
           </div>
         </div>
       </div>
+      {menuOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
     </nav>
   );
 }

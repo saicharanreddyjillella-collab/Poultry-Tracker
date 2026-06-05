@@ -382,6 +382,17 @@ tbody tr:hover { background: #fafaf8; }
 @keyframes pulse-warn { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 /* Mobile */
+/* Hamburger button — hidden on desktop */
+.hamburger { display: none; background: none; border: none; cursor: pointer; padding: 0.5rem; flex-direction: column; gap: 5px; }
+.hamburger-line { display: block; width: 24px; height: 2px; background: white; border-radius: 2px; transition: transform 0.3s, opacity 0.3s; }
+.hamburger-line.open:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger-line.open:nth-child(2) { opacity: 0; }
+.hamburger-line.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile-only items — hidden on desktop */
+.nav-mobile-user, .nav-mobile-link, .nav-mobile-logout { display: none; }
+.nav-overlay { display: none; }
+
 @media (max-width: 640px) {
   .navbar { padding: 0.75rem 1rem; }
   .main-content { padding: 1rem; }
@@ -390,6 +401,62 @@ tbody tr:hover { background: #fafaf8; }
   .card-grid { grid-template-columns: 1fr; }
   .flock-stats { grid-template-columns: repeat(2, 1fr); }
   .form-row { grid-template-columns: 1fr; }
+
+  /* Show hamburger */
+  .hamburger { display: flex; }
+
+  /* Hide desktop user dropdown */
+  .nav-user-menu { display: none !important; }
+
+  /* Mobile nav slide */
+  .nav-links {
+    display: none; position: fixed; top: 0; right: 0;
+    width: 280px; height: 100vh; background: var(--primary);
+    flex-direction: column; padding: 4rem 1.5rem 2rem; gap: 0; z-index: 300;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.2);
+  }
+  .nav-links-open { display: flex; }
+  .nav-links a {
+    color: rgba(255,255,255,0.9) !important; padding: 0.85rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 1rem;
+  }
+  .nav-links a:hover { color: white !important; }
+
+  /* Mobile user info */
+  .nav-mobile-user {
+    display: flex; align-items: center; gap: 0.4rem;
+    color: rgba(255,255,255,0.7); font-size: 0.85rem;
+    padding: 1.25rem 0 0.5rem; margin-top: 0.5rem;
+    border-top: 1px solid rgba(255,255,255,0.15);
+  }
+  .nav-mobile-link {
+    display: block; color: rgba(255,255,255,0.85) !important;
+    padding: 0.6rem 0; font-size: 0.9rem;
+  }
+  .nav-mobile-logout {
+    display: block; background: rgba(255,255,255,0.15); border: none;
+    color: white; padding: 0.6rem 1rem; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit;
+    margin-top: 0.75rem; text-align: center; width: 100%;
+  }
+
+  /* Overlay */
+  .nav-overlay {
+    display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); z-index: 250;
+  }
+
+  /* Feed progress */
+  .feed-progress-grid { grid-template-columns: 1fr; }
+
+  /* Region compare */
+  .region-compare-grid { grid-template-columns: 1fr; }
+
+  /* Report filters */
+  .report-filters { flex-wrap: wrap; }
+
+  /* Farm stock bar */
+  .farm-stock-bar { flex-direction: column; align-items: flex-start; }
 }
 
 /* Report page */
