@@ -456,3 +456,105 @@ tbody tr:hover { background: #fafaf8; }
 .region-metric-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
 .region-metric-value { font-size: 1.25rem; font-weight: 700; }
 
+
+/* ═══ PRINT STYLES ═══ */
+@media print {
+  /* Hide non-essential UI */
+  .navbar, .nav-links, .nav-brand, .nav-user-menu,
+  .btn, button, .form-card, .form-actions, .form-group,
+  .search-bar, .order-filters, .order-actions, .entry-actions,
+  .btn-action, .btn-delete, .empty-state .btn,
+  .feed-history summary::marker { display: none !important; }
+
+  /* Keep visible */
+  .feed-history[open] { display: block !important; }
+
+  /* Reset layout */
+  body { background: white !important; color: black !important; font-size: 11pt; }
+  .main-content { max-width: 100%; padding: 0; margin: 0; }
+  .page { padding: 0; }
+
+  /* Print header */
+  .page-header { border-bottom: 2px solid #333; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  .page-header h1 { font-size: 16pt; }
+
+  /* Stats grid — compact for print */
+  .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+  .stat-card {
+    border: 1px solid #ccc !important; box-shadow: none !important;
+    padding: 0.5rem 0.75rem; background: white !important;
+    page-break-inside: avoid;
+  }
+  .stat-card[class*="stat-"] { border-left-width: 3px !important; }
+  .stat-label { font-size: 7pt; }
+  .stat-value { font-size: 12pt; }
+  .stat-sub { font-size: 7pt; }
+
+  /* Tables — clean borders */
+  .table-wrapper { border: none; box-shadow: none; overflow: visible; }
+  table { font-size: 9pt; width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  th { background: #f0f0f0 !important; color: black !important; font-size: 8pt; padding: 0.3rem 0.4rem; }
+  td { padding: 0.25rem 0.4rem; border: 1px solid #ddd; }
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  .report-totals-row { background: #f0f0f0 !important; }
+  .report-table { font-size: 8pt; }
+  .report-table th { font-size: 7pt; }
+
+  /* Cards — borders only */
+  .farm-card, .flock-card, .report-batch, .feed-progress-card,
+  .farm-details-tile, .region-compare-card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    page-break-inside: avoid;
+  }
+  .card-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Charts — keep but control size */
+  .chart-container {
+    box-shadow: none !important; border: 1px solid #ccc;
+    page-break-inside: avoid; margin-bottom: 1rem;
+  }
+
+  /* Badges — black and white friendly */
+  .feed-badge, .role-badge, .shed-badge, .farm-code-badge,
+  .farm-code-badge-sm, .order-status, .weight-status,
+  .flock-badge-active, .flock-badge-closed, .region-tag-sm {
+    border: 1px solid #999 !important;
+    background: #f5f5f5 !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Feed rate bar */
+  .feed-rate-bar, .farm-stock-bar {
+    border: 1px solid #ccc !important;
+    background: #f9f9f9 !important;
+  }
+
+  /* Section titles */
+  .section-title { font-size: 11pt; margin-top: 1rem; page-break-after: avoid; }
+
+  /* Progress bars */
+  .progress-bar { border: 1px solid #ccc; }
+  .progress-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Feed progress grid */
+  .feed-progress-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* Hide stock pulse animation */
+  .stock-low { animation: none !important; }
+
+  /* Page breaks */
+  .report-batch { page-break-inside: avoid; }
+  h2 { page-break-after: avoid; }
+
+  /* Links — no underline */
+  a { color: black !important; text-decoration: none !important; }
+
+  /* Color preservation for important indicators */
+  .text-danger { color: #c0392b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .text-ok { color: #27ae60 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .text-warning { color: #e67e22 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
