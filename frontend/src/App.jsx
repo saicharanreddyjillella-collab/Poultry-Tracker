@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import AlertBell from './components/AlertBell';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import FarmsList from './pages/FarmsList';
@@ -61,6 +62,7 @@ function NavBar() {
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
+        {!isPlant && <AlertBell />}
         <div className="nav-mobile-user">
           <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
           {user.first_name || user.username}

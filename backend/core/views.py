@@ -455,25 +455,30 @@ def dashboard(request):
                 'message': 'No daily entry recorded today',
             })
 
-    # Low feed stock (any farm with stock <= 2 bags of any type)
+    # Low feed stock — only check the feed type currently being used
     for farm in farms:
-        delivered = FeedOrder.objects.filter(farm=farm, status='delivered').values('feed_type').annotate(total=Sum('quantity_bags'))
-        delivered_map = {d['feed_type']: float(d['total']) for d in delivered}
+        active_flock = farm.flocks.filter(status='active').first()
+        if not active_flock:
+            continue
+        # Determine current feed type from feed schedule
+        fs = active_flock.feed_schedule_status
+        current_type = fs.get('current_feed_type', 'BFP')
+
+        delivered = FeedOrder.objects.filter(farm=farm, status='delivered', feed_type=current_type).aggregate(t=Sum('quantity_bags'))['t'] or 0
+        consumed_map = {'BPSC': 'bpsc', 'BSC': 'bsc', 'BFP': 'bfp'}
         consumed = DailyEntry.objects.filter(flock__farm=farm).aggregate(
             bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
         )
-        has_active = farm.flocks.filter(status='active').exists()
-        if has_active:
-            for ft, consumed_key in [('BPSC', 'bpsc'), ('BSC', 'bsc'), ('BFP', 'bfp')]:
-                stock = delivered_map.get(ft, 0) - float(consumed[consumed_key] or 0)
-                if stock <= 2:
-                    alerts.append({
-                        'type': 'warning',
-                        'farm_code': farm.farm_code,
-                        'farm_name': farm.name,
-                        'flock_id': None,
-                        'message': f'{ft} stock low: {round(stock, 1)} bags remaining',
-                    })
+        consumed_bags = float(consumed[consumed_map[current_type]] or 0)
+        stock = float(delivered) - consumed_bags
+        if stock <= 2:
+            alerts.append({
+                'type': 'warning',
+                'farm_code': farm.farm_code,
+                'farm_name': farm.name,
+                'flock_id': active_flock.id,
+                'message': f'{current_type} stock low: {round(stock, 1)} bags remaining',
+            })
 
     data['alerts'] = alerts
     return Response(data)

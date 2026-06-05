@@ -32,31 +32,6 @@ export default function Dashboard() {
         <Link to="/farms/new" className="btn btn-primary">+ Add Farm</Link>
       </div>
 
-      {/* ALERTS */}
-      {data.alerts && data.alerts.length > 0 && (
-        <div className="alerts-section">
-          <h2 className="section-title">Alerts ({data.alerts.length})</h2>
-          <div className="alerts-list">
-            {data.alerts.map((a, i) => (
-              <div key={i} className={`alert-item alert-${a.type}`}>
-                <span className="alert-icon">
-                  {a.type === 'danger' ? '🔴' : a.type === 'warning' ? '🟡' : 'ℹ️'}
-                </span>
-                <div className="alert-content">
-                  <span className="alert-farm">
-                    <span className="farm-code-badge-sm">{a.farm_code}</span> {a.farm_name}
-                  </span>
-                  <span className="alert-message">{a.message}</span>
-                </div>
-                {a.flock_id && (
-                  <Link to={`/flocks/${a.flock_id}`} className="alert-link">View →</Link>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* TODAY STATS */}
       <div className="stats-grid stats-grid-wide">
         <div className="stat-card stat-highlight">
