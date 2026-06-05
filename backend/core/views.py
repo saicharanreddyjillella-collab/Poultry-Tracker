@@ -158,11 +158,21 @@ class FarmViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, CanEditFarm]
 
     def perform_create(self, serializer):
-        # Supervisors can only create farms (admin always can)
-        if not self.request.user.profile.is_admin:
-            # Supervisor can create, farm gets auto-assigned to them
+        profile = self.request.user.profile
+        if not profile.is_admin:
+            # Supervisor can only create farms in their assigned regions
+            assigned_regions = set(
+                profile.assigned_farms.exclude(region='').values_list('region', flat=True).distinct()
+            )
+            new_region = serializer.validated_data.get('region', '')
+            if not new_region:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'region': 'Region is required.'})
+            if assigned_regions and new_region not in assigned_regions:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'region': f'You can only create farms in your assigned regions: {", ".join(sorted(assigned_regions))}'})
             farm = serializer.save()
-            self.request.user.profile.assigned_farms.add(farm)
+            profile.assigned_farms.add(farm)
         else:
             serializer.save()
 

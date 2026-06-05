@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { farmAPI } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function FarmForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAdmin, user } = useAuth();
   const isEdit = Boolean(id);
   const [error, setError] = useState('');
+  const [myRegions, setMyRegions] = useState([]);
 
   const [form, setForm] = useState({
     farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', capacity: 5000,
@@ -16,7 +19,19 @@ export default function FarmForm() {
     if (isEdit) {
       farmAPI.get(id).then(res => setForm(res.data));
     }
-  }, [id]);
+    // For supervisors, get their assigned regions
+    if (!isAdmin && user) {
+      farmAPI.list().then(res => {
+        const assignedFarms = res.data.filter(f => user.assigned_farm_ids?.includes(f.id));
+        const regions = [...new Set(assignedFarms.map(f => f.region).filter(Boolean))];
+        setMyRegions(regions);
+        // Auto-select first region if only one
+        if (regions.length === 1 && !isEdit) {
+          setForm(prev => ({ ...prev, region: regions[0] }));
+        }
+      });
+    }
+  }, [id, isAdmin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,8 +47,10 @@ export default function FarmForm() {
     } catch (err) {
       if (err.response?.data?.farm_code) {
         setError('Farm code already exists. Please use a unique code.');
+      } else if (err.response?.data?.region) {
+        setError(Array.isArray(err.response.data.region) ? err.response.data.region[0] : err.response.data.region);
       } else if (err.response?.data) {
-        setError(JSON.stringify(err.response.data));
+        setError(typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data));
       } else {
         setError('Failed to save farm');
       }
@@ -69,9 +86,16 @@ export default function FarmForm() {
             </select>
           </div>
           <div className="form-group">
-            <label>Region</label>
-            <input value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} placeholder="e.g. Medchal, Ranga Reddy, North" />
-            <small className="field-hint">Used for grouping farms in region reports</small>
+            <label>Region *</label>
+            {isAdmin ? (
+              <input value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} required placeholder="e.g. Medchal, Ranga Reddy" />
+            ) : (
+              <select value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} required>
+                <option value="">Select region...</option>
+                {myRegions.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            )}
+            {!isAdmin && <small className="field-hint">You can only create farms in your assigned regions</small>}
           </div>
           <div className="form-group">
             <label>Location</label>
@@ -79,7 +103,7 @@ export default function FarmForm() {
           </div>
           <div className="form-group">
             <label>Capacity (birds) *</label>
-            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.capacity} onChange={e => setForm({ ...form, capacity: e.target.value })} required placeholder="e.g. 5000" />
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.capacity} onChange={e => setForm({ ...form, capacity: e.target.value })} required />
             <small className="field-hint">Max birds this farm can hold. Flock size must be within ±5%</small>
           </div>
         </div>
