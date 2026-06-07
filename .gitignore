@@ -6,3 +6,4 @@ db.sqlite3
 .env
 dist/
 .DS_Store
+static/

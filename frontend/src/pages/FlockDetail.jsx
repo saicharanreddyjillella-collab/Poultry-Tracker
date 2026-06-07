@@ -142,7 +142,7 @@ export default function FlockDetail() {
   };
 
   const exportFlock = () => {
-    window.open(`http://localhost:8000/api/flocks/${id}/export/`, '_blank');
+    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/flocks/${id}/export/`, '_blank');
   };
 
   if (!flock || !cumulative) return <div className="loading">Loading flock data...</div>;
