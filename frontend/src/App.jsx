@@ -40,7 +40,7 @@ function NavBar() {
 
   return (
     <nav className="navbar">
-      <Link to={isPlant ? '/feed' : '/'} className="nav-brand" onClick={closeMenu}>🐔 PoultryTrack</Link>
+      <Link to={isPlant ? '/feed' : '/'} className="nav-brand" onClick={closeMenu}>🐔 Sai Ram Feeds</Link>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>

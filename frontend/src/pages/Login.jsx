@@ -31,7 +31,7 @@ export default function Login() {
       <div className="login-card">
         <div className="login-header">
           <span style={{ fontSize: '2rem' }}>🐔</span>
-          <h1>PoultryTrack</h1>
+          <h1>Sai Ram Feeds</h1>
           <p>Sign in to your account</p>
         </div>
         {error && <div className="error-msg">{error}</div>}
