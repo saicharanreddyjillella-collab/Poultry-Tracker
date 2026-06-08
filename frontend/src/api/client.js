@@ -83,6 +83,11 @@ export const feedOrderAPI = {
   cancel: (id) => API.post(`/feed-orders/${id}/cancel/`),
 };
 
+export const feedTransferAPI = {
+  list: (farmId) => API.get(`/feed-transfers/${farmId ? `?farm=${farmId}` : ''}`),
+  create: (data) => API.post('/feed-transfers/', data),
+};
+
 export const feedStockAPI = {
   list: (farmId) => API.get(`/feed-stock/${farmId ? `?farm=${farmId}` : ''}`),
 };

@@ -1,33 +1,38 @@
 import { useState, useEffect } from 'react';
-import { feedOrderAPI, feedStockAPI, feedRateAPI, farmAPI } from '../api/client';
+import { feedOrderAPI, feedStockAPI, feedRateAPI, feedTransferAPI, farmAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function FeedStock() {
   const { isAdmin, isPlant, canEditFarm } = useAuth();
   const [stock, setStock] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [farms, setFarms] = useState([]);
   const [feedRates, setFeedRates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [showRateForm, setShowRateForm] = useState(false);
+  const [showTransferForm, setShowTransferForm] = useState(false);
   const [orderForm, setOrderForm] = useState({ farm: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
   const [rateForm, setRateForm] = useState({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
+  const [transferForm, setTransferForm] = useState({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: new Date().toISOString().split('T')[0], notes: '' });
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState('');
 
   const load = async () => {
     try {
-      const [stockRes, ordersRes, farmsRes, ratesRes] = await Promise.all([
+      const [stockRes, ordersRes, farmsRes, ratesRes, transfersRes] = await Promise.all([
         feedStockAPI.list(),
         feedOrderAPI.list({ status: filter !== 'all' ? filter : undefined }),
         farmAPI.list(),
         feedRateAPI.list(),
+        feedTransferAPI.list(),
       ]);
       setStock(stockRes.data);
       setOrders(ordersRes.data);
       setFarms(farmsRes.data);
       setFeedRates(ratesRes.data);
+      setTransfers(transfersRes.data);
     } catch {}
     setLoading(false);
   };
@@ -59,6 +64,23 @@ export default function FeedStock() {
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
 
+  const handleTransfer = async (e) => {
+    e.preventDefault(); setError('');
+    try {
+      await feedTransferAPI.create({
+        from_farm: parseInt(transferForm.from_farm),
+        to_farm: parseInt(transferForm.to_farm),
+        feed_type: transferForm.feed_type,
+        quantity_bags: parseInt(transferForm.quantity_bags),
+        date: transferForm.date,
+        notes: transferForm.notes,
+      });
+      setShowTransferForm(false);
+      setTransferForm({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: new Date().toISOString().split('T')[0], notes: '' });
+      load();
+    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+  };
+
   const handleAction = async (orderId, action) => {
     try {
       if (action === 'sent') await feedOrderAPI.markSent(orderId);
@@ -81,8 +103,9 @@ export default function FeedStock() {
       <div className="page-header">
         <h1>Feed Stock & Orders</h1>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {!isPlant && isAdmin && <button className="btn btn-secondary" onClick={() => { setShowRateForm(!showRateForm); setShowOrderForm(false); }}>Update Rate</button>}
-          {!isPlant && <button className="btn btn-primary" onClick={() => { setShowOrderForm(!showOrderForm); setShowRateForm(false); }}>+ Order Feed</button>}
+          {isAdmin && <button className="btn btn-secondary" onClick={() => { setShowRateForm(!showRateForm); setShowOrderForm(false); setShowTransferForm(false); }}>Update Rate</button>}
+          {!isPlant && <button className="btn btn-secondary" onClick={() => { setShowTransferForm(!showTransferForm); setShowOrderForm(false); setShowRateForm(false); }}>Transfer Feed</button>}
+          {!isPlant && <button className="btn btn-primary" onClick={() => { setShowOrderForm(!showOrderForm); setShowRateForm(false); setShowTransferForm(false); }}>+ Order Feed</button>}
         </div>
       </div>
 
@@ -155,6 +178,60 @@ export default function FeedStock() {
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setShowOrderForm(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary">Place Order</button>
+          </div>
+        </form>
+      )}
+
+      {/* TRANSFER FORM */}
+      {showTransferForm && (
+        <form onSubmit={handleTransfer} className="form-card" style={{ marginBottom: '1.5rem' }}>
+          <h3>Transfer Feed Between Farms</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>From Farm *</label>
+              <select value={transferForm.from_farm} onChange={e => setTransferForm({ ...transferForm, from_farm: e.target.value })} required>
+                <option value="">Select...</option>
+                {farms.map(f => {
+                  const s = stock.find(st => st.farm_id === f.id);
+                  return <option key={f.id} value={f.id}>{f.farm_code} — {f.name} {s ? `(${s.stock.total} bags)` : ''}</option>;
+                })}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>To Farm *</label>
+              <select value={transferForm.to_farm} onChange={e => setTransferForm({ ...transferForm, to_farm: e.target.value })} required>
+                <option value="">Select...</option>
+                {farms.filter(f => String(f.id) !== String(transferForm.from_farm)).map(f => (
+                  <option key={f.id} value={f.id}>{f.farm_code} — {f.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Feed Type *</label>
+              <select value={transferForm.feed_type} onChange={e => setTransferForm({ ...transferForm, feed_type: e.target.value })}>
+                <option value="BPSC">BPSC</option>
+                <option value="BSC">BSC</option>
+                <option value="BFP">BFP</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Bags *</label>
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={transferForm.quantity_bags} onChange={e => setTransferForm({ ...transferForm, quantity_bags: e.target.value })} required placeholder="e.g. 5" />
+            </div>
+            <div className="form-group">
+              <label>Date *</label>
+              <input type="date" value={transferForm.date} onChange={e => setTransferForm({ ...transferForm, date: e.target.value })} required />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <input value={transferForm.notes} onChange={e => setTransferForm({ ...transferForm, notes: e.target.value })} placeholder="e.g. Flock closed, leftover feed" />
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowTransferForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Transfer</button>
           </div>
         </form>
       )}
@@ -281,6 +358,33 @@ export default function FeedStock() {
           </tbody>
         </table>
       </div>
+
+      {/* TRANSFERS */}
+      {transfers.length > 0 && (
+        <>
+          <h2 className="section-title" style={{ marginTop: '2rem' }}>Feed Transfers</h2>
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Date</th><th>From</th><th>To</th><th>Type</th><th>Bags</th><th>By</th><th>Notes</th></tr>
+              </thead>
+              <tbody>
+                {transfers.map(t => (
+                  <tr key={t.id}>
+                    <td>{t.date}</td>
+                    <td><span className="farm-code-badge-sm">{t.from_farm_code}</span> {t.from_farm_name}</td>
+                    <td><span className="farm-code-badge-sm">{t.to_farm_code}</span> {t.to_farm_name}</td>
+                    <td><span className={`feed-badge feed-badge-${t.feed_type.toLowerCase()}`}>{t.feed_type}</span></td>
+                    <td><strong>{t.quantity_bags}</strong></td>
+                    <td>{t.transferred_by_name}</td>
+                    <td>{t.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -6,11 +6,11 @@ from django.db.models import Sum
 from django.contrib.auth.models import User
 from datetime import date
 from decimal import Decimal
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile, FeedOrder
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile, FeedOrder, FeedTransfer
 from .serializers import (
     FarmSerializer, FlockSerializer, FlockListSerializer,
     DailyEntrySerializer, SaleSerializer, FeedRateSerializer,
-    MedicationSerializer, FeedOrderSerializer
+    MedicationSerializer, FeedOrderSerializer, FeedTransferSerializer
 )
 from .permissions import IsAdmin, IsAdminOrReadOnly, CanEditFarm, CanEditFlock, CanEditFlockData
 
@@ -1223,9 +1223,21 @@ def feed_stock(request):
         )
         pending_map = {p['feed_type']: float(p['total']) for p in pending}
 
-        stock_bpsc = delivered_map.get('BPSC', 0) - consumed_bpsc
-        stock_bsc = delivered_map.get('BSC', 0) - consumed_bsc
-        stock_bfp = delivered_map.get('BFP', 0) - consumed_bfp
+        # Transfers in (received from other farms)
+        transfers_in = FeedTransfer.objects.filter(to_farm=farm).values('feed_type').annotate(
+            total=Sum('quantity_bags')
+        )
+        in_map = {t['feed_type']: float(t['total']) for t in transfers_in}
+
+        # Transfers out (sent to other farms)
+        transfers_out = FeedTransfer.objects.filter(from_farm=farm).values('feed_type').annotate(
+            total=Sum('quantity_bags')
+        )
+        out_map = {t['feed_type']: float(t['total']) for t in transfers_out}
+
+        stock_bpsc = delivered_map.get('BPSC', 0) + in_map.get('BPSC', 0) - out_map.get('BPSC', 0) - consumed_bpsc
+        stock_bsc = delivered_map.get('BSC', 0) + in_map.get('BSC', 0) - out_map.get('BSC', 0) - consumed_bsc
+        stock_bfp = delivered_map.get('BFP', 0) + in_map.get('BFP', 0) - out_map.get('BFP', 0) - consumed_bfp
 
         result.append({
             'farm_id': farm.id,
@@ -1255,3 +1267,24 @@ def feed_stock(request):
         })
 
     return Response(result)
+
+
+class FeedTransferViewSet(viewsets.ModelViewSet):
+    queryset = FeedTransfer.objects.select_related('from_farm', 'to_farm', 'transferred_by').all()
+    serializer_class = FeedTransferSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        farm_id = self.request.query_params.get('farm')
+        if farm_id:
+            qs = qs.filter(models.Q(from_farm_id=farm_id) | models.Q(to_farm_id=farm_id))
+        return qs
+
+    def perform_create(self, serializer):
+        from rest_framework.exceptions import ValidationError
+        from_farm = serializer.validated_data['from_farm']
+        to_farm = serializer.validated_data['to_farm']
+        if from_farm.id == to_farm.id:
+            raise ValidationError({'to_farm': 'Cannot transfer to the same farm.'})
+        serializer.save(transferred_by=self.request.user)

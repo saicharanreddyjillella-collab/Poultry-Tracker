@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
@@ -107,4 +107,21 @@ class FeedOrderSerializer(serializers.ModelSerializer):
     def get_ordered_by_name(self, obj):
         if obj.ordered_by:
             return f"{obj.ordered_by.first_name} {obj.ordered_by.last_name}".strip() or obj.ordered_by.username
+        return ''
+
+
+class FeedTransferSerializer(serializers.ModelSerializer):
+    from_farm_code = serializers.CharField(source='from_farm.farm_code', read_only=True)
+    from_farm_name = serializers.CharField(source='from_farm.name', read_only=True)
+    to_farm_code = serializers.CharField(source='to_farm.farm_code', read_only=True)
+    to_farm_name = serializers.CharField(source='to_farm.name', read_only=True)
+    transferred_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FeedTransfer
+        fields = '__all__'
+
+    def get_transferred_by_name(self, obj):
+        if obj.transferred_by:
+            return f"{obj.transferred_by.first_name} {obj.transferred_by.last_name}".strip() or obj.transferred_by.username
         return ''

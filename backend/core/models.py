@@ -365,3 +365,20 @@ class FeedOrder(models.Model):
 
     def __str__(self):
         return f"{self.farm.farm_code} - {self.feed_type} x{self.quantity_bags} bags ({self.status})"
+
+
+class FeedTransfer(models.Model):
+    from_farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_transfers_out')
+    to_farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_transfers_in')
+    feed_type = models.CharField(max_length=10, choices=FEED_TYPES)
+    quantity_bags = models.PositiveIntegerField()
+    date = models.DateField()
+    transferred_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.from_farm.farm_code} → {self.to_farm.farm_code}: {self.feed_type} x{self.quantity_bags}"
