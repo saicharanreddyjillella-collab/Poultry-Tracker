@@ -31,4 +31,8 @@ urlpatterns = [
     path('feed-orders/<int:order_id>/mark-delivered/', views.mark_order_delivered),
     path('feed-orders/<int:order_id>/cancel/', views.cancel_order),
     path('feed-stock/', views.feed_stock),
+    path('bill-config/', views.bill_config_view),
+    path('flocks/<int:flock_id>/close-and-bill/', views.close_flock_and_generate_bill),
+    path('flocks/<int:flock_id>/bill/', views.get_bill),
+    path('bills/', views.list_bills),
 ]

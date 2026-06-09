@@ -14,6 +14,7 @@ import RegionPerformance from './pages/RegionPerformance';
 import UserManagement from './pages/UserManagement';
 import ChangePassword from './pages/ChangePassword';
 import FeedStock from './pages/FeedStock';
+import BillView from './pages/BillView';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -99,6 +100,7 @@ function AppRoutes() {
           <Route path="/farms/:id" element={<ProtectedRoute><FarmDetail /></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><FeedStock /></ProtectedRoute>} />
           <Route path="/flocks/:id" element={<ProtectedRoute><FlockDetail /></ProtectedRoute>} />
+          <Route path="/flocks/:flockId/bill" element={<ProtectedRoute><BillView /></ProtectedRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
           <Route path="/reports/region" element={<ProtectedRoute><RegionPerformance /></ProtectedRoute>} />
           <Route path="/reports/till-date" element={<ProtectedRoute><TillDateReport /></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
@@ -125,3 +125,20 @@ class FeedTransferSerializer(serializers.ModelSerializer):
         if obj.transferred_by:
             return f"{obj.transferred_by.first_name} {obj.transferred_by.last_name}".strip() or obj.transferred_by.username
         return ''
+
+
+class BillConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BillConfig
+        fields = '__all__'
+
+
+class BillSerializer(serializers.ModelSerializer):
+    farm_code = serializers.CharField(source='flock.farm.farm_code', read_only=True)
+    farm_name = serializers.CharField(source='flock.farm.name', read_only=True)
+    farmer_name = serializers.CharField(source='flock.farm.owner_name', read_only=True)
+    placement_date = serializers.DateField(source='flock.placement_date', read_only=True)
+
+    class Meta:
+        model = Bill
+        fields = '__all__'

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI } from '../api/client';
+import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 
 export default function FlockDetail() {
@@ -166,11 +166,18 @@ export default function FlockDetail() {
           <button className="btn btn-secondary" onClick={exportFlock}>Export</button>
           {flock.status === 'active' && (
             <button className="btn btn-danger" onClick={async () => {
-              if (window.confirm('Close this flock? This will mark it as completed. Bill generation coming soon.')) {
-                await flockAPI.update(id, { ...flock, status: 'closed', farm: flock.farm });
-                navigate(`/farms/${flock.farm}`);
+              if (window.confirm('Close this flock and generate farmer bill?')) {
+                try {
+                  await billAPI.closeAndBill(id);
+                  navigate(`/flocks/${id}/bill`);
+                } catch (err) {
+                  alert(err.response?.data?.error || 'Failed to close flock');
+                }
               }
-            }}>Close Flock</button>
+            }}>Close & Generate Bill</button>
+          )}
+          {flock.status === 'closed' && (
+            <Link to={`/flocks/${id}/bill`} className="btn btn-secondary">View Bill</Link>
           )}
         </div>
       </div>

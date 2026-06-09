@@ -6,11 +6,12 @@ from django.db.models import Sum
 from django.contrib.auth.models import User
 from datetime import date
 from decimal import Decimal
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile, FeedOrder, FeedTransfer
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, UserProfile, FeedOrder, FeedTransfer, BillConfig, Bill
 from .serializers import (
     FarmSerializer, FlockSerializer, FlockListSerializer,
     DailyEntrySerializer, SaleSerializer, FeedRateSerializer,
-    MedicationSerializer, FeedOrderSerializer, FeedTransferSerializer
+    MedicationSerializer, FeedOrderSerializer, FeedTransferSerializer,
+    BillConfigSerializer, BillSerializer
 )
 from .permissions import IsAdmin, IsAdminOrReadOnly, CanEditFarm, CanEditFlock, CanEditFlockData
 
@@ -1288,3 +1289,67 @@ class FeedTransferViewSet(viewsets.ModelViewSet):
         if from_farm.id == to_farm.id:
             raise ValidationError({'to_farm': 'Cannot transfer to the same farm.'})
         serializer.save(transferred_by=self.request.user)
+
+
+# ─── BILLING ───
+
+@api_view(['GET', 'PUT'])
+def bill_config_view(request):
+    """Get or update the active bill config. Admin only for PUT."""
+    config = BillConfig.get_active()
+    if request.method == 'GET':
+        return Response(BillConfigSerializer(config).data)
+    if not request.user.profile.is_admin:
+        return Response({'error': 'Admin only'}, status=403)
+    serializer = BillConfigSerializer(config, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['POST'])
+def close_flock_and_generate_bill(request, flock_id):
+    """Close a flock and generate its bill."""
+    from .billing import generate_bill
+    try:
+        flock = Flock.objects.select_related('farm').get(id=flock_id)
+    except Flock.DoesNotExist:
+        return Response({'error': 'Flock not found'}, status=404)
+
+    if flock.status == 'closed':
+        # If already closed, return existing bill
+        if hasattr(flock, 'bill'):
+            return Response(BillSerializer(flock.bill).data)
+        # Generate bill for already closed flock
+        bill = generate_bill(flock, request.user)
+        return Response(BillSerializer(bill).data)
+
+    # Check permission
+    if not request.user.profile.can_edit_farm(flock.farm):
+        return Response({'error': 'Permission denied'}, status=403)
+
+    # Close flock
+    flock.status = 'closed'
+    flock.save()
+
+    # Generate bill
+    bill = generate_bill(flock, request.user)
+    return Response(BillSerializer(bill).data, status=201)
+
+
+@api_view(['GET'])
+def get_bill(request, flock_id):
+    """Get bill for a flock."""
+    try:
+        bill = Bill.objects.select_related('flock', 'flock__farm').get(flock_id=flock_id)
+    except Bill.DoesNotExist:
+        return Response({'error': 'Bill not found'}, status=404)
+    return Response(BillSerializer(bill).data)
+
+
+@api_view(['GET'])
+def list_bills(request):
+    """List all bills."""
+    bills = Bill.objects.select_related('flock', 'flock__farm').all()
+    return Response(BillSerializer(bills, many=True).data)

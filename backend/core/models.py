@@ -65,6 +65,14 @@ class Farm(models.Model):
     region = models.CharField(max_length=200, blank=True, help_text="Region/area for grouping farms")
     location = models.CharField(max_length=300, blank=True)
     capacity = models.PositiveIntegerField(default=5000, help_text="Farm bird capacity")
+
+    # Recovery flags — toggleable per farm
+    recovery_excess_mortality = models.BooleanField(default=True, help_text="Apply 1st week excess mortality recovery")
+    recovery_negligence = models.BooleanField(default=False, help_text="Apply farmer negligence recovery")
+    recovery_shortage = models.BooleanField(default=True, help_text="Apply bird shortage recovery")
+    recovery_fcr = models.BooleanField(default=True, help_text="Apply FCR recovery if exceeds area avg")
+    recovery_ifft = models.BooleanField(default=True, help_text="Apply IFFT charges per bag")
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -382,3 +390,115 @@ class FeedTransfer(models.Model):
 
     def __str__(self):
         return f"{self.from_farm.farm_code} → {self.to_farm.farm_code}: {self.feed_type} x{self.quantity_bags}"
+
+
+class BillConfig(models.Model):
+    """Configurable billing rates — only one active config at a time."""
+    chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)
+    feed_cost_per_kg = models.DecimalField(max_digits=10, decimal_places=2, default=44.00)
+    admin_cost_per_chick = models.DecimalField(max_digits=10, decimal_places=2, default=6.00)
+    standard_fcr = models.DecimalField(max_digits=5, decimal_places=2, default=1.65)
+    standard_mortality_pct = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
+    standard_production_cost = models.DecimalField(max_digits=10, decimal_places=2, default=95.00)
+    standard_growing_charges = models.DecimalField(max_digits=10, decimal_places=2, default=6.50)
+    min_growing_charges = models.DecimalField(max_digits=10, decimal_places=2, default=4.50)
+
+    # Rate incentive thresholds
+    incentive_threshold_1 = models.DecimalField(max_digits=10, decimal_places=2, default=110.00)
+    incentive_threshold_2 = models.DecimalField(max_digits=10, decimal_places=2, default=120.00)
+    incentive_rate_1 = models.DecimalField(max_digits=5, decimal_places=2, default=0.05, help_text="Per rupee per kg between threshold 1 and 2")
+    incentive_rate_2 = models.DecimalField(max_digits=5, decimal_places=2, default=0.10, help_text="Per rupee per kg above threshold 2")
+    max_rate_incentive = models.DecimalField(max_digits=10, decimal_places=2, default=2.50)
+
+    # Recovery rates
+    first_week_mortality_limit_pct = models.DecimalField(max_digits=5, decimal_places=2, default=1.50)
+    first_week_recovery_per_chick = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)
+    negligence_rate_1_15 = models.DecimalField(max_digits=10, decimal_places=2, default=80.00)
+    negligence_rate_16_20 = models.DecimalField(max_digits=10, decimal_places=2, default=100.00)
+    negligence_rate_21_35 = models.DecimalField(max_digits=10, decimal_places=2, default=170.00)
+    negligence_rate_above_35 = models.DecimalField(max_digits=10, decimal_places=2, default=190.00)
+    ifft_per_bag = models.DecimalField(max_digits=10, decimal_places=2, default=25.00)
+
+    # Grade thresholds
+    grade_a_plus_max = models.DecimalField(max_digits=10, decimal_places=2, default=94.00)
+    grade_a_max = models.DecimalField(max_digits=10, decimal_places=2, default=95.00)
+    grade_b_max = models.DecimalField(max_digits=10, decimal_places=2, default=96.00)
+    grade_c_max = models.DecimalField(max_digits=10, decimal_places=2, default=97.00)
+    grade_d_max = models.DecimalField(max_digits=10, decimal_places=2, default=98.00)
+    grade_incentive_pct = models.DecimalField(max_digits=5, decimal_places=2, default=50.00, help_text="% increase for A+/A, decrease for B/C/D")
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Bill Config (chick ₹{self.chick_cost_per_bird}, feed ₹{self.feed_cost_per_kg}/kg)"
+
+    @classmethod
+    def get_active(cls):
+        config = cls.objects.filter(is_active=True).first()
+        if not config:
+            config = cls.objects.create()
+        return config
+
+
+class Bill(models.Model):
+    """Generated bill when a flock is closed."""
+    flock = models.OneToOneField(Flock, on_delete=models.CASCADE, related_name='bill')
+    generated_at = models.DateTimeField(auto_now_add=True)
+    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    # Flock summary
+    chicks_placed = models.PositiveIntegerField()
+    total_mortality = models.PositiveIntegerField()
+    live_birds = models.PositiveIntegerField()
+    total_sold_birds = models.PositiveIntegerField()
+    total_sold_weight_kg = models.DecimalField(max_digits=12, decimal_places=2)
+    avg_selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    age_days = models.PositiveIntegerField()
+
+    # Feed
+    total_feed_kg = models.DecimalField(max_digits=12, decimal_places=2)
+    total_feed_bags = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # Cost breakdown
+    chick_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    feed_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    medicine_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    admin_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    production_cost_total = models.DecimalField(max_digits=12, decimal_places=2)
+    production_cost_per_kg = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Growing charges
+    farmer_grade = models.CharField(max_length=5)
+    growing_charges_per_kg = models.DecimalField(max_digits=10, decimal_places=2)
+    growing_charges_total = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # Rate incentive
+    rate_incentive_per_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    rate_incentive_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Recoveries
+    first_week_mortality_recovery = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    negligence_recovery = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    shortage_recovery = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    fcr_recovery = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ifft_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_recoveries = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Final
+    gross_payable = models.DecimalField(max_digits=12, decimal_places=2)
+    net_payable = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # Config snapshot
+    config_snapshot = models.JSONField(default=dict)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-generated_at']
+
+    def __str__(self):
+        return f"Bill: {self.flock.farm.farm_code} - {self.flock.placement_date} - ₹{self.net_payable}"

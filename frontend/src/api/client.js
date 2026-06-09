@@ -106,4 +106,12 @@ export const reportAPI = {
   region: (region) => API.get(`/reports/region/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
 };
 
+export const billAPI = {
+  config: () => API.get('/bill-config/'),
+  updateConfig: (data) => API.put('/bill-config/', data),
+  closeAndBill: (flockId) => API.post(`/flocks/${flockId}/close-and-bill/`),
+  get: (flockId) => API.get(`/flocks/${flockId}/bill/`),
+  list: () => API.get('/bills/'),
+};
+
 export default API;
