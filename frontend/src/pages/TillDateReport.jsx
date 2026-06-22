@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ReportSkeleton } from '../components/Skeletons';
 import { dashboardAPI } from '../api/client';
 
 export default function TillDateReport() {
@@ -12,7 +13,7 @@ export default function TillDateReport() {
     }).catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <ReportSkeleton />;
   if (!data) return <div className="empty-state">Could not load data.</div>;
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';

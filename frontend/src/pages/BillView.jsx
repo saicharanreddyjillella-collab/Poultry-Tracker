@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BillSkeleton } from '../components/Skeletons';
 import { useParams, Link } from 'react-router-dom';
 import { billAPI } from '../api/client';
 
@@ -14,7 +15,7 @@ export default function BillView() {
     }).catch(() => setLoading(false));
   }, [flockId]);
 
-  if (loading) return <div className="loading">Loading bill...</div>;
+  if (loading) return <BillSkeleton />;
   if (!bill) return <div className="empty-state"><p>Bill not found.</p><Link to="/" className="btn btn-primary">Back to Dashboard</Link></div>;
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';

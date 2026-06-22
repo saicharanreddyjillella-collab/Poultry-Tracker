@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ReportSkeleton } from '../components/Skeletons';
 import { feedOrderAPI, feedStockAPI, feedRateAPI, feedTransferAPI, farmAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -96,7 +97,7 @@ export default function FeedStock() {
   const latestRates = {};
   feedRates.forEach(r => { if (!latestRates[r.feed_type]) latestRates[r.feed_type] = r; });
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <ReportSkeleton />;
 
   return (
     <div className="page">

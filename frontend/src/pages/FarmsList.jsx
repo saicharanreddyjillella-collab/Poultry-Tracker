@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FarmsListSkeleton } from '../components/Skeletons';
 import { Link } from 'react-router-dom';
 import { farmAPI } from '../api/client';
 
@@ -25,7 +26,7 @@ export default function FarmsList() {
     );
   });
 
-  if (loading) return <div className="loading">Loading farms...</div>;
+  if (loading) return <FarmsListSkeleton />;
 
   return (
     <div className="page">

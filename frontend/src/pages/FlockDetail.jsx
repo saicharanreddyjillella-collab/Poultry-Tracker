@@ -1,3 +1,4 @@
+import { FlockDetailSkeleton } from '../components/Skeletons';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI } from '../api/client';
@@ -145,7 +146,7 @@ export default function FlockDetail() {
     window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/flocks/${id}/export/`, '_blank');
   };
 
-  if (!flock || !cumulative) return <div className="loading">Loading flock data...</div>;
+  if (!flock || !cumulative) return <FlockDetailSkeleton />;
 
   const fs = cumulative.feed_schedule_status || {};
   const pctUsed = (used, quota) => quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;

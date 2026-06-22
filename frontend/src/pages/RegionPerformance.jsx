@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ReportSkeleton } from '../components/Skeletons';
 import { reportAPI } from '../api/client';
 
 export default function RegionPerformance() {
@@ -19,7 +20,7 @@ export default function RegionPerformance() {
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';
   const fmtDec = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
 
-  if (loading && !data) return <div className="loading">Loading...</div>;
+  if (loading && !data) return <ReportSkeleton />;
 
   return (
     <div className="page">

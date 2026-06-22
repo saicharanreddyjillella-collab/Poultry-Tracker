@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { DashboardSkeleton } from '../components/Skeletons';
 import { Link } from 'react-router-dom';
 import { dashboardAPI } from '../api/client';
 
@@ -13,7 +14,7 @@ export default function Dashboard() {
     }).catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <DashboardSkeleton />;
   if (!data) return <div className="empty-state">Could not load dashboard. Is the Django server running?</div>;
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';

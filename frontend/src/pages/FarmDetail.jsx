@@ -1,3 +1,4 @@
+import { FlockDetailSkeleton } from '../components/Skeletons';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { farmAPI, flockAPI } from '../api/client';
@@ -29,7 +30,7 @@ export default function FarmDetail() {
     load();
   };
 
-  if (!farm) return <div className="loading">Loading...</div>;
+  if (!farm) return <FlockDetailSkeleton />;
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';
   const fmtDec = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
