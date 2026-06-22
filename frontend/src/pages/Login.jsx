@@ -1,17 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { authAPI } from '../api/client';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(null);
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  // If already logged in, redirect to appropriate page
+  useEffect(() => {
+    authAPI.checkSetup().then(res => {
+      setNeedsSetup(res.data.needs_setup);
+    }).catch(() => setNeedsSetup(false));
+  }, []);
+
   if (user) return <Navigate to={user.role === 'plant' ? '/feed' : '/'} replace />;
+  if (needsSetup === true) return <Navigate to="/setup" replace />;
+  if (needsSetup === null) return <div className="loading">Loading...</div>;
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -18,6 +18,55 @@ from .permissions import IsAdmin, IsAdminOrReadOnly, CanEditFarm, CanEditFlock, 
 
 # ─── AUTH VIEWS ───
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_setup(request):
+    """Check if initial setup is needed (no users exist)."""
+    needs_setup = not User.objects.exists()
+    return Response({'needs_setup': needs_setup})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def initial_setup(request):
+    """Create the first admin user. Only works when no users exist."""
+    if User.objects.exists():
+        return Response({'error': 'Setup already completed. Users exist.'}, status=403)
+
+    username = request.data.get('username', '').strip()
+    password = request.data.get('password', '')
+    first_name = request.data.get('first_name', '')
+    last_name = request.data.get('last_name', '')
+
+    if not username or not password:
+        return Response({'error': 'Username and password are required'}, status=400)
+    if len(password) < 8:
+        return Response({'error': 'Password must be at least 8 characters'}, status=400)
+
+    user = User.objects.create_user(
+        username=username, password=password,
+        first_name=first_name, last_name=last_name,
+    )
+    UserProfile.objects.create(user=user, role='admin')
+
+    from rest_framework_simplejwt.tokens import RefreshToken
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'message': 'Admin account created successfully',
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': 'admin',
+            'assigned_farm_ids': [],
+            'assigned_regions': [],
+        }
+    }, status=201)
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):

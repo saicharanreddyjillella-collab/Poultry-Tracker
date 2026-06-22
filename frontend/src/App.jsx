@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AlertBell from './components/AlertBell';
 import Login from './pages/Login';
+import Setup from './pages/Setup';
 import Dashboard from './pages/Dashboard';
 import FarmsList from './pages/FarmsList';
 import FarmForm from './pages/FarmForm';
@@ -93,6 +94,7 @@ function AppRoutes() {
       <main className="main-content">
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/setup" element={<Setup />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/farms" element={<ProtectedRoute><FarmsList /></ProtectedRoute>} />
           <Route path="/farms/new" element={<ProtectedRoute><FarmForm /></ProtectedRoute>} />

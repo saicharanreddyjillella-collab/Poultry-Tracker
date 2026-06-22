@@ -27,6 +27,8 @@ API.interceptors.response.use(
 );
 
 export const authAPI = {
+  checkSetup: () => API.get('/auth/check-setup/'),
+  setup: (data) => API.post('/auth/setup/', data),
   login: (username, password) => API.post('/auth/login/', { username, password }),
   me: () => API.get('/auth/me/'),
   changePassword: (current_password, new_password) => API.post('/auth/change-password/', { current_password, new_password }),

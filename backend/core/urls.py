@@ -14,6 +14,8 @@ router.register(r'feed-transfers', views.FeedTransferViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('auth/check-setup/', views.check_setup),
+    path('auth/setup/', views.initial_setup),
     path('auth/login/', views.login_view),
     path('auth/me/', views.me_view),
     path('auth/change-password/', views.change_password),
