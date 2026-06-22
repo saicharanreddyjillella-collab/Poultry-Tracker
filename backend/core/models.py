@@ -72,6 +72,7 @@ class Farm(models.Model):
     recovery_shortage = models.BooleanField(default=True, help_text="Apply bird shortage recovery")
     recovery_fcr = models.BooleanField(default=True, help_text="Apply FCR recovery if exceeds area avg")
     recovery_ifft = models.BooleanField(default=True, help_text="Apply IFFT charges per bag")
+    medicine_use_actual = models.BooleanField(default=False, help_text="If ON: use actual medicine cost. If OFF: use chicks × medicine_cost_per_chick")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -397,6 +398,7 @@ class BillConfig(models.Model):
     chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)
     feed_cost_per_kg = models.DecimalField(max_digits=10, decimal_places=2, default=44.00)
     admin_cost_per_chick = models.DecimalField(max_digits=10, decimal_places=2, default=6.00)
+    medicine_cost_per_chick = models.DecimalField(max_digits=10, decimal_places=2, default=5.00, help_text="Default medicine cost per chick when not using actual")
     standard_fcr = models.DecimalField(max_digits=5, decimal_places=2, default=1.65)
     standard_mortality_pct = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
     standard_production_cost = models.DecimalField(max_digits=10, decimal_places=2, default=95.00)

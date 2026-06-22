@@ -14,7 +14,7 @@ export default function FarmForm() {
   const [form, setForm] = useState({
     farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', capacity: 5000,
     recovery_excess_mortality: true, recovery_negligence: false, recovery_shortage: true,
-    recovery_fcr: true, recovery_ifft: true,
+    recovery_fcr: true, recovery_ifft: true, medicine_use_actual: false,
   });
 
   useEffect(() => {
@@ -117,6 +117,7 @@ export default function FarmForm() {
             <label className="toggle-label"><input type="checkbox" checked={form.recovery_shortage} onChange={e => setForm({ ...form, recovery_shortage: e.target.checked })} /> Bird Shortage</label>
             <label className="toggle-label"><input type="checkbox" checked={form.recovery_fcr} onChange={e => setForm({ ...form, recovery_fcr: e.target.checked })} /> FCR Recovery</label>
             <label className="toggle-label"><input type="checkbox" checked={form.recovery_ifft} onChange={e => setForm({ ...form, recovery_ifft: e.target.checked })} /> IFFT Charges</label>
+            <label className="toggle-label"><input type="checkbox" checked={form.medicine_use_actual} onChange={e => setForm({ ...form, medicine_use_actual: e.target.checked })} /> Use Actual Medicine Cost</label>
           </div>
         </div>
         <div className="form-actions">

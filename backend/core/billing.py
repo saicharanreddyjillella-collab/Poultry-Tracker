@@ -39,7 +39,12 @@ def generate_bill(flock, user=None):
     # ─── COST CALCULATION ───
     chick_cost = Decimal(str(chicks_placed)) * config.chick_cost_per_bird
     feed_cost = total_feed_kg * config.feed_cost_per_kg
-    medicine_cost = Decimal(str(flock.total_medication_cost))
+
+    # Medicine cost: actual if flag is on, else chicks × rate
+    if farm.medicine_use_actual:
+        medicine_cost = Decimal(str(flock.total_medication_cost))
+    else:
+        medicine_cost = Decimal(str(chicks_placed)) * config.medicine_cost_per_chick
     # Admin cost = per live chick (sold + remaining live)
     admin_birds = total_sold_birds + max(0, live_birds)
     admin_cost = Decimal(str(admin_birds)) * config.admin_cost_per_chick
@@ -211,6 +216,8 @@ def generate_bill(flock, user=None):
             'chick_cost_per_bird': str(config.chick_cost_per_bird),
             'feed_cost_per_kg': str(config.feed_cost_per_kg),
             'admin_cost_per_chick': str(config.admin_cost_per_chick),
+            'medicine_cost_per_chick': str(config.medicine_cost_per_chick),
+            'medicine_use_actual': farm.medicine_use_actual,
         },
     )
     return bill
