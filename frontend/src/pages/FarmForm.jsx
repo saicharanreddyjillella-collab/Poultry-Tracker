@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { farmAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import UnsavedPrompt from '../components/UnsavedPrompt';
 
 export default function FarmForm() {
   const { id } = useParams();
@@ -10,12 +11,14 @@ export default function FarmForm() {
   const isEdit = Boolean(id);
   const [error, setError] = useState('');
   const [myRegions, setMyRegions] = useState([]);
+  const [dirty, setDirty] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, _setForm] = useState({
     farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', capacity: 5000,
     recovery_excess_mortality: true, recovery_negligence: false, recovery_shortage: true,
     recovery_fcr: true, recovery_ifft: true, medicine_use_actual: false,
   });
+  const setForm = (v) => { _setForm(v); setDirty(true); };
 
   useEffect(() => {
     if (isEdit) {
@@ -45,6 +48,7 @@ export default function FarmForm() {
       } else {
         await farmAPI.create(submitData);
       }
+      setDirty(false);
       navigate('/farms');
     } catch (err) {
       if (err.response?.data?.farm_code) {
@@ -61,6 +65,7 @@ export default function FarmForm() {
 
   return (
     <div className="page">
+      <UnsavedPrompt when={dirty} message="You have unsaved farm details. Discard changes?" />
       <h1>{isEdit ? 'Edit Farm' : 'Add New Farm'}</h1>
       <form onSubmit={handleSubmit} className="form-card">
         {error && <div className="error-msg">{error}</div>}

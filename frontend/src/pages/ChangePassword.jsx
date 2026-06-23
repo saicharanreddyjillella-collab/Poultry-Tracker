@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { authAPI } from '../api/client';
+import UnsavedPrompt from '../components/UnsavedPrompt';
 
 export default function ChangePassword() {
-  const [form, setForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [form, _setForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [dirty, setDirty] = useState(false);
+  const setForm = (v) => { _setForm(v); setDirty(true); };
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,6 +31,7 @@ export default function ChangePassword() {
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
       setSuccess('Password changed successfully');
+      setDirty(false);
       setForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to change password');
@@ -37,6 +41,7 @@ export default function ChangePassword() {
 
   return (
     <div className="page">
+      <UnsavedPrompt when={dirty} message="You have unsaved password changes. Discard?" />
       <h1>Change Password</h1>
       <form onSubmit={handleSubmit} className="form-card" style={{ maxWidth: 400 }}>
         {error && <div className="error-msg">{error}</div>}

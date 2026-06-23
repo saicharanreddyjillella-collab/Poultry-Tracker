@@ -1,5 +1,6 @@
 import { FlockDetailSkeleton } from '../components/Skeletons';
 import ConfirmModal from '../components/ConfirmModal';
+import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI } from '../api/client';
@@ -155,6 +156,7 @@ export default function FlockDetail() {
 
   return (
     <div className="page">
+      <UnsavedPrompt when={showEntryForm || showSaleForm || showMedForm || showFeedOrderForm} message="You have an unsaved form open. Discard changes?" />
       <div className="page-header">
         <div>
           <Link to={`/farms/${flock.farm}`} className="back-link">&larr; Back to Farm</Link>

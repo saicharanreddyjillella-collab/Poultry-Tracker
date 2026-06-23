@@ -1,4 +1,5 @@
 import { FlockDetailSkeleton } from '../components/Skeletons';
+import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { farmAPI, flockAPI } from '../api/client';
@@ -40,6 +41,7 @@ export default function FarmDetail() {
 
   return (
     <div className="page">
+      <UnsavedPrompt when={showFlockForm} message="You have an unsaved flock placement form. Discard?" />
       {/* HEADER */}
       <div className="page-header">
         <div>
