@@ -1,4 +1,5 @@
 import { FlockDetailSkeleton } from '../components/Skeletons';
+import ConfirmModal from '../components/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI } from '../api/client';
@@ -15,6 +16,7 @@ export default function FlockDetail() {
   const [showMedForm, setShowMedForm] = useState(false);
   const [showFeedOrderForm, setShowFeedOrderForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, danger: false });
   const [entryForm, setEntryForm] = useState({
     date: new Date().toISOString().split('T')[0],
     mortality_count: '', feed_type: 'BPSC', feed_bags: '',
@@ -166,8 +168,12 @@ export default function FlockDetail() {
           <button className="btn btn-secondary" onClick={() => { setShowFeedOrderForm(!showFeedOrderForm); setShowEntryForm(false); setShowSaleForm(false); setShowMedForm(false); }}>+ Order Feed</button>
           <button className="btn btn-secondary" onClick={exportFlock}>Export</button>
           {flock.status === 'active' && (
-            <button className="btn btn-danger" onClick={async () => {
-              if (window.confirm('Close this flock and generate farmer bill?')) {
+            <button className="btn btn-danger" onClick={() => setConfirm({
+              open: true, danger: true,
+              title: 'Close Flock & Generate Bill',
+              message: `This will close the flock at ${flock.farm_name} and generate the farmer bill. This action cannot be undone.`,
+              onConfirm: async () => {
+                setConfirm({ ...confirm, open: false });
                 try {
                   await billAPI.closeAndBill(id);
                   navigate(`/flocks/${id}/bill`);
@@ -175,7 +181,7 @@ export default function FlockDetail() {
                   alert(err.response?.data?.error || 'Failed to close flock');
                 }
               }
-            }}>Close & Generate Bill</button>
+            })}>Close & Generate Bill</button>
           )}
           {flock.status === 'closed' && (
             <Link to={`/flocks/${id}/bill`} className="btn btn-secondary">View Bill</Link>
@@ -483,12 +489,16 @@ export default function FlockDetail() {
                       <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td><td className="text-muted-cell">{e.standard_weight_grams}</td>
                       <td className="entry-actions">
                         <button className="btn-action btn-action-edit" onClick={() => startEditEntry(e)}>Edit</button>
-                        <button className="btn-action btn-action-cancel" onClick={async () => {
-                          if (window.confirm(`Delete entry for ${e.date}?`)) {
+                        <button className="btn-action btn-action-cancel" onClick={() => setConfirm({
+                          open: true, danger: true,
+                          title: 'Delete Entry',
+                          message: `Delete daily entry for ${e.date}? This will remove mortality, feed, and weight data for this day.`,
+                          onConfirm: async () => {
+                            setConfirm({ ...confirm, open: false });
                             await dailyEntryAPI.delete(e.id);
                             load();
                           }
-                        }}>Delete</button>
+                        })}>Delete</button>
                       </td>
                     </tr>
                   );
@@ -553,6 +563,16 @@ export default function FlockDetail() {
           <p>No entries yet. Click "+ Daily Entry" to start recording.</p>
         </div>
       )}
+
+      <ConfirmModal
+        open={confirm.open}
+        title={confirm.title}
+        message={confirm.message}
+        danger={confirm.danger}
+        confirmText={confirm.danger ? 'Yes, proceed' : 'Confirm'}
+        onConfirm={confirm.onConfirm}
+        onCancel={() => setConfirm({ ...confirm, open: false })}
+      />
     </div>
   );
 }

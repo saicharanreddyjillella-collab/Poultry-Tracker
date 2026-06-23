@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { authAPI, farmAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function UserManagement() {
   const { isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   const [farms, setFarms] = useState([]);
   const [regions, setRegions] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({
@@ -65,11 +69,16 @@ export default function UserManagement() {
     }
   };
 
-  const handleDelete = async (u) => {
-    if (window.confirm(`Delete user ${u.username}?`)) {
-      await authAPI.deleteUser(u.id);
-      load();
-    }
+  const handleDelete = (u) => {
+    setConfirm({
+      open: true, title: 'Delete User',
+      message: `Are you sure you want to delete "${u.username}"? This cannot be undone.`,
+      onConfirm: async () => {
+        setConfirm({ ...confirm, open: false });
+        await authAPI.deleteUser(u.id);
+        load();
+      }
+    });
   };
 
   const toggleRegion = (region) => {
@@ -208,6 +217,16 @@ export default function UserManagement() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        open={confirm.open}
+        title={confirm.title}
+        message={confirm.message}
+        danger
+        confirmText="Delete"
+        onConfirm={confirm.onConfirm}
+        onCancel={() => setConfirm({ ...confirm, open: false })}
+      />
     </div>
   );
 }
