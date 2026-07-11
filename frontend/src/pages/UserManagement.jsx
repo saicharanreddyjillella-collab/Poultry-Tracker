@@ -11,8 +11,6 @@ export default function UserManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
-  const [showForm, setShowForm] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({
     username: '', password: '', first_name: '', last_name: '',
     role: 'supervisor', phone: '', assigned_regions: [],
