@@ -808,3 +808,4 @@ tbody tr:hover { background: #fafaf8; }
 .bill-flag-row { display: flex; justify-content: space-between; align-items: center; }
 .bill-flag-hint { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 .bill-flags-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+.stock-divider { color: var(--border); font-weight: 300; }

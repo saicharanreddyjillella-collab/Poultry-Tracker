@@ -457,8 +457,11 @@ def export_monthly_report(request):
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-    response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename=monthly_report_{year}_{month:02d}.xlsx'
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="monthly_report_{year}_{month:02d}.xlsx"'
     return response
 
 
@@ -467,34 +470,73 @@ def export_flock_report(request, flock_id):
     import openpyxl
     from io import BytesIO
     from django.http import HttpResponse
+    from ..standards import get_standard_weight
 
-    cum_response = flock_cumulative(request, flock_id)
-    data = cum_response.data
+    flock = Flock.objects.select_related('farm').get(id=flock_id)
+    entries = DailyEntry.objects.filter(flock=flock).order_by('date')
+    sales = Sale.objects.filter(flock=flock).order_by('date')
+    meds = Medication.objects.filter(flock=flock).order_by('date')
 
+    BAG_KG = 50
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Flock Report"
-    ws.append(['Farm', data['farm_name']])
-    ws.append(['Placement Date', data['placement_date']])
-    ws.append(['Chicks Placed', data['chick_count']])
-    ws.append(['Age (days)', data['age_days']])
-    ws.append(['Status', data['status']])
+
+    # Header
+    ws.append(['Farm', flock.farm.name])
+    ws.append(['Farm Code', flock.farm.farm_code])
+    ws.append(['Owner', flock.farm.owner_name])
+    ws.append(['Placement Date', str(flock.placement_date)])
+    ws.append(['Chicks Placed', flock.chick_count])
+    ws.append(['Age (days)', flock.age_days])
+    ws.append(['Status', flock.status])
     ws.append([])
-    headers = ['Day', 'Date', 'Mortality', 'Cum Mort', 'Mort%', 'BPSC', 'BSC', 'BFP', 'Total Bags', 'Cum Bags', 'Cum Kg', 'Water(L)', 'Weight(g)', 'Std(g)']
-    ws.append(headers)
-    for e in data['entries']:
+
+    # Daily entries
+    ws.append(['Day', 'Date', 'Mortality', 'Cum Mort', 'Mort%', 'Feed Type', 'Bags', 'Cum Bags', 'Cum Kg', 'Water(L)', 'Weight(g)', 'Std(g)'])
+    cum_mort = 0
+    cum_bags = 0
+    for entry in entries:
+        cum_mort += entry.mortality_count
+        day_bags = entry.feed_bpsc_bags + entry.feed_bsc_bags + entry.feed_bfp_bags
+        cum_bags += day_bags
+        day_num = (entry.date - flock.placement_date).days
+        feed_type = 'BPSC' if entry.feed_bpsc_bags > 0 else 'BSC' if entry.feed_bsc_bags > 0 else 'BFP' if entry.feed_bfp_bags > 0 else ''
+        bags = entry.feed_bpsc_bags or entry.feed_bsc_bags or entry.feed_bfp_bags or 0
+        mort_pct = round((cum_mort / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0
         ws.append([
-            e['day_number'], e['date'], e['daily_mortality'], e['cumulative_mortality'],
-            e['mortality_percentage'], e['feed_bpsc_bags'], e['feed_bsc_bags'], e['feed_bfp_bags'],
-            e['daily_feed_bags'], e['cumulative_feed_bags'], e['cumulative_feed_kg'],
-            e['water_liters'], e['avg_body_weight_grams'], e['standard_weight_grams'],
+            day_num, str(entry.date), entry.mortality_count, cum_mort, mort_pct,
+            feed_type, bags, cum_bags, cum_bags * BAG_KG,
+            float(entry.water_consumed_liters),
+            float(entry.avg_body_weight_grams) if entry.avg_body_weight_grams else None,
+            get_standard_weight(day_num),
         ])
+
+    # Sales
+    ws.append([])
+    ws.append(['SALES'])
+    ws.append(['Date', 'Trader', 'Birds', 'Weight (kg)', 'Avg/Bird', 'Rate', 'Amount'])
+    for s in sales:
+        avg = round(float(s.total_weight_kg) / s.bird_count, 3) if s.bird_count > 0 else 0
+        amt = round(float(s.total_weight_kg) * float(s.rate_per_kg), 2) if s.rate_per_kg else None
+        ws.append([str(s.date), s.trader_name, s.bird_count, float(s.total_weight_kg), avg, float(s.rate_per_kg) if s.rate_per_kg else None, amt])
+
+    # Medications
+    if meds.exists():
+        ws.append([])
+        ws.append(['MEDICATIONS'])
+        ws.append(['Date', 'Name', 'Dose', 'Route', 'Cost', 'Reason'])
+        for m in meds:
+            ws.append([str(m.date), m.name, m.dose, m.route, float(m.cost), m.reason])
 
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-    response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename=flock_{flock_id}_report.xlsx'
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="flock_{flock_id}_report.xlsx"'
     return response
 
 

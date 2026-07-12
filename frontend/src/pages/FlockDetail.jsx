@@ -197,10 +197,14 @@ export default function FlockDetail() {
           <p className="farm-meta">Placed: {flock.placement_date} &middot; Day {flock.age_days} &middot; {flock.chick_count.toLocaleString()} chicks</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); setShowMedForm(false); setShowFeedOrderForm(false); }}>+ Daily Entry</button>
-          <button className="btn btn-secondary" onClick={() => { setShowSaleForm(!showSaleForm); setShowEntryForm(false); setShowMedForm(false); setShowFeedOrderForm(false); }}>+ Sale</button>
-          <button className="btn btn-secondary" onClick={() => { setShowMedForm(!showMedForm); setShowEntryForm(false); setShowSaleForm(false); setShowFeedOrderForm(false); }}>+ Medicine</button>
-          <button className="btn btn-secondary" onClick={() => { setShowFeedOrderForm(!showFeedOrderForm); setShowEntryForm(false); setShowSaleForm(false); setShowMedForm(false); }}>+ Order Feed</button>
+          {flock.status === 'active' && (
+            <>
+              <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); setShowMedForm(false); setShowFeedOrderForm(false); }}>+ Daily Entry</button>
+              <button className="btn btn-secondary" onClick={() => { setShowSaleForm(!showSaleForm); setShowEntryForm(false); setShowMedForm(false); setShowFeedOrderForm(false); }}>+ Sale</button>
+              <button className="btn btn-secondary" onClick={() => { setShowMedForm(!showMedForm); setShowEntryForm(false); setShowSaleForm(false); setShowFeedOrderForm(false); }}>+ Medicine</button>
+              <button className="btn btn-secondary" onClick={() => { setShowFeedOrderForm(!showFeedOrderForm); setShowEntryForm(false); setShowSaleForm(false); setShowMedForm(false); }}>+ Order Feed</button>
+            </>
+          )}
           <button className="btn btn-secondary" onClick={exportFlock}>Export</button>
           {flock.status === 'active' && (
             <button className="btn btn-danger" onClick={() => setShowCloseModal(true)}>Close & Generate Bill</button>
@@ -221,11 +225,14 @@ export default function FlockDetail() {
       {/* Farm Feed Stock */}
       {farmStock && (
         <div className="farm-stock-bar">
-          <strong>Feed Stock:</strong>
+          <strong>Farm Stock:</strong>
           <span className={`feed-badge feed-badge-bpsc ${farmStock.stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {farmStock.stock.bpsc}</span>
           <span className={`feed-badge feed-badge-bsc ${farmStock.stock.bsc <= 2 ? 'stock-low' : ''}`}>BSC: {farmStock.stock.bsc}</span>
           <span className={`feed-badge feed-badge-bfp ${farmStock.stock.bfp <= 2 ? 'stock-low' : ''}`}>BFP: {farmStock.stock.bfp}</span>
           <span>Total: {farmStock.stock.total} bags</span>
+          <span className="stock-divider">|</span>
+          <strong>This Flock:</strong>
+          <span>{cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags} bags consumed ({cumulative.total_feed_kg} kg)</span>
         </div>
       )}
 
@@ -512,7 +519,7 @@ export default function FlockDetail() {
               <thead>
                 <tr>
                   <th>Day</th><th>Date</th><th>Mort.</th><th>Cum.M</th><th>M%</th>
-                  <th>Feed</th><th>Bags</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th>Std(g)</th><th>Actions</th>
+                  <th>Feed</th><th>Bags</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th>Std(g)</th>{flock.status === 'active' && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -528,19 +535,21 @@ export default function FlockDetail() {
                       <td>{feedBags || '—'}</td>
                       <td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
                       <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td><td className="text-muted-cell">{e.standard_weight_grams}</td>
-                      <td className="entry-actions">
-                        <button className="btn-action btn-action-edit" onClick={() => startEditEntry(e)}>Edit</button>
-                        <button className="btn-action btn-action-cancel" onClick={() => setConfirm({
-                          open: true, danger: true,
-                          title: 'Delete Entry',
-                          message: `Delete daily entry for ${e.date}? This will remove mortality, feed, and weight data for this day.`,
-                          onConfirm: async () => {
-                            setConfirm({ ...confirm, open: false });
-                            await dailyEntryAPI.delete(e.id);
-                            load();
-                          }
-                        })}>Delete</button>
-                      </td>
+                      {flock.status === 'active' && (
+                        <td className="entry-actions">
+                          <button className="btn-action btn-action-edit" onClick={() => startEditEntry(e)}>Edit</button>
+                          <button className="btn-action btn-action-cancel" onClick={() => setConfirm({
+                            open: true, danger: true,
+                            title: 'Delete Entry',
+                            message: `Delete daily entry for ${e.date}? This will remove mortality, feed, and weight data for this day.`,
+                            onConfirm: async () => {
+                              setConfirm({ ...confirm, open: false });
+                              await dailyEntryAPI.delete(e.id);
+                              load();
+                            }
+                          })}>Delete</button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
