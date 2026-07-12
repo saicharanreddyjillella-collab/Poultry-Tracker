@@ -2,7 +2,7 @@ import { FlockDetailSkeleton } from '../components/Skeletons';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { farmAPI, flockAPI, authAPI } from '../api/client';
+import { farmAPI, flockAPI, authAPI, getErrorMessage } from '../api/client';
 
 export default function FarmDetail() {
   const { id } = useParams();
@@ -41,7 +41,7 @@ export default function FarmDetail() {
       setFlockForm({ placement_date: '', chick_count: '', supervisor: '' });
       load();
     } catch (err) {
-      alert(err.response?.data?.chick_count?.[0] || err.response?.data?.error || JSON.stringify(err.response?.data) || 'Failed');
+      alert(getErrorMessage(err));
     }
   };
 

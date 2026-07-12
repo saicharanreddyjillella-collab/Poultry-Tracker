@@ -102,7 +102,6 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
         # Mortality cannot exceed live birds
         mortality = data.get('mortality_count', 0) or 0
         if mortality > 0:
-            # Calculate current live birds (excluding this entry if editing)
             total_mort = flock.daily_entries.aggregate(t=Sum('mortality_count'))['t'] or 0
             if instance:
                 total_mort -= instance.mortality_count
@@ -112,6 +111,14 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
                 raise ValidationError({
                     'mortality_count': f'Mortality ({mortality}) cannot exceed live birds ({live_birds}).'
                 })
+
+        # Feed bags limit: capacity * 0.2 / 50 per day
+        max_bags_per_day = int((flock.chick_count * 0.2) / 50) or 1
+        total_bags = (data.get('feed_bpsc_bags', 0) or 0) + (data.get('feed_bsc_bags', 0) or 0) + (data.get('feed_bfp_bags', 0) or 0)
+        if total_bags > max_bags_per_day:
+            raise ValidationError({
+                'feed_bags': f'Maximum {max_bags_per_day} bags per day for this flock ({flock.chick_count} birds).'
+            })
 
     def perform_create(self, serializer):
         self._validate_entry(serializer.validated_data)

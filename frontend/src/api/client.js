@@ -1,5 +1,21 @@
 import axios from 'axios';
 
+// Extract readable error message from API error
+export function getErrorMessage(err) {
+  const data = err.response?.data;
+  if (!data) return 'Something went wrong. Please try again.';
+  if (typeof data === 'string') return data;
+  if (data.error) return data.error;
+  if (data.detail) return data.detail;
+  // DRF field errors: {field: ["message"]} or {field: "message"}
+  const messages = [];
+  for (const [key, val] of Object.entries(data)) {
+    const msg = Array.isArray(val) ? val.join(', ') : String(val);
+    messages.push(msg);
+  }
+  return messages.join(' ') || 'Something went wrong.';
+}
+
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
 });

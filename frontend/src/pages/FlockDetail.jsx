@@ -3,7 +3,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI } from '../api/client';
+import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI, getErrorMessage } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 
 export default function FlockDetail() {
@@ -111,7 +111,7 @@ export default function FlockDetail() {
       setShowEntryForm(false);
       resetEntryForm();
       load();
-    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleSale = async (e) => {
@@ -128,7 +128,7 @@ export default function FlockDetail() {
       setShowSaleForm(false);
       setSaleForm({ date: new Date().toISOString().split('T')[0], bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '' });
       load();
-    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleMed = async (e) => {
@@ -142,7 +142,7 @@ export default function FlockDetail() {
       setShowMedForm(false);
       setMedForm({ date: new Date().toISOString().split('T')[0], name: '', dose: '', route: '', cost: '', reason: '' });
       load();
-    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleFeedOrder = async (e) => {
@@ -158,7 +158,7 @@ export default function FlockDetail() {
       setShowFeedOrderForm(false);
       setFeedOrderForm({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
       load();
-    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const exportFlock = async () => {
@@ -223,8 +223,8 @@ export default function FlockDetail() {
         </div>
       )}
 
-      {/* Flock Feed Stock */}
-      {cumulative.flock_feed_stock && (
+      {/* Flock Feed Stock — active only */}
+      {flock.status === 'active' && cumulative.flock_feed_stock && (
         <div className="farm-stock-bar">
           <strong>Flock Feed Stock:</strong>
           <span className={`feed-badge feed-badge-bpsc ${cumulative.flock_feed_stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {cumulative.flock_feed_stock.bpsc}</span>
