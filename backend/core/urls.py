@@ -28,6 +28,7 @@ urlpatterns = [
     path('reports/monthly/', views.monthly_report),
     path('reports/monthly/export/', views.export_monthly_report),
     path('reports/region/', views.region_performance),
+    path('reports/till-date/', views.till_date_report),
     path('flocks/<int:flock_id>/export/', views.export_flock_report),
     path('feed-orders/<int:order_id>/mark-sent/', views.mark_order_sent),
     path('feed-orders/<int:order_id>/mark-delivered/', views.mark_order_delivered),

@@ -7,7 +7,7 @@ from .data import (
     FeedRateViewSet, MedicationViewSet,
     dashboard, flock_cumulative, farm_cumulative,
     monthly_report, export_monthly_report, export_flock_report,
-    region_performance,
+    region_performance, till_date_report,
 )
 from .feed import (
     FeedOrderViewSet, FeedTransferViewSet,

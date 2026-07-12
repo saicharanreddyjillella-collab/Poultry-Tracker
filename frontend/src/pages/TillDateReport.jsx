@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
-import { dashboardAPI } from '../api/client';
+import { reportAPI } from '../api/client';
 
 export default function TillDateReport() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    dashboardAPI.get().then(res => {
+    reportAPI.tillDate().then(res => {
       setData(res.data);
       setLoading(false);
     }).catch(() => setLoading(false));

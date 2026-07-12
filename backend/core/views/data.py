@@ -393,13 +393,23 @@ def monthly_report(request):
             'age_days': flock.age_days,
             'total_mortality': total_mort,
             'mortality_pct': round((total_mort / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0,
-            'sold_birds': sold_birds, 'sold_weight': sold_weight,
+            'total_sold_birds': sold_birds,
+            'total_sold_weight_kg': sold_weight,
+            'avg_bird_weight_kg': round(sold_weight / sold_birds, 3) if sold_birds > 0 else None,
             'total_feed_bags': total_bags, 'total_feed_kg': total_feed_kg,
-            'fcr': fcr, 'cost_per_kg': cost_kg,
+            'feed_cost': round(total_feed_kg * 44, 2),
+            'fcr': fcr,
+            'cost_per_kg_production': cost_kg,
             'weekly_mortality': weekly_mort,
         })
 
-    return Response({'year': year, 'month': month, 'batches': batches})
+    import calendar
+    month_name = calendar.month_name[month]
+    return Response({
+        'year': year, 'month': month, 'month_name': month_name,
+        'flocks_count': len(batches),
+        'flocks': batches,
+    })
 
 
 @api_view(['GET'])
@@ -524,4 +534,88 @@ def region_performance(request):
             'fcr': fcr,
         })
 
-    return Response(result)
+    return Response({
+        'regions': sorted(list(Farm.objects.exclude(region='').values_list('region', flat=True).distinct())),
+        'data': result,
+    })
+
+
+# ─── TILL DATE REPORT ───
+
+@api_view(['GET'])
+def till_date_report(request):
+    BAG_KG = 50
+    all_flocks = Flock.objects.select_related('farm').all()
+    active_flocks = all_flocks.filter(status='active')
+
+    total_placed = 0
+    total_mortality = 0
+    total_sold_birds = 0
+    total_sold_weight = Decimal('0')
+    total_sale_amount = Decimal('0')
+    total_bpsc = 0
+    total_bsc = 0
+    total_bfp = 0
+    total_med_cost = Decimal('0')
+    total_live_birds = 0
+
+    for flock in all_flocks:
+        total_placed += flock.chick_count
+        entries = DailyEntry.objects.filter(flock=flock)
+        mort = entries.aggregate(t=Sum('mortality_count'))['t'] or 0
+        total_mortality += mort
+
+        feed = entries.aggregate(
+            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
+        )
+        total_bpsc += feed['bpsc'] or 0
+        total_bsc += feed['bsc'] or 0
+        total_bfp += feed['bfp'] or 0
+
+        sales = Sale.objects.filter(flock=flock)
+        sold_birds = sales.aggregate(t=Sum('bird_count'))['t'] or 0
+        sold_weight = sales.aggregate(t=Sum('total_weight_kg'))['t'] or Decimal('0')
+        total_sold_birds += sold_birds
+        total_sold_weight += sold_weight
+
+        for s in sales.filter(rate_per_kg__isnull=False):
+            total_sale_amount += s.total_weight_kg * s.rate_per_kg
+
+        total_med_cost += Decimal(str(flock.total_medication_cost))
+
+    for flock in active_flocks:
+        total_live_birds += flock.live_birds
+
+    total_feed_bags = total_bpsc + total_bsc + total_bfp
+    total_feed_kg = total_feed_bags * BAG_KG
+    fcr = round(float(total_feed_kg) / float(total_sold_weight), 3) if total_sold_weight > 0 else None
+    total_feed_cost = Decimal(str(total_feed_kg)) * Decimal('44')
+    cost_per_kg = round(float(total_feed_cost) / float(total_sold_weight), 2) if total_sold_weight > 0 else None
+
+    latest_rates = {}
+    for ft in ['BPSC', 'BSC', 'BFP']:
+        rate = FeedRate.objects.filter(feed_type=ft).first()
+        if rate:
+            latest_rates[ft] = str(rate.rate_per_kg)
+
+    return Response({
+        'total_birds_placed': total_placed,
+        'total_mortality': total_mortality,
+        'mortality_percentage': round((total_mortality / total_placed) * 100, 2) if total_placed > 0 else 0,
+        'total_sold_birds': total_sold_birds,
+        'total_sold_weight_kg': float(total_sold_weight),
+        'total_sale_amount': float(total_sale_amount),
+        'total_live_birds': total_live_birds,
+        'total_feed_bags': total_feed_bags,
+        'total_feed_kg': total_feed_kg,
+        'feed_by_type': {
+            'bpsc_bags': total_bpsc, 'bpsc_kg': total_bpsc * BAG_KG,
+            'bsc_bags': total_bsc, 'bsc_kg': total_bsc * BAG_KG,
+            'bfp_bags': total_bfp, 'bfp_kg': total_bfp * BAG_KG,
+        },
+        'fcr': fcr,
+        'total_feed_cost': float(total_feed_cost),
+        'cost_per_kg_production': cost_per_kg,
+        'latest_feed_rates': latest_rates,
+        'feed_rates': FeedRateSerializer(FeedRate.objects.all()[:30], many=True).data,
+    })
