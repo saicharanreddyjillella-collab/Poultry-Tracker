@@ -12,6 +12,7 @@ import FlockDetail from './pages/FlockDetail';
 import MonthlyReport from './pages/MonthlyReport';
 import TillDateReport from './pages/TillDateReport';
 import RegionPerformance from './pages/RegionPerformance';
+import Reports from './pages/Reports';
 import UserManagement from './pages/UserManagement';
 import ChangePassword from './pages/ChangePassword';
 import FeedStock from './pages/FeedStock';
@@ -58,9 +59,7 @@ function NavBar() {
         <Link to="/feed" onClick={closeMenu}>Feed</Link>
         {!isPlant && (
           <>
-            <Link to="/reports/monthly" onClick={closeMenu}>Monthly</Link>
-            <Link to="/reports/region" onClick={closeMenu}>Region</Link>
-            <Link to="/reports/till-date" onClick={closeMenu}>Till Date</Link>
+            <Link to="/reports" onClick={closeMenu}>Reports</Link>
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
@@ -103,9 +102,10 @@ function AppRoutes() {
           <Route path="/feed" element={<ProtectedRoute><FeedStock /></ProtectedRoute>} />
           <Route path="/flocks/:id" element={<ProtectedRoute><FlockDetail /></ProtectedRoute>} />
           <Route path="/flocks/:flockId/bill" element={<ProtectedRoute><BillView /></ProtectedRoute>} />
-          <Route path="/reports/monthly" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
-          <Route path="/reports/region" element={<ProtectedRoute><RegionPerformance /></ProtectedRoute>} />
-          <Route path="/reports/till-date" element={<ProtectedRoute><TillDateReport /></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/reports/region" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/reports/till-date" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         </Routes>

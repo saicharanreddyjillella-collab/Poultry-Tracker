@@ -81,6 +81,7 @@ class FlockListSerializer(serializers.ModelSerializer):
 class FarmSerializer(serializers.ModelSerializer):
     active_flocks = serializers.SerializerMethodField()
     closed_flocks = serializers.SerializerMethodField()
+    supervisor_names = serializers.SerializerMethodField()
 
     class Meta:
         model = Farm
@@ -93,6 +94,13 @@ class FarmSerializer(serializers.ModelSerializer):
     def get_closed_flocks(self, obj):
         flocks = obj.flocks.filter(status='closed')
         return FlockListSerializer(flocks, many=True).data
+
+    def get_supervisor_names(self, obj):
+        supervisors = obj.assigned_supervisors.filter(role='supervisor').select_related('user')
+        return ', '.join(
+            f"{s.user.first_name} {s.user.last_name}".strip() or s.user.username
+            for s in supervisors
+        ) or None
 
 
 class FeedOrderSerializer(serializers.ModelSerializer):

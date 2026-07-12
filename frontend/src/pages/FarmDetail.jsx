@@ -47,17 +47,14 @@ export default function FarmDetail() {
         <div>
           <Link to="/farms" className="back-link">&larr; All Farms</Link>
           <h1><span className="farm-code-badge">{farm.farm_code}</span> {farm.name}</h1>
+          <p className="farm-meta">{farm.owner_name} &middot; {farm.region} &middot; {farm.shed_type}{farm.supervisor_names && <> &middot; Supervisor: {farm.supervisor_names}</>}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={() => setShowDetails(!showDetails)}>
             {showDetails ? 'Hide' : 'Farm'} Details
           </button>
           <Link to={`/farms/${id}/edit`} className="btn btn-secondary">Edit</Link>
-          {activeFlocks.length > 0 ? (
-            <button className="btn btn-secondary" disabled title="Close current flock first">Active Flock Exists</button>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setShowFlockForm(!showFlockForm)}>+ New Flock</button>
-          )}
+          <button className="btn btn-primary" onClick={() => setShowFlockForm(!showFlockForm)}>+ New Flock</button>
         </div>
       </div>
 

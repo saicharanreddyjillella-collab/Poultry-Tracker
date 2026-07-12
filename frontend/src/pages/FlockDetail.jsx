@@ -245,7 +245,7 @@ export default function FlockDetail() {
         <form onSubmit={handleEntry} className="form-card" style={{ marginBottom: '1.5rem' }}>
           <h3>{editingEntry ? 'Edit Daily Entry' : 'Add Daily Entry'}</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} min={flock.placement_date} max={new Date().toISOString().split('T')[0]} /></div>
             <div className="form-group"><label>Mortality</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
           </div>
           <div className="form-row">
@@ -276,7 +276,7 @@ export default function FlockDetail() {
         <form onSubmit={handleSale} className="form-card" style={{ marginBottom: '1.5rem' }}>
           <h3>Record Sale / Lifting</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required min={flock.placement_date} max={new Date().toISOString().split('T')[0]} /></div>
             <div className="form-group"><label>Trader / Buyer *</label><input value={saleForm.trader_name} onChange={e => setSaleForm({ ...saleForm, trader_name: e.target.value })} required placeholder="e.g. Raju Traders" /></div>
           </div>
           <div className="form-row">
@@ -297,7 +297,7 @@ export default function FlockDetail() {
         <form onSubmit={handleMed} className="form-card" style={{ marginBottom: '1.5rem' }}>
           <h3>Add Medication / Vaccine</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={medForm.date} onChange={e => setMedForm({ ...medForm, date: e.target.value })} required /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={medForm.date} onChange={e => setMedForm({ ...medForm, date: e.target.value })} required min={flock.placement_date} max={new Date().toISOString().split('T')[0]} /></div>
             <div className="form-group"><label>Medicine Name *</label><input value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} required placeholder="e.g. Lasota, Enrofloxacin" /></div>
             <div className="form-group"><label>Dose</label><input value={medForm.dose} onChange={e => setMedForm({ ...medForm, dose: e.target.value })} placeholder="e.g. 1ml/L water" /></div>
           </div>

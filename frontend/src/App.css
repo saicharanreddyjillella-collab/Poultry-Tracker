@@ -809,3 +809,26 @@ tbody tr:hover { background: #fafaf8; }
 .bill-flag-hint { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 .bill-flags-grid { display: flex; flex-direction: column; gap: 0.5rem; }
 .stock-divider { color: var(--border); font-weight: 300; }
+
+/* Unified report filters */
+.report-filters-bar {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+  gap: 0.75rem; margin-bottom: 1.25rem; padding: 0.75rem 1rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.report-view-tabs { display: flex; gap: 0.25rem; }
+.report-tab {
+  padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; background: var(--bg);
+  font-family: inherit; transition: background 0.15s;
+}
+.report-tab:hover { background: #e8e8e8; }
+.report-tab-active { background: var(--primary); color: white; border-color: var(--primary); }
+.report-filter-controls { display: flex; gap: 0.5rem; }
+.report-filter-controls select {
+  padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.85rem; font-family: inherit; background: white;
+}
+.report-subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+.report-table { font-size: 0.8rem; }
+.report-table th { font-size: 0.75rem; }
