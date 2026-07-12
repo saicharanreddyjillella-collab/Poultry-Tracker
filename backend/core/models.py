@@ -290,6 +290,7 @@ class Sale(models.Model):
     bird_count = models.PositiveIntegerField()
     total_weight_kg = models.DecimalField(max_digits=12, decimal_places=2)
     rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    trader_name = models.CharField(max_length=200, blank=True, help_text="Trader/buyer name")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

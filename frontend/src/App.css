@@ -774,3 +774,11 @@ tbody tr:hover { background: #fafaf8; }
 .modal-title { font-size: 1.15rem; margin-bottom: 0.5rem; }
 .modal-message { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem; }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+/* Alert banner */
+.alert-banner {
+  padding: 0.75rem 1rem; border-radius: var(--radius); margin-bottom: 1rem;
+  font-size: 0.9rem; font-weight: 500;
+}
+.alert-banner-warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+.row-missing-price { background: #fff8e1; }

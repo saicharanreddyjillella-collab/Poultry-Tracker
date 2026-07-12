@@ -259,6 +259,7 @@ def flock_cumulative(request, flock_id):
         'total_weight_kg': float(s.total_weight_kg),
         'avg_weight_kg': round(float(s.total_weight_kg) / s.bird_count, 3) if s.bird_count > 0 else 0,
         'rate_per_kg': float(s.rate_per_kg) if s.rate_per_kg else None,
+        'trader_name': s.trader_name,
         'notes': s.notes,
     } for s in sales]
 

@@ -41,7 +41,21 @@ export default function MonthlyReport() {
           <select value={year} onChange={e => setYear(parseInt(e.target.value))}>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button className="btn btn-secondary" onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/reports/monthly/export/?year=${year}&month=${month}`, '_blank')}>
+          <button className="btn btn-secondary" onClick={async () => {
+            try {
+              const token = localStorage.getItem('access_token');
+              const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/reports/monthly/export/?year=${year}&month=${month}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+              });
+              const blob = await response.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `monthly_report_${year}_${String(month).padStart(2, '0')}.xlsx`;
+              a.click();
+              window.URL.revokeObjectURL(url);
+            } catch { alert('Export failed'); }
+          }}>
             Export Excel
           </button>
         </div>

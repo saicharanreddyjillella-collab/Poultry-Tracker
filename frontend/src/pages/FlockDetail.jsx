@@ -25,7 +25,7 @@ export default function FlockDetail() {
   });
   const [saleForm, setSaleForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    bird_count: '', total_weight_kg: '', rate_per_kg: '', notes: '',
+    bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '',
   });
   const [medForm, setMedForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -113,10 +113,11 @@ export default function FlockDetail() {
         bird_count: parseInt(saleForm.bird_count),
         total_weight_kg: parseFloat(saleForm.total_weight_kg),
         rate_per_kg: saleForm.rate_per_kg ? parseFloat(saleForm.rate_per_kg) : null,
+        trader_name: saleForm.trader_name,
         notes: saleForm.notes,
       });
       setShowSaleForm(false);
-      setSaleForm({ date: new Date().toISOString().split('T')[0], bird_count: '', total_weight_kg: '', rate_per_kg: '', notes: '' });
+      setSaleForm({ date: new Date().toISOString().split('T')[0], bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '' });
       load();
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
@@ -150,8 +151,20 @@ export default function FlockDetail() {
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
 
-  const exportFlock = () => {
-    window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/flocks/${id}/export/`, '_blank');
+  const exportFlock = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/flocks/${id}/export/`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `flock_${id}_report.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch { alert('Export failed'); }
   };
 
   if (loadError) return (
@@ -202,6 +215,24 @@ export default function FlockDetail() {
         </div>
       </div>
 
+      {/* Missing price reminder */}
+      {cumulative.sales && cumulative.sales.some(s => !s.rate_per_kg) && (
+        <div className="alert-banner alert-banner-warning">
+          ⚠️ {cumulative.sales.filter(s => !s.rate_per_kg).length} sale(s) missing rate/price — please update to calculate bill correctly
+        </div>
+      )}
+
+      {/* Farm Feed Stock */}
+      {farmStock && (
+        <div className="farm-stock-bar">
+          <strong>Feed Stock:</strong>
+          <span className={`feed-badge feed-badge-bpsc ${farmStock.stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {farmStock.stock.bpsc}</span>
+          <span className={`feed-badge feed-badge-bsc ${farmStock.stock.bsc <= 2 ? 'stock-low' : ''}`}>BSC: {farmStock.stock.bsc}</span>
+          <span className={`feed-badge feed-badge-bfp ${farmStock.stock.bfp <= 2 ? 'stock-low' : ''}`}>BFP: {farmStock.stock.bfp}</span>
+          <span>Total: {farmStock.stock.total} bags</span>
+        </div>
+      )}
+
       {error && <div className="error-msg">{error}</div>}
 
       {/* === ALL FORMS — appear right below buttons === */}
@@ -243,13 +274,14 @@ export default function FlockDetail() {
           <h3>Record Sale / Lifting</h3>
           <div className="form-row">
             <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required /></div>
-            <div className="form-group"><label>Birds *</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={saleForm.bird_count} onChange={e => setSaleForm({ ...saleForm, bird_count: e.target.value })} required /></div>
-            <div className="form-group"><label>Total Weight (kg) *</label><input type="text" inputMode="decimal" value={saleForm.total_weight_kg} onChange={e => setSaleForm({ ...saleForm, total_weight_kg: e.target.value })} required /></div>
+            <div className="form-group"><label>Trader / Buyer *</label><input value={saleForm.trader_name} onChange={e => setSaleForm({ ...saleForm, trader_name: e.target.value })} required placeholder="e.g. Raju Traders" /></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label>Rate (₹/kg)</label><input type="text" inputMode="decimal" value={saleForm.rate_per_kg} onChange={e => setSaleForm({ ...saleForm, rate_per_kg: e.target.value })} /></div>
-            <div className="form-group"><label>Notes</label><input value={saleForm.notes} onChange={e => setSaleForm({ ...saleForm, notes: e.target.value })} /></div>
+            <div className="form-group"><label>Birds *</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={saleForm.bird_count} onChange={e => setSaleForm({ ...saleForm, bird_count: e.target.value })} required /></div>
+            <div className="form-group"><label>Total Weight (kg) *</label><input type="text" inputMode="decimal" value={saleForm.total_weight_kg} onChange={e => setSaleForm({ ...saleForm, total_weight_kg: e.target.value })} required /></div>
+            <div className="form-group"><label>Rate (₹/kg)</label><input type="text" inputMode="decimal" value={saleForm.rate_per_kg} onChange={e => setSaleForm({ ...saleForm, rate_per_kg: e.target.value })} placeholder="Can add later" /></div>
           </div>
+          <div className="form-group"><label>Notes</label><input value={saleForm.notes} onChange={e => setSaleForm({ ...saleForm, notes: e.target.value })} /></div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setShowSaleForm(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save Sale</button>
@@ -528,15 +560,17 @@ export default function FlockDetail() {
           <h2 style={{ margin: '2rem 0 1rem' }}>Sales / Liftings</h2>
           <div className="table-wrapper">
             <table>
-              <thead><tr><th>Date</th><th>Birds</th><th>Weight</th><th>Avg/Bird</th><th>Rate</th><th>Amount</th><th>Notes</th></tr></thead>
+              <thead><tr><th>Date</th><th>Trader</th><th>Birds</th><th>Weight</th><th>Avg/Bird</th><th>Rate</th><th>Amount</th><th>Notes</th></tr></thead>
               <tbody>
                 {cumulative.sales.map(s => (
-                  <tr key={s.id}>
-                    <td>{s.date}</td><td>{s.bird_count.toLocaleString()}</td>
+                  <tr key={s.id} className={!s.rate_per_kg ? 'row-missing-price' : ''}>
+                    <td>{s.date}</td>
+                    <td>{s.trader_name || '—'}</td>
+                    <td>{s.bird_count.toLocaleString()}</td>
                     <td>{parseFloat(s.total_weight_kg).toLocaleString()} kg</td>
-                    <td>{s.avg_bird_weight_kg} kg</td>
-                    <td>{s.rate_per_kg ? `₹${s.rate_per_kg}` : '—'}</td>
-                    <td>{s.total_amount ? `₹${parseFloat(s.total_amount).toLocaleString()}` : '—'}</td>
+                    <td>{s.avg_weight_kg} kg</td>
+                    <td>{s.rate_per_kg ? `₹${s.rate_per_kg}` : <span className="text-danger">Missing</span>}</td>
+                    <td>{s.rate_per_kg ? `₹${(parseFloat(s.total_weight_kg) * parseFloat(s.rate_per_kg)).toLocaleString()}` : '—'}</td>
                     <td>{s.notes || '—'}</td>
                   </tr>
                 ))}
