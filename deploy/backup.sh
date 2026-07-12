@@ -24,3 +24,9 @@ fi
 find "$BACKUP_DIR" -name "poultrytrack_*.sql.gz" -mtime +30 -delete
 echo "🗑️  Old backups cleaned. Current backups:"
 ls -lh "$BACKUP_DIR"/poultrytrack_*.sql.gz 2>/dev/null | wc -l
+
+# Upload to OneDrive (if rclone is configured)
+if command -v rclone &> /dev/null && rclone listremotes | grep -q "onedrive:"; then
+    rclone copy "$BACKUP_DIR/$FILENAME" onedrive:PoultryTrack-Backups/
+    echo "☁️  Uploaded to OneDrive"
+fi
