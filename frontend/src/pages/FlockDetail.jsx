@@ -17,6 +17,15 @@ export default function FlockDetail() {
   const [showMedForm, setShowMedForm] = useState(false);
   const [showFeedOrderForm, setShowFeedOrderForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closeFlags, setCloseFlags] = useState({
+    recovery_excess_mortality: true,
+    recovery_negligence: false,
+    recovery_shortage: true,
+    recovery_fcr: true,
+    recovery_ifft: true,
+    medicine_use_actual: false,
+  });
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, danger: false });
   const [entryForm, setEntryForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -194,20 +203,7 @@ export default function FlockDetail() {
           <button className="btn btn-secondary" onClick={() => { setShowFeedOrderForm(!showFeedOrderForm); setShowEntryForm(false); setShowSaleForm(false); setShowMedForm(false); }}>+ Order Feed</button>
           <button className="btn btn-secondary" onClick={exportFlock}>Export</button>
           {flock.status === 'active' && (
-            <button className="btn btn-danger" onClick={() => setConfirm({
-              open: true, danger: true,
-              title: 'Close Flock & Generate Bill',
-              message: `This will close the flock at ${flock.farm_name} and generate the farmer bill. This action cannot be undone.`,
-              onConfirm: async () => {
-                setConfirm({ ...confirm, open: false });
-                try {
-                  await billAPI.closeAndBill(id);
-                  navigate(`/flocks/${id}/bill`);
-                } catch (err) {
-                  alert(err.response?.data?.error || 'Failed to close flock');
-                }
-              }
-            })}>Close & Generate Bill</button>
+            <button className="btn btn-danger" onClick={() => setShowCloseModal(true)}>Close & Generate Bill</button>
           )}
           {flock.status === 'closed' && (
             <Link to={`/flocks/${id}/bill`} className="btn btn-secondary">View Bill</Link>
@@ -608,6 +604,51 @@ export default function FlockDetail() {
       {cumulative.entries.length === 0 && (
         <div className="empty-state" style={{ marginTop: '2rem' }}>
           <p>No entries yet. Click "+ Daily Entry" to start recording.</p>
+        </div>
+      )}
+
+      {/* Close Flock Modal */}
+      {showCloseModal && (
+        <div className="modal-overlay" onClick={() => setShowCloseModal(false)}>
+          <div className="modal-card" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">Close Flock & Generate Bill</h3>
+            <p className="modal-message">Review billing settings before generating the bill. This cannot be undone.</p>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label className="bill-flag-title">Medicine Cost Method</label>
+              <div className="bill-flag-row">
+                <label className="toggle-label">
+                  <input type="checkbox" checked={closeFlags.medicine_use_actual} onChange={e => setCloseFlags({ ...closeFlags, medicine_use_actual: e.target.checked })} />
+                  Use actual medicine cost
+                </label>
+                <span className="bill-flag-hint">{closeFlags.medicine_use_actual ? 'Actual cost from records' : 'Chicks × ₹5 (default)'}</span>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label className="bill-flag-title">Recoveries to Apply</label>
+              <div className="bill-flags-grid">
+                <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_excess_mortality} onChange={e => setCloseFlags({ ...closeFlags, recovery_excess_mortality: e.target.checked })} /> 1st Week Excess Mortality</label>
+                <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_negligence} onChange={e => setCloseFlags({ ...closeFlags, recovery_negligence: e.target.checked })} /> Farmer Negligence</label>
+                <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_shortage} onChange={e => setCloseFlags({ ...closeFlags, recovery_shortage: e.target.checked })} /> Bird Shortage</label>
+                <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_fcr} onChange={e => setCloseFlags({ ...closeFlags, recovery_fcr: e.target.checked })} /> FCR Recovery</label>
+                <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_ifft} onChange={e => setCloseFlags({ ...closeFlags, recovery_ifft: e.target.checked })} /> IFFT Charges</label>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowCloseModal(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={async () => {
+                setShowCloseModal(false);
+                try {
+                  await billAPI.closeAndBill(id, closeFlags);
+                  navigate(`/flocks/${id}/bill`);
+                } catch (err) {
+                  alert(err.response?.data?.error || 'Failed to close flock');
+                }
+              }}>Generate Bill</button>
+            </div>
+          </div>
         </div>
       )}
 

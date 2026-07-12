@@ -15,8 +15,6 @@ export default function FarmForm() {
 
   const [form, _setForm] = useState({
     farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', capacity: 5000,
-    recovery_excess_mortality: true, recovery_negligence: false, recovery_shortage: true,
-    recovery_fcr: true, recovery_ifft: true, medicine_use_actual: false,
   });
   const setForm = (v) => { _setForm(v); setDirty(true); };
 
@@ -112,17 +110,6 @@ export default function FarmForm() {
             <label>Capacity (birds) *</label>
             <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.capacity} onChange={e => setForm({ ...form, capacity: e.target.value })} required />
             <small className="field-hint">Max birds this farm can hold. Flock size must be within ±5%</small>
-          </div>
-        </div>
-        <div className="form-group" style={{ marginTop: '0.5rem' }}>
-          <label>Recovery Flags (applied when generating bill)</label>
-          <div className="recovery-flags">
-            <label className="toggle-label"><input type="checkbox" checked={form.recovery_excess_mortality} onChange={e => setForm({ ...form, recovery_excess_mortality: e.target.checked })} /> 1st Week Excess Mortality</label>
-            <label className="toggle-label"><input type="checkbox" checked={form.recovery_negligence} onChange={e => setForm({ ...form, recovery_negligence: e.target.checked })} /> Farmer Negligence</label>
-            <label className="toggle-label"><input type="checkbox" checked={form.recovery_shortage} onChange={e => setForm({ ...form, recovery_shortage: e.target.checked })} /> Bird Shortage</label>
-            <label className="toggle-label"><input type="checkbox" checked={form.recovery_fcr} onChange={e => setForm({ ...form, recovery_fcr: e.target.checked })} /> FCR Recovery</label>
-            <label className="toggle-label"><input type="checkbox" checked={form.recovery_ifft} onChange={e => setForm({ ...form, recovery_ifft: e.target.checked })} /> IFFT Charges</label>
-            <label className="toggle-label"><input type="checkbox" checked={form.medicine_use_actual} onChange={e => setForm({ ...form, medicine_use_actual: e.target.checked })} /> Use Actual Medicine Cost</label>
           </div>
         </div>
         <div className="form-actions">

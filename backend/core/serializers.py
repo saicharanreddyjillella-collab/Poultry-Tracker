@@ -138,7 +138,19 @@ class BillSerializer(serializers.ModelSerializer):
     farm_name = serializers.CharField(source='flock.farm.name', read_only=True)
     farmer_name = serializers.CharField(source='flock.farm.owner_name', read_only=True)
     placement_date = serializers.DateField(source='flock.placement_date', read_only=True)
+    fcr = serializers.SerializerMethodField()
+    avg_bird_weight_kg = serializers.SerializerMethodField()
 
     class Meta:
         model = Bill
         fields = '__all__'
+
+    def get_fcr(self, obj):
+        if obj.total_sold_weight_kg and obj.total_sold_weight_kg > 0:
+            return round(float(obj.total_feed_kg) / float(obj.total_sold_weight_kg), 3)
+        return None
+
+    def get_avg_bird_weight_kg(self, obj):
+        if obj.total_sold_birds and obj.total_sold_birds > 0:
+            return round(float(obj.total_sold_weight_kg) / obj.total_sold_birds, 3)
+        return None

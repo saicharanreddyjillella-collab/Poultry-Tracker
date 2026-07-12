@@ -112,7 +112,7 @@ export const reportAPI = {
 export const billAPI = {
   config: () => API.get('/bill-config/'),
   updateConfig: (data) => API.put('/bill-config/', data),
-  closeAndBill: (flockId) => API.post(`/flocks/${flockId}/close-and-bill/`),
+  closeAndBill: (flockId, flags) => API.post(`/flocks/${flockId}/close-and-bill/`, flags || {}),
   get: (flockId) => API.get(`/flocks/${flockId}/bill/`),
   list: () => API.get('/bills/'),
 };

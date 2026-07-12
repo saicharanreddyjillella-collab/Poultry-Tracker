@@ -36,8 +36,22 @@ def close_flock_and_generate_bill(request, flock_id):
     if not request.user.profile.can_edit_farm(flock.farm):
         return Response({'error': 'Permission denied'}, status=403)
 
+    # Apply recovery flags from request to farm before billing
+    farm = flock.farm
+    flag_fields = [
+        'recovery_excess_mortality', 'recovery_negligence', 'recovery_shortage',
+        'recovery_fcr', 'recovery_ifft', 'medicine_use_actual',
+    ]
+    for field in flag_fields:
+        if field in request.data:
+            setattr(farm, field, request.data[field])
+    farm.save()
+
+    # Close flock
     flock.status = 'closed'
     flock.save()
+
+    # Generate bill
     bill = generate_bill(flock, request.user)
     return Response(BillSerializer(bill).data, status=201)
 

@@ -64,6 +64,8 @@ export default function BillView() {
               <tr><td>Total Weight Sold</td><td className="bill-val">{fmt(bill.total_sold_weight_kg)} kg</td></tr>
               <tr><td>Average Selling Price</td><td className="bill-val">₹{fmt(bill.avg_selling_price)}/kg</td></tr>
               <tr><td>Total Feed Consumed</td><td className="bill-val">{fmt(bill.total_feed_kg)} kg ({fmt(bill.total_feed_bags)} bags)</td></tr>
+              <tr><td>FCR</td><td className="bill-val">{bill.fcr ?? '—'}</td></tr>
+              <tr><td>Avg Bird Weight</td><td className="bill-val">{bill.avg_bird_weight_kg ? `${bill.avg_bird_weight_kg} kg` : '—'}</td></tr>
             </tbody>
           </table>
         </div>

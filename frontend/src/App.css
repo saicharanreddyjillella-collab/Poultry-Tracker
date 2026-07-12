@@ -782,3 +782,9 @@ tbody tr:hover { background: #fafaf8; }
 }
 .alert-banner-warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
 .row-missing-price { background: #fff8e1; }
+
+/* Bill close modal flags */
+.bill-flag-title { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem; }
+.bill-flag-row { display: flex; justify-content: space-between; align-items: center; }
+.bill-flag-hint { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+.bill-flags-grid { display: flex; flex-direction: column; gap: 0.5rem; }
