@@ -33,16 +33,21 @@ export default function FlockDetail() {
   });
   const [feedOrderForm, setFeedOrderForm] = useState({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const load = async () => {
-    const [flockRes, cumRes] = await Promise.all([flockAPI.get(id), flockAPI.cumulative(id)]);
-    setFlock(flockRes.data);
-    setCumulative(cumRes.data);
-    // Load farm stock
     try {
-      const stockRes = await feedStockAPI.list(flockRes.data.farm);
-      if (stockRes.data.length > 0) setFarmStock(stockRes.data[0]);
-    } catch {}
+      const [flockRes, cumRes] = await Promise.all([flockAPI.get(id), flockAPI.cumulative(id)]);
+      setFlock(flockRes.data);
+      setCumulative(cumRes.data);
+      try {
+        const stockRes = await feedStockAPI.list(flockRes.data.farm);
+        if (stockRes.data.length > 0) setFarmStock(stockRes.data[0]);
+      } catch {}
+    } catch (err) {
+      console.error('Flock load error:', err);
+      setLoadError(err.response?.data?.error || err.response?.data?.detail || 'Failed to load flock data. Check console for details.');
+    }
   };
 
   useEffect(() => { load(); }, [id]);
@@ -149,6 +154,12 @@ export default function FlockDetail() {
     window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/flocks/${id}/export/`, '_blank');
   };
 
+  if (loadError) return (
+    <div className="page">
+      <div className="error-msg" style={{ marginBottom: '1rem' }}>{loadError}</div>
+      <Link to="/" className="btn btn-primary">Back to Dashboard</Link>
+    </div>
+  );
   if (!flock || !cumulative) return <FlockDetailSkeleton />;
 
   const fs = cumulative.feed_schedule_status || {};

@@ -275,6 +275,11 @@ def flock_cumulative(request, flock_id):
     total_feed_kg = total_feed_bags * BAG_KG
     fcr = round(total_feed_kg / total_sold_weight, 3) if total_sold_weight > 0 else None
 
+    # Standard weight curve for chart
+    from ..standards import get_standard_weight
+    max_day = flock.age_days or 42
+    standard_curve = [{'day': d, 'weight': get_standard_weight(d)} for d in range(0, max_day + 1)]
+
     return Response({
         'flock_id': flock.id,
         'farm_id': flock.farm_id,
@@ -288,10 +293,18 @@ def flock_cumulative(request, flock_id):
         'live_birds': flock.chick_count - cum_mortality - total_sold_birds,
         'total_sold_birds': total_sold_birds,
         'total_sold_weight': round(total_sold_weight, 2),
+        'total_sold_weight_kg': round(total_sold_weight, 2),
         'total_feed_bags': total_feed_bags,
         'total_feed_kg': total_feed_kg,
+        'feed_by_type': {
+            'bpsc_bags': cum_bpsc, 'bpsc_kg': cum_bpsc * BAG_KG,
+            'bsc_bags': cum_bsc, 'bsc_kg': cum_bsc * BAG_KG,
+            'bfp_bags': cum_bfp, 'bfp_kg': cum_bfp * BAG_KG,
+        },
+        'feed_schedule_status': flock.feed_schedule_status,
         'fcr': fcr,
         'total_medication_cost': float(sum(m.cost for m in meds)),
+        'standard_curve': standard_curve,
         'entries': result_entries,
         'sales': result_sales,
         'medications': result_meds,
