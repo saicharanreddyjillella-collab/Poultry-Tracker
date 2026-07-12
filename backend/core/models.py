@@ -226,26 +226,49 @@ class Flock(models.Model):
 
     @property
     def flock_feed_stock(self):
-        """Feed stock for this specific flock: delivered to flock + transfers in - consumed - transfers out"""
-        from django.db.models import Sum
-        BAG_KG = 50
+        """Feed stock for this flock: delivered (assigned to flock OR unassigned on farm) + transfers in - consumed - transfers out"""
+        from django.db.models import Sum, Q
+        from django.apps import apps
+        FeedOrderModel = apps.get_model('core', 'FeedOrder')
+        FeedTransferModel = apps.get_model('core', 'FeedTransfer')
 
-        # Delivered to this flock
-        delivered = self.feed_orders.filter(status='delivered').values('feed_type').annotate(t=Sum('quantity_bags'))
+        # Delivered: orders assigned to this flock OR unassigned orders on this farm
+        delivered = FeedOrderModel.objects.filter(
+            Q(flock=self) | Q(farm=self.farm, flock__isnull=True),
+            status='delivered'
+        ).values('feed_type').annotate(t=Sum('quantity_bags'))
         del_map = {d['feed_type']: int(d['t']) for d in delivered}
+
+        # If multiple active flocks, only count flock-assigned orders (not unassigned)
+        active_count = self.farm.flocks.filter(status='active').count()
+        if active_count > 1:
+            delivered = FeedOrderModel.objects.filter(
+                flock=self, status='delivered'
+            ).values('feed_type').annotate(t=Sum('quantity_bags'))
+            del_map = {d['feed_type']: int(d['t']) for d in delivered}
 
         # Consumed by this flock
         consumed = self.daily_entries.aggregate(
             bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
         )
 
-        # Transfers in to this flock
-        t_in = self.feed_transfers_in.values('feed_type').annotate(t=Sum('quantity_bags'))
+        # Transfers in
+        t_in = FeedTransferModel.objects.filter(
+            Q(to_flock=self) | Q(to_farm=self.farm, to_flock__isnull=True)
+        ).values('feed_type').annotate(t=Sum('quantity_bags'))
         in_map = {t['feed_type']: int(t['t']) for t in t_in}
 
-        # Transfers out from this flock
-        t_out = self.feed_transfers_out.values('feed_type').annotate(t=Sum('quantity_bags'))
+        # Transfers out
+        t_out = FeedTransferModel.objects.filter(
+            Q(from_flock=self) | Q(from_farm=self.farm, from_flock__isnull=True)
+        ).values('feed_type').annotate(t=Sum('quantity_bags'))
         out_map = {t['feed_type']: int(t['t']) for t in t_out}
+
+        if active_count > 1:
+            t_in = FeedTransferModel.objects.filter(to_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))
+            in_map = {t['feed_type']: int(t['t']) for t in t_in}
+            t_out = FeedTransferModel.objects.filter(from_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))
+            out_map = {t['feed_type']: int(t['t']) for t in t_out}
 
         bpsc = del_map.get('BPSC', 0) + in_map.get('BPSC', 0) - out_map.get('BPSC', 0) - (consumed['bpsc'] or 0)
         bsc = del_map.get('BSC', 0) + in_map.get('BSC', 0) - out_map.get('BSC', 0) - (consumed['bsc'] or 0)

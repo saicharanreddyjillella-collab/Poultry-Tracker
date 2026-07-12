@@ -50,6 +50,23 @@ class FlockViewSet(viewsets.ModelViewSet):
         return FlockListSerializer
 
     def perform_create(self, serializer):
+        from rest_framework.exceptions import ValidationError
+        farm = serializer.validated_data.get('farm')
+        chick_count = serializer.validated_data.get('chick_count', 0)
+
+        # Check total active chicks + new flock <= farm capacity
+        existing_active_chicks = sum(
+            f.chick_count for f in farm.flocks.filter(status='active')
+        )
+        remaining = farm.capacity - existing_active_chicks
+        if chick_count > remaining:
+            raise ValidationError({
+                'chick_count': f'Farm capacity is {farm.capacity}. Active flocks have {existing_active_chicks} chicks. '
+                               f'Maximum for this flock: {remaining}.'
+            })
+        if chick_count <= 0:
+            raise ValidationError({'chick_count': 'Chick count must be greater than 0.'})
+
         serializer.save()
 
 
@@ -65,6 +82,45 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
             qs = qs.filter(flock_id=flock_id)
         return qs
 
+    def _validate_entry(self, data, instance=None):
+        from rest_framework.exceptions import ValidationError
+        flock = data.get('flock') or (instance.flock if instance else None)
+        if not flock:
+            return
+
+        entry_date = data.get('date') or (instance.date if instance else None)
+
+        # Date must be on or after placement
+        if entry_date and entry_date < flock.placement_date:
+            raise ValidationError({'date': f'Date cannot be before placement date ({flock.placement_date}).'})
+
+        # Date must not be in the future
+        from datetime import date
+        if entry_date and entry_date > date.today():
+            raise ValidationError({'date': 'Date cannot be in the future.'})
+
+        # Mortality cannot exceed live birds
+        mortality = data.get('mortality_count', 0) or 0
+        if mortality > 0:
+            # Calculate current live birds (excluding this entry if editing)
+            total_mort = flock.daily_entries.aggregate(t=Sum('mortality_count'))['t'] or 0
+            if instance:
+                total_mort -= instance.mortality_count
+            total_sold = flock.sales.aggregate(t=Sum('bird_count'))['t'] or 0
+            live_birds = flock.chick_count - total_mort - total_sold
+            if mortality > live_birds:
+                raise ValidationError({
+                    'mortality_count': f'Mortality ({mortality}) cannot exceed live birds ({live_birds}).'
+                })
+
+    def perform_create(self, serializer):
+        self._validate_entry(serializer.validated_data)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._validate_entry(serializer.validated_data, instance=serializer.instance)
+        serializer.save()
+
 
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.select_related('flock', 'flock__farm').all()
@@ -77,6 +133,25 @@ class SaleViewSet(viewsets.ModelViewSet):
         if flock_id:
             qs = qs.filter(flock_id=flock_id)
         return qs
+
+    def perform_create(self, serializer):
+        from rest_framework.exceptions import ValidationError
+        flock = serializer.validated_data.get('flock')
+        bird_count = serializer.validated_data.get('bird_count', 0)
+        sale_date = serializer.validated_data.get('date')
+
+        if sale_date and sale_date < flock.placement_date:
+            raise ValidationError({'date': f'Sale date cannot be before placement ({flock.placement_date}).'})
+
+        # Birds sold cannot exceed live birds
+        total_mort = flock.daily_entries.aggregate(t=Sum('mortality_count'))['t'] or 0
+        total_sold = flock.sales.aggregate(t=Sum('bird_count'))['t'] or 0
+        live_birds = flock.chick_count - total_mort - total_sold
+        if bird_count > live_birds:
+            raise ValidationError({
+                'bird_count': f'Cannot sell {bird_count} birds. Only {live_birds} live birds available.'
+            })
+        serializer.save()
 
 
 class FeedRateViewSet(viewsets.ModelViewSet):
