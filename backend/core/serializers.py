@@ -71,11 +71,18 @@ class FlockListSerializer(serializers.ModelSerializer):
     live_birds = serializers.ReadOnlyField()
     fcr = serializers.ReadOnlyField()
     total_medication_cost = serializers.ReadOnlyField()
+    flock_feed_stock = serializers.ReadOnlyField()
     farm_name = serializers.CharField(source='farm.name', read_only=True)
+    supervisor_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Flock
         fields = '__all__'
+
+    def get_supervisor_name(self, obj):
+        if obj.supervisor:
+            return f"{obj.supervisor.first_name} {obj.supervisor.last_name}".strip() or obj.supervisor.username
+        return None
 
 
 class FarmSerializer(serializers.ModelSerializer):

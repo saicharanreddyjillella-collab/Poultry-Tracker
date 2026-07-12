@@ -303,6 +303,7 @@ def flock_cumulative(request, flock_id):
             'bfp_bags': cum_bfp, 'bfp_kg': cum_bfp * BAG_KG,
         },
         'feed_schedule_status': flock.feed_schedule_status,
+        'flock_feed_stock': flock.flock_feed_stock,
         'fcr': fcr,
         'total_medication_cost': float(sum(m.cost for m in meds)),
         'standard_curve': standard_curve,

@@ -832,3 +832,5 @@ tbody tr:hover { background: #fafaf8; }
 .report-subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
 .report-table { font-size: 0.8rem; }
 .report-table th { font-size: 0.75rem; }
+.flock-stock-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.75rem; }
+.feed-badge-sm { padding: 0.1rem 0.35rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; }

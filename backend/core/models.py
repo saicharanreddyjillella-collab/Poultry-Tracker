@@ -103,6 +103,7 @@ class Flock(models.Model):
     placement_date = models.DateField()
     chick_count = models.PositiveIntegerField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    supervisor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='supervised_flocks')
 
     # Feed estimate per bird (kg) — soft target, not a hard limit
     bpsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="Estimated BPSC per bird (kg)")
@@ -115,17 +116,17 @@ class Flock(models.Model):
         from django.core.exceptions import ValidationError
         if self.farm_id:
             farm = self.farm
-            # Only validate on new active flocks
             if self.status == 'active' and not self.pk:
-                if farm.has_active_flock:
-                    raise ValidationError({'farm': 'This farm already has an active flock. Close the current flock first.'})
-                if self.chick_count < farm.capacity_min or self.chick_count > farm.capacity_max:
+                # Check total active chicks + this new flock <= farm capacity
+                existing_active_chicks = sum(
+                    f.chick_count for f in farm.flocks.filter(status='active')
+                )
+                if existing_active_chicks + self.chick_count > farm.capacity:
+                    remaining = farm.capacity - existing_active_chicks
                     raise ValidationError({
-                        'chick_count': f'Chick count must be within ±5% of farm capacity ({farm.capacity}). '
-                                       f'Acceptable range: {farm.capacity_min} — {farm.capacity_max}.'
+                        'chick_count': f'Farm capacity is {farm.capacity}. Active flocks already have {existing_active_chicks} chicks. '
+                                       f'Maximum for this flock: {remaining}.'
                     })
-
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.farm.name} - {self.placement_date}"
@@ -222,6 +223,35 @@ class Flock(models.Model):
     @property
     def total_medication_cost(self):
         return self.medications.aggregate(total=models.Sum('cost'))['total'] or 0
+
+    @property
+    def flock_feed_stock(self):
+        """Feed stock for this specific flock: delivered to flock + transfers in - consumed - transfers out"""
+        from django.db.models import Sum
+        BAG_KG = 50
+
+        # Delivered to this flock
+        delivered = self.feed_orders.filter(status='delivered').values('feed_type').annotate(t=Sum('quantity_bags'))
+        del_map = {d['feed_type']: int(d['t']) for d in delivered}
+
+        # Consumed by this flock
+        consumed = self.daily_entries.aggregate(
+            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
+        )
+
+        # Transfers in to this flock
+        t_in = self.feed_transfers_in.values('feed_type').annotate(t=Sum('quantity_bags'))
+        in_map = {t['feed_type']: int(t['t']) for t in t_in}
+
+        # Transfers out from this flock
+        t_out = self.feed_transfers_out.values('feed_type').annotate(t=Sum('quantity_bags'))
+        out_map = {t['feed_type']: int(t['t']) for t in t_out}
+
+        bpsc = del_map.get('BPSC', 0) + in_map.get('BPSC', 0) - out_map.get('BPSC', 0) - (consumed['bpsc'] or 0)
+        bsc = del_map.get('BSC', 0) + in_map.get('BSC', 0) - out_map.get('BSC', 0) - (consumed['bsc'] or 0)
+        bfp = del_map.get('BFP', 0) + in_map.get('BFP', 0) - out_map.get('BFP', 0) - (consumed['bfp'] or 0)
+
+        return {'bpsc': bpsc, 'bsc': bsc, 'bfp': bfp, 'total': bpsc + bsc + bfp}
 
 
 class DailyEntry(models.Model):
@@ -361,6 +391,7 @@ class FeedOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_orders')
+    flock = models.ForeignKey('Flock', on_delete=models.SET_NULL, null=True, blank=True, related_name='feed_orders', help_text="Which flock this feed is for")
     feed_type = models.CharField(max_length=10, choices=FEED_TYPES)
     quantity_bags = models.PositiveIntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -380,6 +411,8 @@ class FeedOrder(models.Model):
 class FeedTransfer(models.Model):
     from_farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_transfers_out')
     to_farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_transfers_in')
+    from_flock = models.ForeignKey('Flock', on_delete=models.SET_NULL, null=True, blank=True, related_name='feed_transfers_out')
+    to_flock = models.ForeignKey('Flock', on_delete=models.SET_NULL, null=True, blank=True, related_name='feed_transfers_in')
     feed_type = models.CharField(max_length=10, choices=FEED_TYPES)
     quantity_bags = models.PositiveIntegerField()
     date = models.DateField()

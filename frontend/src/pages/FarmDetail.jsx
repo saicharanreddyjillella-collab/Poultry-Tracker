@@ -2,15 +2,16 @@ import { FlockDetailSkeleton } from '../components/Skeletons';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { farmAPI, flockAPI } from '../api/client';
+import { farmAPI, flockAPI, authAPI } from '../api/client';
 
 export default function FarmDetail() {
   const { id } = useParams();
   const [farm, setFarm] = useState(null);
   const [cumulative, setCumulative] = useState(null);
+  const [supervisors, setSupervisors] = useState([]);
   const [showFlockForm, setShowFlockForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [flockForm, setFlockForm] = useState({ placement_date: '', chick_count: '' });
+  const [flockForm, setFlockForm] = useState({ placement_date: '', chick_count: '', supervisor: '' });
 
   const load = async () => {
     const farmRes = await farmAPI.get(id);
@@ -19,16 +20,29 @@ export default function FarmDetail() {
       const cumRes = await farmAPI.cumulative(id);
       setCumulative(cumRes.data);
     } catch { setCumulative(null); }
+    try {
+      const usersRes = await authAPI.listUsers();
+      setSupervisors(usersRes.data.filter(u => u.role === 'supervisor'));
+    } catch {}
   };
 
   useEffect(() => { load(); }, [id]);
 
   const handleCreateFlock = async (e) => {
     e.preventDefault();
-    await flockAPI.create({ ...flockForm, farm: id, chick_count: parseInt(flockForm.chick_count) });
-    setShowFlockForm(false);
-    setFlockForm({ placement_date: '', chick_count: '' });
-    load();
+    try {
+      await flockAPI.create({
+        farm: id,
+        placement_date: flockForm.placement_date,
+        chick_count: parseInt(flockForm.chick_count),
+        supervisor: flockForm.supervisor || null,
+      });
+      setShowFlockForm(false);
+      setFlockForm({ placement_date: '', chick_count: '', supervisor: '' });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.chick_count?.[0] || err.response?.data?.error || JSON.stringify(err.response?.data) || 'Failed');
+    }
   };
 
   if (!farm) return <FlockDetailSkeleton />;
@@ -78,26 +92,40 @@ export default function FarmDetail() {
       )}
 
       {/* NEW FLOCK FORM */}
-      {showFlockForm && (
-        <form onSubmit={handleCreateFlock} className="form-card" style={{ marginBottom: '1.5rem' }}>
-          <h3>Place New Flock</h3>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Placement Date *</label>
-              <input type="date" value={flockForm.placement_date} onChange={e => setFlockForm({ ...flockForm, placement_date: e.target.value })} required />
+      {showFlockForm && (() => {
+        const activeChicks = (farm.active_flocks || []).reduce((sum, f) => sum + f.chick_count, 0);
+        const remaining = farm.capacity - activeChicks;
+        return (
+          <form onSubmit={handleCreateFlock} className="form-card" style={{ marginBottom: '1.5rem' }}>
+            <h3>Place New Flock</h3>
+            {activeChicks > 0 && <p className="farm-meta" style={{ marginBottom: '0.75rem' }}>Active flocks: {activeChicks.toLocaleString()} chicks — Remaining capacity: {remaining.toLocaleString()}</p>}
+            <div className="form-row">
+              <div className="form-group">
+                <label>Placement Date *</label>
+                <input type="date" value={flockForm.placement_date} onChange={e => setFlockForm({ ...flockForm, placement_date: e.target.value })} required max={new Date().toISOString().split('T')[0]} />
+              </div>
+              <div className="form-group">
+                <label>Chicks Placed *</label>
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={flockForm.chick_count} onChange={e => setFlockForm({ ...flockForm, chick_count: e.target.value })} required />
+                <small className="field-hint">Farm capacity: {farm.capacity?.toLocaleString()} | Available: {remaining.toLocaleString()}</small>
+              </div>
+              <div className="form-group">
+                <label>Supervisor</label>
+                <select value={flockForm.supervisor} onChange={e => setFlockForm({ ...flockForm, supervisor: e.target.value })}>
+                  <option value="">Select supervisor...</option>
+                  {supervisors.map(s => (
+                    <option key={s.id} value={s.id}>{s.first_name} {s.last_name} ({s.username})</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="form-group">
-              <label>Chicks Placed *</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={flockForm.chick_count} onChange={e => setFlockForm({ ...flockForm, chick_count: e.target.value })} required />
-              <small className="field-hint">Farm capacity: {farm.capacity?.toLocaleString()} (±5%: {Math.floor(farm.capacity * 0.95).toLocaleString()} — {Math.floor(farm.capacity * 1.05).toLocaleString()})</small>
+            <div className="form-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowFlockForm(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary">Place Flock</button>
             </div>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowFlockForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Place Flock</button>
-          </div>
-        </form>
-      )}
+          </form>
+        );
+      })()}
 
       {/* CURRENT FLOCK (active) */}
       <h2 className="section-title">Current Flock</h2>
@@ -109,7 +137,7 @@ export default function FarmDetail() {
                 <span className="flock-badge-active">ACTIVE</span>
                 <span className="flock-age">Day {flock.age_days}</span>
               </div>
-              <p className="farm-meta">Placed: {flock.placement_date} &middot; {flock.chick_count.toLocaleString()} chicks</p>
+              <p className="farm-meta">Placed: {flock.placement_date} &middot; {flock.chick_count.toLocaleString()} chicks{flock.supervisor_name && <> &middot; {flock.supervisor_name}</>}</p>
               <div className="flock-stats">
                 <div><strong>{flock.live_birds.toLocaleString()}</strong><br /><small>Live</small></div>
                 <div className={flock.mortality_percentage > 5 ? 'text-danger' : ''}>
@@ -118,11 +146,15 @@ export default function FarmDetail() {
                 <div><strong>{parseFloat(flock.total_feed_kg).toLocaleString()} kg</strong><br /><small>Feed</small></div>
                 <div><strong>{flock.fcr ?? '—'}</strong><br /><small>FCR</small></div>
               </div>
-              <div style={{ marginTop: '0.5rem' }}>
-                <span className={`feed-badge feed-badge-${(flock.feed_schedule_status?.current_feed_type || '').toLowerCase()}`}>
-                  {flock.feed_schedule_status?.current_feed_type}
-                </span>
-              </div>
+              {flock.flock_feed_stock && (
+                <div className="flock-stock-row">
+                  <small>Stock:</small>
+                  <span className="feed-badge-sm">BPSC:{flock.flock_feed_stock.bpsc}</span>
+                  <span className="feed-badge-sm">BSC:{flock.flock_feed_stock.bsc}</span>
+                  <span className="feed-badge-sm">BFP:{flock.flock_feed_stock.bfp}</span>
+                  <span className="feed-badge-sm"><strong>{flock.flock_feed_stock.total}</strong></span>
+                </div>
+              )}
             </Link>
           ))}
         </div>

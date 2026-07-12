@@ -150,6 +150,7 @@ export default function FlockDetail() {
     try {
       await feedOrderAPI.create({
         farm: flock.farm,
+        flock: parseInt(id),
         feed_type: feedOrderForm.feed_type,
         quantity_bags: parseInt(feedOrderForm.quantity_bags),
         notes: feedOrderForm.notes,
@@ -222,17 +223,14 @@ export default function FlockDetail() {
         </div>
       )}
 
-      {/* Farm Feed Stock */}
-      {farmStock && (
+      {/* Flock Feed Stock */}
+      {cumulative.flock_feed_stock && (
         <div className="farm-stock-bar">
-          <strong>Farm Stock:</strong>
-          <span className={`feed-badge feed-badge-bpsc ${farmStock.stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {farmStock.stock.bpsc}</span>
-          <span className={`feed-badge feed-badge-bsc ${farmStock.stock.bsc <= 2 ? 'stock-low' : ''}`}>BSC: {farmStock.stock.bsc}</span>
-          <span className={`feed-badge feed-badge-bfp ${farmStock.stock.bfp <= 2 ? 'stock-low' : ''}`}>BFP: {farmStock.stock.bfp}</span>
-          <span>Total: {farmStock.stock.total} bags</span>
-          <span className="stock-divider">|</span>
-          <strong>This Flock:</strong>
-          <span>{cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags} bags consumed ({cumulative.total_feed_kg} kg)</span>
+          <strong>Flock Feed Stock:</strong>
+          <span className={`feed-badge feed-badge-bpsc ${cumulative.flock_feed_stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {cumulative.flock_feed_stock.bpsc}</span>
+          <span className={`feed-badge feed-badge-bsc ${cumulative.flock_feed_stock.bsc <= 2 ? 'stock-low' : ''}`}>BSC: {cumulative.flock_feed_stock.bsc}</span>
+          <span className={`feed-badge feed-badge-bfp ${cumulative.flock_feed_stock.bfp <= 2 ? 'stock-low' : ''}`}>BFP: {cumulative.flock_feed_stock.bfp}</span>
+          <span>Total: {cumulative.flock_feed_stock.total} bags</span>
         </div>
       )}
 
