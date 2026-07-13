@@ -92,14 +92,46 @@ export default function FlockDetail() {
   const handleEntry = async (e) => {
     e.preventDefault(); setError('');
     const bags = parseInt(entryForm.feed_bags) || 0;
+    const mortality = parseInt(entryForm.mortality_count) || 0;
+    const water = parseFloat(entryForm.water_consumed_liters) || 0;
+    const bodyWeight = entryForm.avg_body_weight_grams ? parseFloat(entryForm.avg_body_weight_grams) : null;
+
+    // Frontend validations
+    if (water < 0) { setError('Water consumed cannot be negative.'); return; }
+    if (bodyWeight !== null && bodyWeight < 0) { setError('Body weight cannot be negative.'); return; }
+    if (bags < 0) { setError('Feed bags cannot be negative.'); return; }
+
+    // Mortality > 0.4% of live birds — confirm
+    if (mortality > 0 && cumulative) {
+      const liveBirds = cumulative.live_birds || flock.chick_count;
+      const mortPct = (mortality / liveBirds) * 100;
+      if (mortPct > 0.4) {
+        const ok = window.confirm(
+          `⚠️ High mortality alert!\n\n${mortality} deaths = ${mortPct.toFixed(2)}% of ${liveBirds.toLocaleString()} live birds.\n\nAre you sure this is correct?`
+        );
+        if (!ok) return;
+      }
+    }
+
+    // Feed bags > daily max estimate — confirm (not block)
+    if (bags > 0 && flock) {
+      const maxBagsPerDay = Math.ceil((flock.chick_count * 0.2) / 50);
+      if (bags > maxBagsPerDay) {
+        const ok = window.confirm(
+          `⚠️ High feed usage!\n\n${bags} bags entered. Estimated daily max for ${flock.chick_count.toLocaleString()} birds is ~${maxBagsPerDay} bags.\n\nAre you sure this is correct?`
+        );
+        if (!ok) return;
+      }
+    }
+
     const data = {
       flock: id, date: entryForm.date,
-      mortality_count: parseInt(entryForm.mortality_count) || 0,
+      mortality_count: mortality,
       feed_bpsc_bags: entryForm.feed_type === 'BPSC' ? bags : 0,
       feed_bsc_bags: entryForm.feed_type === 'BSC' ? bags : 0,
       feed_bfp_bags: entryForm.feed_type === 'BFP' ? bags : 0,
-      water_consumed_liters: parseFloat(entryForm.water_consumed_liters) || 0,
-      avg_body_weight_grams: entryForm.avg_body_weight_grams ? parseFloat(entryForm.avg_body_weight_grams) : null,
+      water_consumed_liters: water,
+      avg_body_weight_grams: bodyWeight,
       notes: entryForm.notes,
     };
     try {

@@ -112,21 +112,22 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
                     'mortality_count': f'Mortality ({mortality}) cannot exceed live birds ({live_birds}).'
                 })
 
-        # Feed bags limit: capacity * 0.2 / 50 per day
-        max_bags_per_day = int((flock.chick_count * 0.2) / 50) or 1
+        # Feed bags limit — no hard block, frontend confirms high values
         bpsc = data.get('feed_bpsc_bags', 0) or 0
         bsc = data.get('feed_bsc_bags', 0) or 0
         bfp = data.get('feed_bfp_bags', 0) or 0
-        total_bags = bpsc + bsc + bfp
 
         # Cannot be negative
         if bpsc < 0 or bsc < 0 or bfp < 0:
             raise ValidationError({'feed_bags': 'Feed bags cannot be negative.'})
 
-        if total_bags > max_bags_per_day:
-            raise ValidationError({
-                'feed_bags': f'Maximum {max_bags_per_day} bags per day for this flock ({flock.chick_count} birds).'
-            })
+        # Water and body weight cannot be negative
+        water = data.get('water_consumed_liters', 0) or 0
+        if float(water) < 0:
+            raise ValidationError({'water_consumed_liters': 'Water cannot be negative.'})
+        body_wt = data.get('avg_body_weight_grams')
+        if body_wt is not None and float(body_wt) < 0:
+            raise ValidationError({'avg_body_weight_grams': 'Body weight cannot be negative.'})
 
         # Cannot exceed available stock for that feed type
         stock = flock.flock_feed_stock
