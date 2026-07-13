@@ -226,11 +226,12 @@ export default function FlockDetail() {
       {/* Flock Feed Stock — active only */}
       {flock.status === 'active' && cumulative.flock_feed_stock && (
         <div className="farm-stock-bar">
-          <strong>Flock Feed Stock:</strong>
-          <span className={`feed-badge feed-badge-bpsc ${cumulative.flock_feed_stock.bpsc <= 2 ? 'stock-low' : ''}`}>BPSC: {cumulative.flock_feed_stock.bpsc}</span>
-          <span className={`feed-badge feed-badge-bsc ${cumulative.flock_feed_stock.bsc <= 2 ? 'stock-low' : ''}`}>BSC: {cumulative.flock_feed_stock.bsc}</span>
-          <span className={`feed-badge feed-badge-bfp ${cumulative.flock_feed_stock.bfp <= 2 ? 'stock-low' : ''}`}>BFP: {cumulative.flock_feed_stock.bfp}</span>
+          <strong>This Flock's Feed Stock:</strong>
+          <span className={`feed-badge feed-badge-bpsc ${cumulative.flock_feed_stock.bpsc <= 0 ? 'stock-low' : ''}`}>BPSC: {cumulative.flock_feed_stock.bpsc}</span>
+          <span className={`feed-badge feed-badge-bsc ${cumulative.flock_feed_stock.bsc <= 0 ? 'stock-low' : ''}`}>BSC: {cumulative.flock_feed_stock.bsc}</span>
+          <span className={`feed-badge feed-badge-bfp ${cumulative.flock_feed_stock.bfp <= 0 ? 'stock-low' : ''}`}>BFP: {cumulative.flock_feed_stock.bfp}</span>
           <span>Total: {cumulative.flock_feed_stock.total} bags</span>
+          {cumulative.flock_feed_stock.total <= 0 && <span className="text-danger" style={{ fontSize: '0.8rem' }}>Order feed for this flock</span>}
         </div>
       )}
 

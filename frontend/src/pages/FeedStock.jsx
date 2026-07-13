@@ -14,7 +14,7 @@ export default function FeedStock() {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [showRateForm, setShowRateForm] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
-  const [orderForm, setOrderForm] = useState({ farm: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
+  const [orderForm, setOrderForm] = useState({ farm: '', flock: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
   const [rateForm, setRateForm] = useState({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
   const [transferForm, setTransferForm] = useState({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: new Date().toISOString().split('T')[0], notes: '' });
   const [filter, setFilter] = useState('all');
@@ -45,12 +45,13 @@ export default function FeedStock() {
     try {
       await feedOrderAPI.create({
         farm: parseInt(orderForm.farm),
+        flock: orderForm.flock ? parseInt(orderForm.flock) : null,
         feed_type: orderForm.feed_type,
         quantity_bags: parseInt(orderForm.quantity_bags),
         notes: orderForm.notes,
       });
       setShowOrderForm(false);
-      setOrderForm({ farm: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
+      setOrderForm({ farm: '', flock: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
       load();
     } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
   };
@@ -152,13 +153,24 @@ export default function FeedStock() {
           <div className="form-row">
             <div className="form-group">
               <label>Farm *</label>
-              <select value={orderForm.farm} onChange={e => setOrderForm({ ...orderForm, farm: e.target.value })} required>
+              <select value={orderForm.farm} onChange={e => setOrderForm({ ...orderForm, farm: e.target.value, flock: '' })} required>
                 <option value="">Select farm...</option>
                 {farms.map(f => (
                   <option key={f.id} value={f.id}>{f.farm_code} — {f.name}</option>
                 ))}
               </select>
             </div>
+            <div className="form-group">
+              <label>Flock *</label>
+              <select value={orderForm.flock} onChange={e => setOrderForm({ ...orderForm, flock: e.target.value })} required>
+                <option value="">Select flock...</option>
+                {orderForm.farm && farms.find(f => String(f.id) === String(orderForm.farm))?.active_flocks?.map(fl => (
+                  <option key={fl.id} value={fl.id}>Placed {fl.placement_date} — {fl.chick_count?.toLocaleString()} chicks (Day {fl.age_days})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label>Feed Type *</label>
               <select value={orderForm.feed_type} onChange={e => setOrderForm({ ...orderForm, feed_type: e.target.value })}>

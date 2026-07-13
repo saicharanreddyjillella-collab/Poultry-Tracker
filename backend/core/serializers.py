@@ -113,6 +113,7 @@ class FarmSerializer(serializers.ModelSerializer):
 class FeedOrderSerializer(serializers.ModelSerializer):
     farm_name = serializers.CharField(source='farm.name', read_only=True)
     farm_code = serializers.CharField(source='farm.farm_code', read_only=True)
+    flock_info = serializers.SerializerMethodField()
     ordered_by_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -123,6 +124,11 @@ class FeedOrderSerializer(serializers.ModelSerializer):
         if obj.ordered_by:
             return f"{obj.ordered_by.first_name} {obj.ordered_by.last_name}".strip() or obj.ordered_by.username
         return ''
+
+    def get_flock_info(self, obj):
+        if obj.flock:
+            return f"Placed {obj.flock.placement_date} ({obj.flock.chick_count} chicks)"
+        return None
 
 
 class FeedTransferSerializer(serializers.ModelSerializer):
