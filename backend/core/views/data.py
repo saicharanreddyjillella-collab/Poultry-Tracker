@@ -114,10 +114,39 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
 
         # Feed bags limit: capacity * 0.2 / 50 per day
         max_bags_per_day = int((flock.chick_count * 0.2) / 50) or 1
-        total_bags = (data.get('feed_bpsc_bags', 0) or 0) + (data.get('feed_bsc_bags', 0) or 0) + (data.get('feed_bfp_bags', 0) or 0)
+        bpsc = data.get('feed_bpsc_bags', 0) or 0
+        bsc = data.get('feed_bsc_bags', 0) or 0
+        bfp = data.get('feed_bfp_bags', 0) or 0
+        total_bags = bpsc + bsc + bfp
+
+        # Cannot be negative
+        if bpsc < 0 or bsc < 0 or bfp < 0:
+            raise ValidationError({'feed_bags': 'Feed bags cannot be negative.'})
+
         if total_bags > max_bags_per_day:
             raise ValidationError({
                 'feed_bags': f'Maximum {max_bags_per_day} bags per day for this flock ({flock.chick_count} birds).'
+            })
+
+        # Cannot exceed available stock for that feed type
+        stock = flock.flock_feed_stock
+        # Add back current entry's bags if editing
+        if instance:
+            stock['bpsc'] += instance.feed_bpsc_bags
+            stock['bsc'] += instance.feed_bsc_bags
+            stock['bfp'] += instance.feed_bfp_bags
+
+        if bpsc > 0 and bpsc > stock.get('bpsc', 0):
+            raise ValidationError({
+                'feed_bags': f'Only {stock.get("bpsc", 0)} BPSC bags in stock. Cannot use {bpsc}.'
+            })
+        if bsc > 0 and bsc > stock.get('bsc', 0):
+            raise ValidationError({
+                'feed_bags': f'Only {stock.get("bsc", 0)} BSC bags in stock. Cannot use {bsc}.'
+            })
+        if bfp > 0 and bfp > stock.get('bfp', 0):
+            raise ValidationError({
+                'feed_bags': f'Only {stock.get("bfp", 0)} BFP bags in stock. Cannot use {bfp}.'
             })
 
     def perform_create(self, serializer):
