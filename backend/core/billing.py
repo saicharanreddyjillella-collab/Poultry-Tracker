@@ -8,6 +8,7 @@ from .models import (
 def generate_bill(flock, user=None):
     """Generate a bill for a closed flock."""
     config = BillConfig.get_active()
+    config.refresh_from_db()  # Ensure all fields are Decimal, not float defaults
     farm = flock.farm
     BAG_KG = 50
 
@@ -37,17 +38,18 @@ def generate_bill(flock, user=None):
     total_feed_kg = total_feed_bags * BAG_KG
 
     # ─── COST CALCULATION ───
-    chick_cost = Decimal(str(chicks_placed)) * config.chick_cost_per_bird
-    feed_cost = total_feed_kg * config.feed_cost_per_kg
+    D = lambda v: Decimal(str(v))
+    chick_cost = D(chicks_placed) * D(config.chick_cost_per_bird)
+    feed_cost = D(total_feed_kg) * D(config.feed_cost_per_kg)
 
     # Medicine cost: actual if flag is on, else chicks × rate
     if farm.medicine_use_actual:
-        medicine_cost = Decimal(str(flock.total_medication_cost))
+        medicine_cost = D(flock.total_medication_cost)
     else:
-        medicine_cost = Decimal(str(chicks_placed)) * config.medicine_cost_per_chick
+        medicine_cost = D(chicks_placed) * D(config.medicine_cost_per_chick)
     # Admin cost = per live chick (sold + remaining live)
     admin_birds = total_sold_birds + max(0, live_birds)
-    admin_cost = Decimal(str(admin_birds)) * config.admin_cost_per_chick
+    admin_cost = D(admin_birds) * D(config.admin_cost_per_chick)
 
     production_cost_total = chick_cost + feed_cost + medicine_cost + admin_cost
     production_cost_per_kg = (production_cost_total / total_sold_weight) if total_sold_weight > 0 else Decimal('0')
