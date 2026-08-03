@@ -469,13 +469,10 @@ def farm_cumulative(request, farm_id):
 
 # ─── REPORTS ───
 
-@api_view(['GET'])
-def monthly_report(request):
-    from datetime import datetime
-    year = int(request.query_params.get('year', date.today().year))
-    month = int(request.query_params.get('month', date.today().month))
+def _compute_monthly_report(year, month):
+    """Core monthly report logic — returns dict. Callable without a request."""
+    import calendar
     BAG_KG = 50
-
     flocks = Flock.objects.filter(status='closed').select_related('farm')
     batches = []
 
@@ -503,7 +500,6 @@ def monthly_report(request):
             admin_cost = sold_birds * 6
             cost_kg = round((chick_cost + feed_cost + med_cost + admin_cost) / sold_weight, 2)
 
-        # Weekly mortality
         weekly_mort = []
         for entry in entries.order_by('date'):
             week = ((entry.date - flock.placement_date).days) // 7 + 1
@@ -530,13 +526,18 @@ def monthly_report(request):
             'weekly_mortality': weekly_mort,
         })
 
-    import calendar
-    month_name = calendar.month_name[month]
-    return Response({
-        'year': year, 'month': month, 'month_name': month_name,
+    return {
+        'year': year, 'month': month, 'month_name': calendar.month_name[month],
         'flocks_count': len(batches),
         'flocks': batches,
-    })
+    }
+
+
+@api_view(['GET'])
+def monthly_report(request):
+    year = int(request.query_params.get('year', date.today().year))
+    month = int(request.query_params.get('month', date.today().month))
+    return Response(_compute_monthly_report(year, month))
 
 
 @api_view(['GET'])
@@ -548,14 +549,14 @@ def export_monthly_report(request):
     year = int(request.query_params.get('year', date.today().year))
     month = int(request.query_params.get('month', date.today().month))
 
-    report = monthly_report(request)
-    batches = report.data['batches']
+    report = _compute_monthly_report(year, month)
+    batches = report['flocks']
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = f"Monthly Report {year}-{month:02d}"
+    ws.title = f"Monthly {year}-{month:02d}"
     headers = ['Farm Code', 'Farm Name', 'Owner', 'Region', 'Shed', 'Placed', 'Chicks',
-               'Age', 'Mortality', 'Mort%', 'Birds Sold', 'Weight Sold', 'Feed Bags', 'Feed Kg', 'FCR', 'Cost/Kg']
+               'Age', 'Mortality', 'Mort%', 'Birds Sold', 'Weight Sold', 'Avg Wt', 'Feed Bags', 'Feed Kg', 'FCR', 'Cost/Kg']
     ws.append(headers)
 
     for b in batches:
@@ -563,8 +564,8 @@ def export_monthly_report(request):
             b['farm_code'], b['farm_name'], b['owner'], b['region'], b['shed_type'],
             b['placement_date'], b['chick_count'], b['age_days'],
             b['total_mortality'], b['mortality_pct'],
-            b['sold_birds'], b['sold_weight'],
-            b['total_feed_bags'], b['total_feed_kg'], b['fcr'], b['cost_per_kg'],
+            b['total_sold_birds'], b['total_sold_weight_kg'], b['avg_bird_weight_kg'],
+            b['total_feed_bags'], b['total_feed_kg'], b['fcr'], b['cost_per_kg_production'],
         ])
 
     output = BytesIO()

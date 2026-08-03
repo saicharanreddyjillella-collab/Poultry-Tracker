@@ -40,7 +40,10 @@ class UserProfile(models.Model):
         # Check by region first, then by direct assignment
         if farm.region and farm.region in (self.assigned_regions or []):
             return True
-        return self.assigned_farms.filter(id=farm.id).exists()
+        if self.assigned_farms.filter(id=farm.id).exists():
+            return True
+        # Supervisor assigned to any active flock on this farm
+        return farm.flocks.filter(supervisor=self.user, status='active').exists()
 
     def sync_farms_from_regions(self):
         """Auto-assign all farms in assigned regions to this user."""
