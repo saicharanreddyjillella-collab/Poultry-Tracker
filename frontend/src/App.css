@@ -409,25 +409,25 @@ tbody tr:hover { background: #fafaf8; }
 .alert-bell-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
-  font-size: 0.9rem;
+  font-size: 0.9rem; color: var(--text); font-weight: 600;
 }
-.alert-bell-summary { font-size: 0.8rem; }
+.alert-bell-summary { font-size: 0.8rem; color: var(--text-muted); }
 .alert-bell-empty { padding: 2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
 .alert-bell-list { }
-.alert-bell-item {
+.alert-bell-item, .nav-links a.alert-bell-item {
   display: flex; align-items: flex-start; gap: 0.6rem;
   padding: 0.7rem 1rem; border-bottom: 1px solid var(--border);
   text-decoration: none; color: var(--text); transition: background 0.15s;
 }
 .alert-bell-item:last-child { border-bottom: none; }
-.alert-bell-item:hover { background: var(--bg); }
+.alert-bell-item:hover, .nav-links a.alert-bell-item:hover { background: var(--bg); color: var(--text); }
 .alert-bell-item-danger { border-left: 3px solid var(--danger); }
 .alert-bell-item-warning { border-left: 3px solid #e67e22; }
 .alert-bell-item-info { border-left: 3px solid #3498db; }
 .alert-bell-icon { font-size: 0.85rem; margin-top: 0.1rem; flex-shrink: 0; }
 .alert-bell-content { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; }
 .alert-bell-farm { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
-.alert-bell-msg { font-size: 0.85rem; }
+.alert-bell-msg { font-size: 0.85rem; color: var(--text); }
 
 /* Hamburger button — hidden on desktop */
 .hamburger { display: none; background: none; border: none; cursor: pointer; padding: 0.5rem; flex-direction: column; gap: 5px; }
