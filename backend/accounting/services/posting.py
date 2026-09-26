@@ -1,15 +1,19 @@
 """
-The posting service — the ONE way anything enters the ledger.
+The posting service — the ONE way money enters the ledger.
 
 Every business module calls post_voucher(). It enforces double-entry balance
-and writes everything inside a single atomic transaction, so a voucher either
-posts completely or not at all. Users never see debit/credit — modules build
-the lines, this function guarantees integrity.
+and writes atomically, so a voucher posts completely or not at all. Users
+never see debit/credit — modules build the lines, this guarantees integrity.
+
+This module is PURE accounting: it knows nothing about stock or items.
+When a business event moves both money and stock, the business module makes
+two coordinated calls — post_voucher() here and record_movement() in
+inventory — passing the voucher to link them.
 """
 from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from .models import Account, Party, Voucher, Entry, Unit, Item, StockMovement, AuditLog
+from ..models import Account, Voucher, Entry, AuditLog
 
 
 def D(v):
@@ -18,17 +22,13 @@ def D(v):
 
 @transaction.atomic
 def post_voucher(*, date, vtype, narration, lines, business='chicken_center',
-                 source_module='', source_ref='', user=None, stock_moves=None):
+                 source_module='', source_ref='', user=None):
     """
     Post a balanced voucher.
 
     lines: list of dicts, each:
         {'account': Account|code, 'party': Party|None, 'debit': x, 'credit': y}
       Exactly one of debit/credit non-zero per line. Sum(debit)==sum(credit).
-
-    stock_moves: optional list of dicts for inventory movement:
-        {'item': Item, 'type': 'PURCHASE_IN'|..., 'qty': x, 'unit': Unit,
-         'note': ''}
 
     Returns the created Voucher.
     """
@@ -68,13 +68,6 @@ def post_voucher(*, date, vtype, narration, lines, business='chicken_center',
         Entry.objects.create(voucher=voucher, account=acc, party=party,
                              debit=debit, credit=credit)
 
-    # Inventory movements, if any, tied to this voucher.
-    if stock_moves:
-        for m in stock_moves:
-            _post_stock_movement(voucher=voucher, business=business,
-                                 source_module=source_module,
-                                 source_ref=source_ref, date=date, **m)
-
     if user:
         AuditLog.objects.create(
             user=user, action='CREATE', object_type='Voucher',
@@ -84,46 +77,11 @@ def post_voucher(*, date, vtype, narration, lines, business='chicken_center',
     return voucher
 
 
-IN_TYPES = {'PURCHASE_IN', 'PRODUCE_IN', 'ADJUST'}
-OUT_TYPES = {'SALE_OUT', 'CONSUME_OUT', 'SHRINKAGE_OUT'}
-
-
-def _post_stock_movement(*, voucher, business, source_module, source_ref,
-                         date, item, type, qty, unit, note=''):
-    """Record one stock movement, converting the entered quantity into the
-    item's base unit so on-hand math stays consistent."""
-    if isinstance(unit, str):
-        unit = Unit.objects.get(symbol=unit)
-    qty = D(qty)
-    if qty < 0:
-        raise ValidationError("Stock quantity cannot be negative.")
-
-    # Convert entered unit → base unit of the item.
-    # If the entered unit converts to the item's base unit, apply factor.
-    base_qty = qty * (unit.factor_to_base if unit_id_differs(unit, item.base_unit) else Decimal('1'))
-
-    qty_in = base_qty if type in IN_TYPES else Decimal('0')
-    qty_out = base_qty if type in OUT_TYPES else Decimal('0')
-
-    return StockMovement.objects.create(
-        item=item, date=date, type=type,
-        qty_in_base=qty_in, qty_out_base=qty_out,
-        entered_qty=qty, entered_unit=unit, business=business,
-        voucher=voucher, source_module=source_module, source_ref=source_ref,
-        note=note,
-    )
-
-
-def unit_id_differs(entered_unit, base_unit):
-    """True if the entered unit is a derived unit (bag) that must convert to
-    the item's base unit (kg). If they're the same unit, no conversion."""
-    return entered_unit.id != base_unit.id
-
-
 @transaction.atomic
 def reverse_voucher(voucher, user=None):
     """Post an equal-and-opposite voucher to cancel one, and flag both.
-    Corrections never edit history — they reverse it."""
+    Corrections never edit history — they reverse it. Inventory movements
+    linked to the voucher are reversed by the inventory service separately."""
     if voucher.is_reversed:
         raise ValidationError("Voucher already reversed.")
 
@@ -136,16 +94,6 @@ def reverse_voucher(voucher, user=None):
     for e in voucher.entries.all():
         Entry.objects.create(voucher=rev, account=e.account, party=e.party,
                              debit=e.credit, credit=e.debit)  # swapped
-
-    # Reverse any stock movements too.
-    for sm in voucher.stock_movements.all():
-        StockMovement.objects.create(
-            item=sm.item, date=sm.date, type='ADJUST',
-            qty_in_base=sm.qty_out_base, qty_out_base=sm.qty_in_base,
-            entered_qty=sm.entered_qty, entered_unit=sm.entered_unit,
-            business=sm.business, voucher=rev,
-            note=f"Reversal of movement #{sm.id}",
-        )
 
     voucher.is_reversed = True
     voucher.save(update_fields=['is_reversed'])

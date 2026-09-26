@@ -1,10 +1,9 @@
 """
-Seed the default chart of accounts and base units.
-Idempotent — safe to run repeatedly. Run once after migrating the accounting app.
+Seed the default chart of accounts. Idempotent.
+Run after migrating: python manage.py seed_accounts
 """
-from decimal import Decimal
 from django.core.management.base import BaseCommand
-from accounting.models import Account, Unit
+from accounting.models import Account
 
 
 DEFAULT_ACCOUNTS = [
@@ -45,37 +44,15 @@ DEFAULT_ACCOUNTS = [
 
 
 class Command(BaseCommand):
-    help = 'Seed default chart of accounts and base units'
+    help = 'Seed default chart of accounts'
 
     def handle(self, *args, **opts):
-        # Base units
-        kg, _ = Unit.objects.get_or_create(
-            symbol='kg', defaults={'name': 'Kilogram', 'factor_to_base': Decimal('1')})
-        if kg.name != 'Kilogram':
-            pass
-        bag, created = Unit.objects.get_or_create(
-            symbol='bag',
-            defaults={'name': 'Bag (50 kg)', 'base_unit': kg, 'factor_to_base': Decimal('50')})
-        if not created and bag.base_unit_id != kg.id:
-            bag.base_unit = kg
-            bag.factor_to_base = Decimal('50')
-            bag.save()
-        Unit.objects.get_or_create(
-            symbol='tonne',
-            defaults={'name': 'Tonne (1000 kg)', 'base_unit': kg, 'factor_to_base': Decimal('1000')})
-        Unit.objects.get_or_create(
-            symbol='pc', defaults={'name': 'Piece', 'factor_to_base': Decimal('1')})
-
-        self.stdout.write(self.style.SUCCESS('Units seeded (kg, bag=50kg, tonne, pc).'))
-
-        # Accounts
-        n_created = 0
+        n = 0
         for code, name, atype, ctrl, biz in DEFAULT_ACCOUNTS:
-            obj, created = Account.objects.get_or_create(
+            _, created = Account.objects.get_or_create(
                 code=code,
                 defaults={'name': name, 'type': atype,
                           'is_party_control': ctrl, 'business': biz})
-            if created:
-                n_created += 1
+            n += 1 if created else 0
         self.stdout.write(self.style.SUCCESS(
-            f'Chart of accounts seeded ({n_created} new, {len(DEFAULT_ACCOUNTS)} total).'))
+            f'Chart of accounts seeded ({n} new, {len(DEFAULT_ACCOUNTS)} total).'))
