@@ -108,3 +108,85 @@ def profit_and_loss(date_from, date_to, business=None):
         'date_from': date_from, 'date_to': date_to,
         'income': income, 'expense': expense, 'profit': income - expense,
     }
+
+
+def pnl_detailed(date_from, date_to, business=None):
+    """P&L with per-account breakdown of income and expense lines."""
+    def lines_for(atype):
+        rows = []
+        qs = Entry.objects.filter(
+            account__type=atype,
+            voucher__date__gte=date_from, voucher__date__lte=date_to,
+        )
+        if business:
+            qs = qs.filter(voucher__business=business)
+        by_acc = {}
+        for e in qs.select_related('account'):
+            amt = (e.credit - e.debit) if atype == 'INCOME' else (e.debit - e.credit)
+            key = (e.account.code, e.account.name)
+            by_acc[key] = by_acc.get(key, Decimal('0')) + amt
+        for (code, name), amt in sorted(by_acc.items(), key=lambda x: -x[1]):
+            if amt != 0:
+                rows.append({'code': code, 'name': name, 'amount': amt})
+        return rows
+
+    income_lines = lines_for('INCOME')
+    expense_lines = lines_for('EXPENSE')
+    income = sum((r['amount'] for r in income_lines), Decimal('0'))
+    expense = sum((r['amount'] for r in expense_lines), Decimal('0'))
+    return {
+        'date_from': date_from, 'date_to': date_to,
+        'income_lines': income_lines, 'expense_lines': expense_lines,
+        'income': income, 'expense': expense, 'profit': income - expense,
+    }
+
+
+def cash_book(date_from, date_to, accounts=('CASH', 'UPI', 'BANK'), business=None):
+    """Money movement through cash/bank accounts over a period, with opening
+    and closing balances. Each row is one entry hitting a cash account."""
+    result = {}
+    for code in accounts:
+        try:
+            acc = Account.objects.get(code=code)
+        except Account.DoesNotExist:
+            continue
+
+        # Opening = balance strictly before date_from
+        opening_qs = acc.entries.filter(voucher__date__lt=date_from)
+        if business:
+            opening_qs = opening_qs.filter(voucher__business=business)
+        oa = opening_qs.aggregate(d=Sum('debit'), c=Sum('credit'))
+        opening = (oa['d'] or Decimal('0')) - (oa['c'] or Decimal('0'))  # asset: debit-normal
+
+        period_qs = acc.entries.filter(
+            voucher__date__gte=date_from, voucher__date__lte=date_to,
+        ).select_related('voucher', 'party').order_by('voucher__date', 'id')
+        if business:
+            period_qs = period_qs.filter(voucher__business=business)
+
+        running = opening
+        rows = []
+        receipts = Decimal('0')
+        payments = Decimal('0')
+        for e in period_qs:
+            running += (e.debit - e.credit)
+            receipts += e.debit
+            payments += e.credit
+            rows.append({
+                'date': e.voucher.date,
+                'type': e.voucher.type,
+                'party': e.party.name if e.party else None,
+                'narration': e.voucher.narration,
+                'in': e.debit,
+                'out': e.credit,
+                'balance': running,
+            })
+        result[code] = {
+            'account': acc.name,
+            'opening': opening,
+            'receipts': receipts,
+            'payments': payments,
+            'closing': running,
+            'rows': rows,
+        }
+    return result

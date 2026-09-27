@@ -6,7 +6,7 @@ from datetime import date
 
 from .models import Account, Party, Voucher
 from .serializers import AccountSerializer, PartySerializer, VoucherSerializer
-from .services import party_ledger, account_ledger, trial_balance, profit_and_loss
+from .services import party_ledger, account_ledger, trial_balance, profit_and_loss, pnl_detailed, cash_book
 
 
 def _filter_business(qs, request):
@@ -90,7 +90,19 @@ def profit_and_loss_view(request):
     df = request.query_params.get('from') or date.today().replace(day=1).isoformat()
     dt = request.query_params.get('to') or date.today().isoformat()
     biz = request.query_params.get('business')
+    detailed = request.query_params.get('detailed') == '1'
+    if detailed:
+        return Response(pnl_detailed(df, dt, business=biz))
     return Response(profit_and_loss(df, dt, business=biz))
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def cash_book_view(request):
+    df = request.query_params.get('from') or date.today().replace(day=1).isoformat()
+    dt = request.query_params.get('to') or date.today().isoformat()
+    biz = request.query_params.get('business')
+    return Response(cash_book(df, dt, business=biz))
 
 
 @api_view(['GET'])

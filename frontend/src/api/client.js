@@ -142,6 +142,7 @@ export const accountingAPI = {
   partyStatement: (id, params) => API.get(`/accounting/reports/party/${id}/`, { params }),
   trialBalance: (params) => API.get('/accounting/reports/trial-balance/', { params }),
   pnl: (params) => API.get('/accounting/reports/pnl/', { params }),
+  cashBook: (params) => API.get('/accounting/reports/cash-book/', { params }),
   outstanding: (params) => API.get('/accounting/reports/outstanding/', { params }),
 };
 
