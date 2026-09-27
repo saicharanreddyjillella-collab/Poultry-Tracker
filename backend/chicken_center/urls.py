@@ -14,6 +14,8 @@ urlpatterns = [
     path('opening/cash/', views.opening_cash),
     path('pending-bills/', views.pending_bills),
     path('ageing/', views.ageing),
+    path('daybook/', views.daybook),
+    path('sales-summary/', views.sales_summary),
     path('export/pnl/', exports.export_pnl),
     path('export/cash-book/', exports.export_cash_book),
     path('export/pending-bills/', exports.export_pending_bills),

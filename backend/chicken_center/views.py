@@ -313,3 +313,67 @@ def opening_cash(request):
         return Response({'status': 'ok'}, status=201)
     except ValidationError as e:
         return _err(e)
+
+
+# ─── DAYBOOK (everything on a date) ───
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def daybook(request):
+    """All vouchers for a given date (default today), any type, with amount."""
+    from accounting.models import Voucher
+    from datetime import date as date_cls
+    day = request.query_params.get('date') or date_cls.today().isoformat()
+    vs = (Voucher.objects
+          .filter(business='chicken_center', date=day)
+          .exclude(is_reversed=True)
+          .prefetch_related('entries', 'entries__party')
+          .order_by('id'))
+    rows = []
+    for v in vs:
+        party = None
+        for e in v.entries.all():
+            if e.party:
+                party = e.party.name
+                break
+        rows.append({
+            'id': v.id, 'type': v.type, 'narration': v.narration,
+            'party': party, 'amount': v.total_debit,
+        })
+    total = sum((r['amount'] for r in rows), 0)
+    return Response({'date': day, 'rows': rows, 'total': total})
+
+
+# ─── SALES SUMMARY (customer-wise / item-wise) ───
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sales_summary(request):
+    """Sales totals grouped by customer and by item over a date range."""
+    from datetime import date as date_cls
+    from decimal import Decimal
+    df = request.query_params.get('from') or date_cls.today().replace(day=1).isoformat()
+    dt = request.query_params.get('to') or date_cls.today().isoformat()
+
+    qs = (Sale.objects
+          .filter(date__gte=df, date__lte=dt)
+          .exclude(voucher__is_reversed=True)
+          .select_related('party', 'item'))
+
+    by_cust, by_item = {}, {}
+    grand_amt = Decimal('0')
+    grand_wt = Decimal('0')
+    for s in qs:
+        c = by_cust.setdefault(s.party_id, {'name': s.party.name, 'weight': Decimal('0'), 'amount': Decimal('0'), 'bills': 0})
+        c['weight'] += s.weight_kg; c['amount'] += s.amount; c['bills'] += 1
+        it = by_item.setdefault(s.item_id, {'name': s.item.name, 'weight': Decimal('0'), 'amount': Decimal('0'), 'bills': 0})
+        it['weight'] += s.weight_kg; it['amount'] += s.amount; it['bills'] += 1
+        grand_amt += s.amount; grand_wt += s.weight_kg
+
+    cust_rows = sorted(by_cust.values(), key=lambda r: -r['amount'])
+    item_rows = sorted(by_item.values(), key=lambda r: -r['amount'])
+    return Response({
+        'date_from': df, 'date_to': dt,
+        'by_customer': cust_rows, 'by_item': item_rows,
+        'grand_amount': grand_amt, 'grand_weight': grand_wt,
+    })

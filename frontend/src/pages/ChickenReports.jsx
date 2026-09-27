@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { accountingAPI, chickenAPI, downloadFile } from '../api/client';
 
 const BIZ = 'chicken_center';
-const TABS = ['P&L', 'Cash Book', 'Trial Balance'];
+const TABS = ['P&L', 'Balance Sheet', 'Cash Book', 'Trial Balance'];
 
 function monthStartISO() {
   const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10);
@@ -26,6 +26,7 @@ export default function ChickenReports() {
     const call =
       tab === 'P&L' ? accountingAPI.pnl({ ...p, detailed: 1 }) :
       tab === 'Cash Book' ? accountingAPI.cashBook(p) :
+      tab === 'Balance Sheet' ? accountingAPI.balanceSheet({ business: BIZ, upto: to }) :
       accountingAPI.trialBalance({ business: BIZ, upto: to });
     call.then(r => { setData(r.data); setLoading(false); }).catch(() => { setData(null); setLoading(false); });
   };
@@ -124,6 +125,37 @@ export default function ChickenReports() {
                 </div>
               ))}
             </>
+          )}
+
+          {tab === 'Balance Sheet' && (
+            <div className="bill-a4" style={{ maxWidth: 640 }}>
+              <div className="bill-two-col">
+                <div>
+                  <h3 className="bill-section-title">Assets</h3>
+                  <table className="bill-t"><tbody>
+                    {data.assets?.map((r, i) => <tr key={i}><td>{r.name}</td><td>₹{fmt(r.amount)}</td></tr>)}
+                    <tr className="bill-t-total"><td>Total Assets</td><td>₹{fmt(data.total_assets)}</td></tr>
+                  </tbody></table>
+                </div>
+                <div>
+                  <h3 className="bill-section-title">Liabilities</h3>
+                  <table className="bill-t"><tbody>
+                    {data.liabilities?.length ? data.liabilities.map((r, i) => <tr key={i}><td>{r.name}</td><td>₹{fmt(r.amount)}</td></tr>) : <tr><td>None</td><td>₹0.00</td></tr>}
+                    <tr className="bill-t-total"><td>Total Liabilities</td><td>₹{fmt(data.total_liabilities)}</td></tr>
+                  </tbody></table>
+                  <h3 className="bill-section-title" style={{ marginTop: '0.75rem' }}>Equity</h3>
+                  <table className="bill-t"><tbody>
+                    {data.equity?.map((r, i) => <tr key={i}><td>{r.name}</td><td>₹{fmt(r.amount)}</td></tr>)}
+                    <tr className="bill-t-total"><td>Total Equity</td><td>₹{fmt(data.total_equity)}</td></tr>
+                  </tbody></table>
+                </div>
+              </div>
+              <div className="bill-final-compact" style={{ marginTop: '1rem' }}>
+                <div className="bill-final-line"><span>Total Assets</span><span>₹{fmt(data.total_assets)}</span></div>
+                <div className="bill-final-line"><span>Total Liabilities + Equity</span><span>₹{fmt(data.total_liab_equity)}</span></div>
+                <p className="farm-meta" style={{ marginTop: '0.5rem' }}>{data.balanced ? '✓ Balanced' : '⚠️ Not balanced'}</p>
+              </div>
+            </div>
           )}
 
           {tab === 'Trial Balance' && (

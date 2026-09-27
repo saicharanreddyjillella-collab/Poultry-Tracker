@@ -6,7 +6,7 @@ from datetime import date
 
 from .models import Account, Party, Voucher
 from .serializers import AccountSerializer, PartySerializer, VoucherSerializer
-from .services import party_ledger, account_ledger, trial_balance, profit_and_loss, pnl_detailed, cash_book
+from .services import party_ledger, account_ledger, trial_balance, profit_and_loss, pnl_detailed, cash_book, balance_sheet
 
 
 def _filter_business(qs, request):
@@ -156,3 +156,11 @@ def book_lock(request):
         detail={'from': str(prev), 'to': str(closed_through)},
     )
     return Response({'business': biz, 'closed_through': row.closed_through})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def balance_sheet_view(request):
+    upto = request.query_params.get('upto')
+    biz = request.query_params.get('business')
+    return Response(balance_sheet(upto=upto, business=biz))

@@ -190,3 +190,61 @@ def cash_book(date_from, date_to, accounts=('CASH', 'UPI', 'BANK'), business=Non
             'rows': rows,
         }
     return result
+
+
+def balance_sheet(upto=None, business=None):
+    """Assets vs Liabilities + Equity as of a date. Profit for the period
+    (Income − Expense) rolls into equity as 'Current Period Earnings' so the
+    sheet balances."""
+    from .ledger import trial_balance  # local import to reuse net balances
+    accounts = Account.objects.filter(active=True)
+
+    def net(acc):
+        qs = acc.entries.all()
+        if upto:
+            qs = qs.filter(voucher__date__lte=upto)
+        if business:
+            qs = qs.filter(voucher__business=business)
+        agg = qs.aggregate(d=Sum('debit'), c=Sum('credit'))
+        d = agg['d'] or Decimal('0')
+        c = agg['c'] or Decimal('0')
+        return d - c  # raw debit-minus-credit
+
+    assets, liabilities, equity = [], [], []
+    total_assets = total_liab = total_equity = Decimal('0')
+    income_total = expense_total = Decimal('0')
+
+    for acc in accounts:
+        n = net(acc)
+        if acc.type == 'ASSET':
+            if n != 0:
+                assets.append({'code': acc.code, 'name': acc.name, 'amount': n})
+                total_assets += n
+        elif acc.type == 'LIABILITY':
+            if -n != 0:
+                liabilities.append({'code': acc.code, 'name': acc.name, 'amount': -n})
+                total_liab += -n
+        elif acc.type == 'EQUITY':
+            if -n != 0:
+                equity.append({'code': acc.code, 'name': acc.name, 'amount': -n})
+                total_equity += -n
+        elif acc.type == 'INCOME':
+            income_total += -n  # credit-normal
+        elif acc.type == 'EXPENSE':
+            expense_total += n   # debit-normal
+
+    # Net profit for the period folds into equity.
+    current_earnings = income_total - expense_total
+    if current_earnings != 0:
+        equity.append({'code': 'EARNINGS', 'name': 'Current Period Earnings',
+                       'amount': current_earnings})
+        total_equity += current_earnings
+
+    return {
+        'assets': assets, 'liabilities': liabilities, 'equity': equity,
+        'total_assets': total_assets,
+        'total_liabilities': total_liab,
+        'total_equity': total_equity,
+        'total_liab_equity': total_liab + total_equity,
+        'balanced': total_assets == (total_liab + total_equity),
+    }

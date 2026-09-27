@@ -144,6 +144,7 @@ export const accountingAPI = {
   trialBalance: (params) => API.get('/accounting/reports/trial-balance/', { params }),
   pnl: (params) => API.get('/accounting/reports/pnl/', { params }),
   cashBook: (params) => API.get('/accounting/reports/cash-book/', { params }),
+  balanceSheet: (params) => API.get('/accounting/reports/balance-sheet/', { params }),
   outstanding: (params) => API.get('/accounting/reports/outstanding/', { params }),
   bookLock: (params) => API.get('/accounting/book-lock/', { params }),
   setBookLock: (data) => API.post('/accounting/book-lock/', data),
@@ -179,6 +180,8 @@ export const chickenAPI = {
   sale: (id) => API.get(`/chicken/sales/${id}/`),
   openingParty: (data) => API.post('/chicken/opening/party/', data),
   openingCash: (data) => API.post('/chicken/opening/cash/', data),
+  daybook: (params) => API.get('/chicken/daybook/', { params }),
+  salesSummary: (params) => API.get('/chicken/sales-summary/', { params }),
   exportUrl: (kind, params) => {
     const q = params ? '?' + new URLSearchParams(params).toString() : '';
     return `${import.meta.env.VITE_API_URL || '/api'}/chicken/export/${kind}/${q}`;
