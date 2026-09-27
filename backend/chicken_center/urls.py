@@ -10,6 +10,8 @@ urlpatterns = [
     path('expenses/', views.expenses),
     path('shrinkage/', views.shrinkage),
     path('sales/<int:pk>/', views.sale_detail),
+    path('opening/party/', views.opening_party),
+    path('opening/cash/', views.opening_cash),
     path('pending-bills/', views.pending_bills),
     path('ageing/', views.ageing),
     path('export/pnl/', exports.export_pnl),

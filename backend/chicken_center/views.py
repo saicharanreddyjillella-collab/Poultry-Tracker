@@ -14,6 +14,7 @@ from .serializers import (
 from .services import (
     create_sale, create_purchase, create_collection, create_payment,
     create_expense, create_shrinkage, reverse_transaction,
+    set_party_opening, set_cash_opening,
 )
 
 
@@ -278,3 +279,37 @@ def sale_detail(request, pk):
     data['party_overall_balance'] = s.party.balance()
     data['is_reversed'] = bool(s.voucher and s.voucher.is_reversed)
     return Response(data)
+
+
+# ─── OPENING BALANCES ───
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def opening_party(request):
+    d = request.data
+    try:
+        set_party_opening(
+            party=Party.objects.get(id=d['party']),
+            amount=d['amount'],
+            as_of=d.get('as_of') or date_cls.today(),
+            user=request.user,
+        )
+        return Response({'status': 'ok'}, status=201)
+    except ValidationError as e:
+        return _err(e)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def opening_cash(request):
+    d = request.data
+    try:
+        set_cash_opening(
+            account_code=d['account_code'],
+            amount=d['amount'],
+            as_of=d.get('as_of') or date_cls.today(),
+            user=request.user,
+        )
+        return Response({'status': 'ok'}, status=201)
+    except ValidationError as e:
+        return _err(e)

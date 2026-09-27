@@ -176,6 +176,8 @@ export const chickenAPI = {
   pendingBills: (params) => API.get('/chicken/pending-bills/', { params }),
   ageing: () => API.get('/chicken/ageing/'),
   sale: (id) => API.get(`/chicken/sales/${id}/`),
+  openingParty: (data) => API.post('/chicken/opening/party/', data),
+  openingCash: (data) => API.post('/chicken/opening/cash/', data),
   exportUrl: (kind, params) => {
     const q = params ? '?' + new URLSearchParams(params).toString() : '';
     return `${import.meta.env.VITE_API_URL || '/api'}/chicken/export/${kind}/${q}`;

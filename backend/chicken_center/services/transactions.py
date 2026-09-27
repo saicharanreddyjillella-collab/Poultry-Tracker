@@ -267,3 +267,70 @@ def reverse_transaction(voucher, user=None):
 
         reverse_movements_for_voucher(voucher)
         return reverse_voucher(voucher, user=user)
+
+
+# ──────────────────── OPENING BALANCES ──────────────────────
+
+def set_party_opening(*, party, amount, as_of, user=None):
+    """Record a party's opening balance as an OPENING voucher.
+    Positive = they owe us (Dr party / Cr Opening Balance Equity).
+    Negative = we owe them (Dr OBE / Cr party).
+
+    This affects the party's overall balance immediately. It is intentionally
+    a plain voucher, not a bill: collections reduce the overall balance, so an
+    opening receivable gets paid down naturally. Bill-wise 'pending bills' and
+    ageing only track actual sale bills."""
+    amount = D(amount)
+    if amount == 0:
+        raise ValidationError("Opening balance cannot be zero.")
+
+    obe = _acc('OBE')
+    ctrl = party.control_account
+    if amount > 0:
+        lines = [{'account': ctrl, 'party': party, 'debit': amount},
+                 {'account': obe, 'credit': amount}]
+    else:
+        lines = [{'account': obe, 'debit': -amount},
+                 {'account': ctrl, 'party': party, 'credit': -amount}]
+    return post_voucher(
+        date=as_of, vtype='OPENING',
+        narration=f"Opening balance — {party.name}",
+        business=BUSINESS, source_module='chicken_center.opening',
+        user=user, lines=lines,
+    )
+    """Opening balance for a cash/bank account (Dr account / Cr OBE)."""
+    amount = D(amount)
+    if amount == 0:
+        raise ValidationError("Opening balance cannot be zero.")
+    acc = _acc(account_code)
+    obe = _acc('OBE')
+    with transaction.atomic():
+        if amount > 0:
+            lines = [{'account': acc, 'debit': amount}, {'account': obe, 'credit': amount}]
+        else:
+            lines = [{'account': obe, 'debit': -amount}, {'account': acc, 'credit': -amount}]
+        return post_voucher(
+            date=as_of, vtype='OPENING',
+            narration=f"Opening balance — {acc.name}",
+            business=BUSINESS, source_module='chicken_center.opening',
+            user=user, lines=lines,
+        )
+
+
+def set_cash_opening(*, account_code, amount, as_of, user=None):
+    """Opening balance for a cash/bank account (Dr account / Cr OBE)."""
+    amount = D(amount)
+    if amount == 0:
+        raise ValidationError("Opening balance cannot be zero.")
+    acc = _acc(account_code)
+    obe = _acc('OBE')
+    if amount > 0:
+        lines = [{'account': acc, 'debit': amount}, {'account': obe, 'credit': amount}]
+    else:
+        lines = [{'account': obe, 'debit': -amount}, {'account': acc, 'credit': -amount}]
+    return post_voucher(
+        date=as_of, vtype='OPENING',
+        narration=f"Opening balance — {acc.name}",
+        business=BUSINESS, source_module='chicken_center.opening',
+        user=user, lines=lines,
+    )

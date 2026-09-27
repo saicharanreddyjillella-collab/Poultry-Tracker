@@ -8,6 +8,7 @@ export default function ChickenItems() {
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
   const [showItem, setShowItem] = useState(false);
+  const [editItemId, setEditItemId] = useState(null);
   const [showUnit, setShowUnit] = useState(false);
   const [itemForm, setItemForm] = useState({ name: '', kind: 'TRADING', base_unit: '', rate_basis: 'PER_KG' });
   const [unitForm, setUnitForm] = useState({ name: '', symbol: '', base_unit: '', factor_to_base: '1' });
@@ -27,10 +28,17 @@ export default function ChickenItems() {
   const submitItem = async (e) => {
     e.preventDefault(); setError('');
     try {
-      await inventoryAPI.createItem({ ...itemForm, business: 'chicken_center' });
-      setShowItem(false); setItemForm({ name: '', kind: 'TRADING', base_unit: '', rate_basis: 'PER_KG' });
+      if (editItemId) await inventoryAPI.updateItem(editItemId, { ...itemForm, business: 'chicken_center' });
+      else await inventoryAPI.createItem({ ...itemForm, business: 'chicken_center' });
+      setShowItem(false); setEditItemId(null); setItemForm({ name: '', kind: 'TRADING', base_unit: '', rate_basis: 'PER_KG' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
+  };
+
+  const openEditItem = (it) => {
+    setEditItemId(it.id);
+    setItemForm({ name: it.name, kind: it.kind, base_unit: it.base_unit, rate_basis: it.rate_basis });
+    setShowItem(true); setShowUnit(false); setError('');
   };
 
   const submitUnit = async (e) => {
@@ -55,7 +63,7 @@ export default function ChickenItems() {
           <h1>Items &amp; Units</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-primary" onClick={() => { setShowItem(!showItem); setShowUnit(false); }}>+ Item</button>
+          <button className="btn btn-primary" onClick={() => { setEditItemId(null); setItemForm({ name: "", kind: "TRADING", base_unit: "", rate_basis: "PER_KG" }); setShowItem(!showItem); setShowUnit(false); }}>+ Item</button>
           <button className="btn btn-secondary" onClick={() => { setShowUnit(!showUnit); setShowItem(false); }}>+ Unit</button>
         </div>
       </div>
@@ -88,7 +96,7 @@ export default function ChickenItems() {
 
       {showItem && (
         <form onSubmit={submitItem} className="form-card" style={{ maxWidth: 520, marginBottom: '1.5rem' }}>
-          <h3>Add Item</h3>
+          <h3>{editItemId ? "Edit Item" : "Add Item"}</h3>
           <div className="form-group"><label>Name *</label><input value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })} required placeholder="e.g. Broiler" /></div>
           <div className="form-row">
             <div className="form-group">
@@ -116,7 +124,7 @@ export default function ChickenItems() {
           </div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setShowItem(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Save Item</button>
+            <button type="submit" className="btn btn-primary">{editItemId ? "Save Changes" : "Save Item"}</button>
           </div>
         </form>
       )}
@@ -125,13 +133,14 @@ export default function ChickenItems() {
       {items.length ? (
         <div className="table-wrapper">
           <table className="report-table">
-            <thead><tr><th>Name</th><th>Kind</th><th>Unit</th><th>Rate basis</th><th>Stock</th></tr></thead>
+            <thead><tr><th>Name</th><th>Kind</th><th>Unit</th><th>Rate basis</th><th>Stock</th><th></th></tr></thead>
             <tbody>
               {items.map(it => (
                 <tr key={it.id}>
                   <td>{it.name}</td><td>{it.kind}</td><td>{it.base_unit_symbol}</td>
                   <td>{it.rate_basis === 'PER_KG' ? 'Per kg' : 'Per unit'}</td>
                   <td className={Number(it.stock_on_hand) < 0 ? 'text-danger' : ''}>{fmt(it.stock_on_hand)} {it.base_unit_symbol}</td>
+                  <td><button className="btn-action" onClick={() => openEditItem(it)}>Edit</button></td>
                 </tr>
               ))}
             </tbody>
