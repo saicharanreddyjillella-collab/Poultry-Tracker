@@ -8,6 +8,7 @@ urlpatterns = [
     path('payments/', views.payments),
     path('expenses/', views.expenses),
     path('shrinkage/', views.shrinkage),
+    path('sales/<int:pk>/', views.sale_detail),
     path('pending-bills/', views.pending_bills),
     path('ageing/', views.ageing),
     path('reverse/<str:kind>/<int:pk>/', views.reverse_entry),

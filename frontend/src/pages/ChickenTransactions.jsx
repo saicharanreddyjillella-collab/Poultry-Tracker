@@ -95,6 +95,9 @@ export default function ChickenTransactions() {
                 <tr key={r.id} className={r.is_reversed ? 'row-reversed' : ''}>
                   {renderCells(r)}
                   <td>
+                    {tabKey === 'sale' && !r.is_reversed && (
+                      <button className="btn-action" onClick={() => navigate(`/chicken/invoice/${r.id}`)} style={{ marginRight: '0.4rem' }}>Invoice</button>
+                    )}
                     {r.is_reversed
                       ? <span className="wa-badge wa-failed">reversed</span>
                       : <button className="btn-action btn-action-cancel" onClick={() => doReverse(r.id)}>Reverse</button>}

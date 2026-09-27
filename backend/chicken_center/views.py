@@ -255,3 +255,22 @@ def ageing(request):
     grand = sum((r['total'] for r in rows), Decimal('0'))
     return Response({'buckets': buckets, 'rows': rows,
                      'totals': totals, 'grand_total': grand})
+
+
+# ─── SINGLE SALE (for invoice) ───
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sale_detail(request, pk):
+    """One sale with everything an invoice needs: line, customer, seller,
+    this bill's paid/due, and the customer's overall balance."""
+    try:
+        s = Sale.objects.select_related('party', 'item').get(pk=pk)
+    except Sale.DoesNotExist:
+        return Response({'error': 'Not found'}, status=404)
+    data = SaleSerializer(s).data
+    data['party_phone'] = s.party.phone
+    data['party_address'] = s.party.address
+    data['party_overall_balance'] = s.party.balance()
+    data['is_reversed'] = bool(s.voucher and s.voucher.is_reversed)
+    return Response(data)

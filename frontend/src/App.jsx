@@ -27,6 +27,7 @@ import ChickenOutstanding from './pages/ChickenOutstanding';
 import ChickenReports from './pages/ChickenReports';
 import ChickenTransactions from './pages/ChickenTransactions';
 import ChickenPendingBills from './pages/ChickenPendingBills';
+import ChickenInvoice from './pages/ChickenInvoice';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -190,6 +191,7 @@ function AppRoutes() {
           <Route path="/chicken/reports" element={<ProtectedRoute><ChickenReports /></ProtectedRoute>} />
           <Route path="/chicken/transactions" element={<ProtectedRoute><ChickenTransactions /></ProtectedRoute>} />
           <Route path="/chicken/pending-bills" element={<ProtectedRoute><ChickenPendingBills /></ProtectedRoute>} />
+          <Route path="/chicken/invoice/:id" element={<ProtectedRoute><ChickenInvoice /></ProtectedRoute>} />
         </Routes>
       </main>
     </>

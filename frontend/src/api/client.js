@@ -173,6 +173,7 @@ export const chickenAPI = {
   reverse: (kind, id) => API.post(`/chicken/reverse/${kind}/${id}/`),
   pendingBills: (params) => API.get('/chicken/pending-bills/', { params }),
   ageing: () => API.get('/chicken/ageing/'),
+  sale: (id) => API.get(`/chicken/sales/${id}/`),
 };
 
 export default API;
