@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { accountingAPI } from '../api/client';
+import { accountingAPI, chickenAPI, downloadFile } from '../api/client';
 
 const BIZ = 'chicken_center';
 const TABS = ['P&L', 'Cash Book', 'Trial Balance'];
@@ -38,7 +38,15 @@ export default function ChickenReports() {
           <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
           <h1>Reports</h1>
         </div>
-        <button className="btn btn-secondary" onClick={() => window.print()}>Print</button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {(tab === 'P&L' || tab === 'Cash Book') && (
+            <button className="btn btn-secondary" onClick={() => {
+              const kind = tab === 'P&L' ? 'pnl' : 'cash-book';
+              downloadFile(chickenAPI.exportUrl(kind, { from, to }), `chicken_${kind}_${from}_to_${to}.xlsx`).catch(() => alert('Export failed'));
+            }}>Export Excel</button>
+          )}
+          <button className="btn btn-secondary" onClick={() => window.print()}>Print</button>
+        </div>
       </div>
 
       <div className="report-filters-bar">

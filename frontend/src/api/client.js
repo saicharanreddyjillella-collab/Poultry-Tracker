@@ -174,6 +174,23 @@ export const chickenAPI = {
   pendingBills: (params) => API.get('/chicken/pending-bills/', { params }),
   ageing: () => API.get('/chicken/ageing/'),
   sale: (id) => API.get(`/chicken/sales/${id}/`),
+  exportUrl: (kind, params) => {
+    const q = params ? '?' + new URLSearchParams(params).toString() : '';
+    return `${import.meta.env.VITE_API_URL || '/api'}/chicken/export/${kind}/${q}`;
+  },
 };
+
+// Authenticated file download (blob) — reused by report export buttons.
+export async function downloadFile(url, filename) {
+  const token = localStorage.getItem('access_token');
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error('Export failed');
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = window.URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(a.href);
+}
 
 export default API;

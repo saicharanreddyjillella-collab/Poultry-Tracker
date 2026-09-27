@@ -210,11 +210,10 @@ def pending_bills(request):
 
 # ─── AGEING (how old are the pending dues) ───
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def ageing(request):
-    """Pending bill dues bucketed by age. Buckets: 0-7, 8-15, 16-30, 31+.
-    Grouped per customer, with column and grand totals."""
+def compute_ageing():
+    """Pending bill dues bucketed by age (0-7/8-15/16-30/31+), grouped per
+    customer, oldest-first, with column and grand totals. Plain function so
+    both the API view and the Excel export can call it."""
     from datetime import date as date_cls
     from decimal import Decimal
     today = date_cls.today()
@@ -253,8 +252,13 @@ def ageing(request):
     rows = sorted(per_party.values(), key=lambda r: -r['oldest_days'])
     totals = {b: sum((r[b] for r in rows), Decimal('0')) for b in buckets}
     grand = sum((r['total'] for r in rows), Decimal('0'))
-    return Response({'buckets': buckets, 'rows': rows,
-                     'totals': totals, 'grand_total': grand})
+    return {'buckets': buckets, 'rows': rows, 'totals': totals, 'grand_total': grand}
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ageing(request):
+    return Response(compute_ageing())
 
 
 # ─── SINGLE SALE (for invoice) ───
