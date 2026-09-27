@@ -25,6 +25,7 @@ import ChickenPartyStatement from './pages/ChickenPartyStatement';
 import ChickenItems from './pages/ChickenItems';
 import ChickenOutstanding from './pages/ChickenOutstanding';
 import ChickenReports from './pages/ChickenReports';
+import ChickenTransactions from './pages/ChickenTransactions';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -113,6 +114,7 @@ function ChickenNav() {
       <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
         <Link to="/chicken" onClick={closeMenu}>Home</Link>
         <Link to="/chicken/new" onClick={closeMenu}>New Entry</Link>
+        <Link to="/chicken/transactions" onClick={closeMenu}>Transactions</Link>
         <Link to="/chicken/parties" onClick={closeMenu}>Parties</Link>
         <Link to="/chicken/outstanding" onClick={closeMenu}>Outstanding</Link>
         <Link to="/chicken/reports" onClick={closeMenu}>Reports</Link>
@@ -184,6 +186,7 @@ function AppRoutes() {
           <Route path="/chicken/items" element={<ProtectedRoute><ChickenItems /></ProtectedRoute>} />
           <Route path="/chicken/outstanding" element={<ProtectedRoute><ChickenOutstanding /></ProtectedRoute>} />
           <Route path="/chicken/reports" element={<ProtectedRoute><ChickenReports /></ProtectedRoute>} />
+          <Route path="/chicken/transactions" element={<ProtectedRoute><ChickenTransactions /></ProtectedRoute>} />
         </Routes>
       </main>
     </>

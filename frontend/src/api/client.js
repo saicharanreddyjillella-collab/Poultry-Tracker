@@ -170,6 +170,7 @@ export const chickenAPI = {
   createExpense: (data) => API.post('/chicken/expenses/', data),
   shrinkage: () => API.get('/chicken/shrinkage/'),
   createShrinkage: (data) => API.post('/chicken/shrinkage/', data),
+  reverse: (kind, id) => API.post(`/chicken/reverse/${kind}/${id}/`),
 };
 
 export default API;

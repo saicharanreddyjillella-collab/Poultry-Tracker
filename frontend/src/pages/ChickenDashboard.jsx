@@ -44,6 +44,7 @@ export default function ChickenDashboard() {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link to="/chicken/new" className="btn btn-primary">+ New Entry</Link>
+          <Link to="/chicken/transactions" className="btn btn-secondary">Transactions</Link>
           <Link to="/chicken/reports" className="btn btn-secondary">Reports</Link>
           <Link to="/chicken/parties" className="btn btn-secondary">Parties</Link>
           <Link to="/chicken/items" className="btn btn-secondary">Items</Link>

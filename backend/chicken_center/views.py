@@ -13,7 +13,7 @@ from .serializers import (
 )
 from .services import (
     create_sale, create_purchase, create_collection, create_payment,
-    create_expense, create_shrinkage,
+    create_expense, create_shrinkage, reverse_transaction,
 )
 
 
@@ -149,5 +149,36 @@ def shrinkage(request):
             reason=d.get('reason', ''), user=request.user,
         )
         return Response(ShrinkageSerializer(s).data, status=201)
+    except ValidationError as e:
+        return _err(e)
+
+
+# ─── REVERSE (undo a transaction: money + stock together) ───
+
+_MODEL_MAP = {
+    'sale': Sale, 'purchase': Purchase, 'collection': Collection,
+    'payment': Payment, 'expense': Expense, 'shrinkage': Shrinkage,
+}
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reverse_entry(request, kind, pk):
+    """Reverse a chicken-center transaction by kind + id. Posts an
+    equal-and-opposite voucher and reverses linked stock. History is kept."""
+    model = _MODEL_MAP.get(kind)
+    if not model:
+        return Response({'error': f'Unknown type: {kind}'}, status=400)
+    try:
+        obj = model.objects.select_related('voucher').get(pk=pk)
+    except model.DoesNotExist:
+        return Response({'error': 'Not found'}, status=404)
+    if not obj.voucher:
+        return Response({'error': 'No voucher to reverse (nothing was posted).'}, status=400)
+    if obj.voucher.is_reversed:
+        return Response({'error': 'Already reversed.'}, status=400)
+    try:
+        reverse_transaction(obj.voucher, user=request.user)
+        return Response({'status': 'reversed', 'kind': kind, 'id': pk})
     except ValidationError as e:
         return _err(e)
