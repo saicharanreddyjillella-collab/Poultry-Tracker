@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'core',
     'accounting',
     'inventory',
+    'chicken_center',
 ]
 
 MIDDLEWARE = [
