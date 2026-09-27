@@ -144,6 +144,8 @@ export const accountingAPI = {
   pnl: (params) => API.get('/accounting/reports/pnl/', { params }),
   cashBook: (params) => API.get('/accounting/reports/cash-book/', { params }),
   outstanding: (params) => API.get('/accounting/reports/outstanding/', { params }),
+  bookLock: (params) => API.get('/accounting/book-lock/', { params }),
+  setBookLock: (data) => API.post('/accounting/book-lock/', data),
 };
 
 // ─── Inventory ───

@@ -15,4 +15,5 @@ urlpatterns = [
     path('reports/pnl/', views.profit_and_loss_view),
     path('reports/cash-book/', views.cash_book_view),
     path('reports/outstanding/', views.outstanding_view),
+    path('book-lock/', views.book_lock),
 ]

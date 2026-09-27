@@ -125,3 +125,34 @@ def outstanding_view(request):
     rows.sort(key=lambda r: r['balance'], reverse=True)
     return Response({'rows': rows, 'total_receivable': receivable,
                      'total_payable': payable})
+
+
+# ─── BOOK LOCK (day-close) ───
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def book_lock(request):
+    """GET: current lock date for a business (?business=). POST (admin only):
+    set closed_through to lock, or null/empty to re-open. Logged."""
+    from .models import BookLock, AuditLog
+    biz = request.query_params.get('business') or request.data.get('business') or 'chicken_center'
+
+    if request.method == 'GET':
+        return Response({'business': biz, 'closed_through': BookLock.closed_date_for(biz)})
+
+    # POST — admin only
+    profile = getattr(request.user, 'profile', None)
+    if not profile or not profile.is_admin:
+        return Response({'error': 'Only an admin can close or re-open the books.'}, status=403)
+
+    closed_through = request.data.get('closed_through') or None
+    row, _ = BookLock.objects.get_or_create(business=biz)
+    prev = row.closed_through
+    row.closed_through = closed_through
+    row.updated_by = request.user
+    row.save()
+    AuditLog.objects.create(
+        user=request.user, action='EDIT', object_type='BookLock', object_id=biz,
+        detail={'from': str(prev), 'to': str(closed_through)},
+    )
+    return Response({'business': biz, 'closed_through': row.closed_through})

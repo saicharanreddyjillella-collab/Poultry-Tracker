@@ -13,11 +13,21 @@ inventory — passing the voucher to link them.
 from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from ..models import Account, Voucher, Entry, AuditLog
+from ..models import Account, Voucher, Entry, AuditLog, BookLock
 
 
 def D(v):
     return Decimal(str(v))
+
+
+def _check_not_locked(business, vdate):
+    """Reject any posting/reversal dated on or before the book-close date."""
+    closed = BookLock.closed_date_for(business)
+    if closed and vdate <= closed:
+        raise ValidationError(
+            f"Books for this business are closed through {closed}. "
+            f"Cannot post or change anything dated {vdate}. Ask an admin to re-open if needed."
+        )
 
 
 @transaction.atomic
@@ -34,6 +44,8 @@ def post_voucher(*, date, vtype, narration, lines, business='chicken_center',
     """
     if not lines:
         raise ValidationError("A voucher needs at least one line.")
+
+    _check_not_locked(business, date)
 
     resolved = []
     total_debit = Decimal('0')
@@ -84,6 +96,8 @@ def reverse_voucher(voucher, user=None):
     linked to the voucher are reversed by the inventory service separately."""
     if voucher.is_reversed:
         raise ValidationError("Voucher already reversed.")
+
+    _check_not_locked(voucher.business, voucher.date)
 
     rev = Voucher.objects.create(
         date=voucher.date, type=voucher.type,
