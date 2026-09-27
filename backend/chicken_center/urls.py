@@ -8,5 +8,6 @@ urlpatterns = [
     path('payments/', views.payments),
     path('expenses/', views.expenses),
     path('shrinkage/', views.shrinkage),
+    path('pending-bills/', views.pending_bills),
     path('reverse/<str:kind>/<int:pk>/', views.reverse_entry),
 ]

@@ -18,11 +18,21 @@ export default function ChickenNewEntry() {
 
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({ date: today, mode: 'CASH', account_code: 'FUEL' });
+  const [pendingBills, setPendingBills] = useState(null);
 
   useEffect(() => {
     accountingAPI.parties(BIZ).then(r => setParties(r.data)).catch(() => {});
     inventoryAPI.items(BIZ).then(r => setItems(r.data)).catch(() => {});
   }, []);
+
+  // Load pending bills for the chosen customer on the Collection tab.
+  useEffect(() => {
+    if (tab === 'Collection' && form.party) {
+      chickenAPI.pendingBills({ party: form.party }).then(r => setPendingBills(r.data)).catch(() => setPendingBills(null));
+    } else {
+      setPendingBills(null);
+    }
+  }, [tab, form.party]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const reset = () => setForm({ date: today, mode: 'CASH', account_code: 'FUEL' });
@@ -150,6 +160,46 @@ export default function ChickenNewEntry() {
           <div className="form-group">
             <label>Amount (₹) *</label>
             <input type="text" inputMode="decimal" value={form.amount || ''} onChange={e => set('amount', e.target.value)} required />
+          </div>
+        )}
+
+        {/* Pending bills + allocation preview (Collection) */}
+        {tab === 'Collection' && form.party && pendingBills && (
+          <div className="pending-panel">
+            <div className="pending-head">
+              <strong>Pending bills</strong>
+              <span>Total due: ₹{Number(pendingBills.total_due).toLocaleString('en-IN')}</span>
+            </div>
+            {pendingBills.rows.length === 0 ? (
+              <p className="farm-meta">No pending bills — this receipt will be held as advance.</p>
+            ) : (
+              <table className="bill-t">
+                <thead><tr><th>Date</th><th>Bill</th><th>Due</th><th>This receipt</th></tr></thead>
+                <tbody>
+                  {(() => {
+                    let remaining = Number(form.amount || 0);
+                    return pendingBills.rows.map(b => {
+                      const due = Number(b.amount_due);
+                      const applied = Math.max(0, Math.min(due, remaining));
+                      remaining -= applied;
+                      return (
+                        <tr key={b.id}>
+                          <td>{b.date}</td>
+                          <td>#{b.id} (₹{Number(b.amount).toLocaleString('en-IN')})</td>
+                          <td>₹{due.toLocaleString('en-IN')}</td>
+                          <td className={applied > 0 ? 'text-ok' : ''}>
+                            {applied > 0 ? `₹${applied.toLocaleString('en-IN')}${applied >= due ? ' ✓ paid' : ' (partial)'}` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            )}
+            {Number(form.amount || 0) > Number(pendingBills.total_due) && (
+              <p className="farm-meta">Advance held: ₹{(Number(form.amount) - Number(pendingBills.total_due)).toLocaleString('en-IN')}</p>
+            )}
           </div>
         )}
 

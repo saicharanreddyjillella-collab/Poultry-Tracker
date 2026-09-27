@@ -99,7 +99,9 @@ _MODE_ACCOUNT = {'CASH': 'CASH', 'UPI': 'UPI', 'BANK': 'BANK'}
 
 
 def create_collection(*, party, date, amount, mode='CASH', note='', user=None):
-    """Dr Cash/UPI/Bank / Cr Customer, then WhatsApp receipt."""
+    """Dr Cash/UPI/Bank / Cr Customer, allocate oldest-first to pending
+    bills, hold any excess as advance, then WhatsApp receipt."""
+    from ..models import Sale, Allocation
     amount = D(amount)
     if amount <= 0:
         raise ValidationError("Amount must be positive.")
@@ -118,6 +120,31 @@ def create_collection(*, party, date, amount, mode='CASH', note='', user=None):
             party=party, date=date, amount=amount, mode=mode, note=note,
             voucher=v, created_by=user,
         )
+
+        # Allocate oldest-first to this party's pending/partly bills.
+        remaining = amount
+        pending = (Sale.objects
+                   .filter(party=party, status__in=['PENDING', 'PARTLY'])
+                   .exclude(voucher__is_reversed=True)
+                   .order_by('date', 'id')
+                   .select_for_update())
+        for bill in pending:
+            if remaining <= 0:
+                break
+            due = bill.amount_due
+            if due <= 0:
+                continue
+            applied = min(due, remaining)
+            Allocation.objects.create(collection=coll, sale=bill, amount=applied)
+            bill.amount_received += applied
+            bill.recompute_status()
+            bill.save(update_fields=['amount_received', 'status'])
+            remaining -= applied
+
+        # Anything left over is an advance (customer now in credit).
+        if remaining > 0:
+            coll.advance = remaining
+            coll.save(update_fields=['advance'])
 
     balance = party.balance()
     res = wa.send_whatsapp(party.phone, wa.build_collection_message(
@@ -211,6 +238,32 @@ def create_shrinkage(*, item, date, weight_kg, value=0, reason='', user=None):
 # ──────────────────────── REVERSAL ──────────────────────────
 
 def reverse_transaction(voucher, user=None):
-    """Undo a chicken-center transaction: reverse money and stock together."""
-    reverse_movements_for_voucher(voucher)
-    return reverse_voucher(voucher, user=user)
+    """Undo a chicken-center transaction: reverse money and stock together,
+    and unwind any bill allocations so pending amounts stay correct."""
+    from ..models import Sale, Collection, Allocation
+
+    with transaction.atomic():
+        # If reversing a COLLECTION: undo its allocations (bills go back to due).
+        coll = Collection.objects.filter(voucher=voucher).first()
+        if coll:
+            for alloc in coll.allocations.select_related('sale'):
+                bill = alloc.sale
+                bill.amount_received -= alloc.amount
+                if bill.amount_received < 0:
+                    bill.amount_received = D(0)
+                bill.recompute_status()
+                bill.save(update_fields=['amount_received', 'status'])
+            coll.allocations.all().delete()
+
+        # If reversing a SALE (bill): drop allocations pointing at it; the
+        # money that was applied becomes advance on the paying collections.
+        sale = Sale.objects.filter(voucher=voucher).first()
+        if sale:
+            for alloc in sale.allocations.select_related('collection'):
+                c = alloc.collection
+                c.advance += alloc.amount
+                c.save(update_fields=['advance'])
+            sale.allocations.all().delete()
+
+        reverse_movements_for_voucher(voucher)
+        return reverse_voucher(voucher, user=user)

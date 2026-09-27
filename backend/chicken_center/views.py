@@ -182,3 +182,27 @@ def reverse_entry(request, kind, pk):
         return Response({'status': 'reversed', 'kind': kind, 'id': pk})
     except ValidationError as e:
         return _err(e)
+
+
+# ─── PENDING BILLS (open sales, oldest-first) ───
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def pending_bills(request):
+    """Open bills (pending/partly), oldest-first. Filter by ?party=<id>."""
+    qs = (Sale.objects
+          .filter(status__in=['PENDING', 'PARTLY'])
+          .exclude(voucher__is_reversed=True)
+          .select_related('party')
+          .order_by('date', 'id'))
+    party = request.query_params.get('party')
+    if party:
+        qs = qs.filter(party_id=party)
+    rows = [{
+        'id': s.id, 'date': s.date, 'party_id': s.party_id,
+        'party_name': s.party.name, 'amount': s.amount,
+        'amount_received': s.amount_received, 'amount_due': s.amount_due,
+        'status': s.status,
+    } for s in qs]
+    total_due = sum((r['amount_due'] for r in rows), 0)
+    return Response({'rows': rows, 'total_due': total_due})

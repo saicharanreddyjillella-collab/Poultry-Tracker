@@ -873,3 +873,7 @@ tbody tr:hover { background: #fafaf8; }
 /* Reversed transaction row */
 .row-reversed { opacity: 0.55; text-decoration: line-through; }
 .row-reversed .wa-badge { text-decoration: none; }
+
+/* Pending bills allocation panel */
+.pending-panel { border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--bg); }
+.pending-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem; }
