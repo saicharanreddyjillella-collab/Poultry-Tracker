@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AlertBell from './components/AlertBell';
 import Login from './pages/Login';
@@ -17,6 +17,13 @@ import UserManagement from './pages/UserManagement';
 import ChangePassword from './pages/ChangePassword';
 import FeedStock from './pages/FeedStock';
 import BillView from './pages/BillView';
+import Landing from './pages/Landing';
+import ChickenDashboard from './pages/ChickenDashboard';
+import ChickenNewEntry from './pages/ChickenNewEntry';
+import ChickenParties from './pages/ChickenParties';
+import ChickenPartyStatement from './pages/ChickenPartyStatement';
+import ChickenItems from './pages/ChickenItems';
+import ChickenOutstanding from './pages/ChickenOutstanding';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -43,7 +50,7 @@ function NavBar() {
 
   return (
     <nav className="navbar">
-      <Link to={isPlant ? '/feed' : '/'} className="nav-brand" onClick={closeMenu}>🐔 Sai Ram Feeds</Link>
+      <Link to={isPlant ? '/feed' : '/feeds'} className="nav-brand" onClick={closeMenu}>🐔 Sai Ram Feeds</Link>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
@@ -52,7 +59,7 @@ function NavBar() {
       <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
         {!isPlant && (
           <>
-            <Link to="/" onClick={closeMenu}>Today</Link>
+            <Link to="/feeds" onClick={closeMenu}>Today</Link>
             <Link to="/farms" onClick={closeMenu}>Farms</Link>
           </>
         )}
@@ -63,6 +70,7 @@ function NavBar() {
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
+        {!isPlant && <Link to="/" onClick={closeMenu}>Switch Business</Link>}
         {!isPlant && <AlertBell />}
         <div className="nav-mobile-user">
           <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
@@ -86,15 +94,72 @@ function NavBar() {
   );
 }
 
+function ChickenNav() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  if (!user) return null;
+  const closeMenu = () => setMenuOpen(false);
+  const handleLogout = () => { logout(); closeMenu(); navigate('/login', { replace: true }); };
+  return (
+    <nav className="navbar navbar-chicken">
+      <Link to="/chicken" className="nav-brand" onClick={closeMenu}>🛒 Chicken Center</Link>
+      <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
+        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
+        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
+      </button>
+      <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
+        <Link to="/chicken" onClick={closeMenu}>Home</Link>
+        <Link to="/chicken/new" onClick={closeMenu}>New Entry</Link>
+        <Link to="/chicken/parties" onClick={closeMenu}>Parties</Link>
+        <Link to="/chicken/outstanding" onClick={closeMenu}>Outstanding</Link>
+        <Link to="/chicken/items" onClick={closeMenu}>Items</Link>
+        <Link to="/" onClick={closeMenu}>Switch Business</Link>
+        <div className="nav-mobile-user">
+          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
+          {user.first_name || user.username}
+        </div>
+        <button className="nav-mobile-logout" onClick={handleLogout}>Logout</button>
+        <div className="nav-user-menu">
+          <span className="nav-user-trigger">
+            <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
+            {user.first_name || user.username} ▾
+          </span>
+          <div className="nav-dropdown">
+            <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
+            <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
+          </div>
+        </div>
+      </div>
+      {menuOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
+    </nav>
+  );
+}
+
 function AppRoutes() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const path = location.pathname;
+  const isChicken = path.startsWith('/chicken');
+  const isLanding = path === '/';
+  const isAuthPage = path === '/login' || path === '/setup';
+  // Feeds nav shows on feeds routes; chicken nav on chicken routes; none on
+  // landing/auth pages.
+  const showFeedsNav = user && !isChicken && !isLanding && !isAuthPage;
+
   return (
     <>
-      <NavBar />
+      {showFeedsNav && <NavBar />}
+      {user && isChicken && <ChickenNav />}
       <main className="main-content">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/setup" element={<Setup />} />
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><Landing /></ProtectedRoute>} />
+
+          {/* Sai Ram Feeds */}
+          <Route path="/feeds" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/farms" element={<ProtectedRoute><FarmsList /></ProtectedRoute>} />
           <Route path="/farms/new" element={<ProtectedRoute><FarmForm /></ProtectedRoute>} />
           <Route path="/farms/:id/edit" element={<ProtectedRoute><FarmForm /></ProtectedRoute>} />
@@ -108,6 +173,14 @@ function AppRoutes() {
           <Route path="/reports/till-date" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+
+          {/* Sai Charan Chicken Center */}
+          <Route path="/chicken" element={<ProtectedRoute><ChickenDashboard /></ProtectedRoute>} />
+          <Route path="/chicken/new" element={<ProtectedRoute><ChickenNewEntry /></ProtectedRoute>} />
+          <Route path="/chicken/parties" element={<ProtectedRoute><ChickenParties /></ProtectedRoute>} />
+          <Route path="/chicken/parties/:id" element={<ProtectedRoute><ChickenPartyStatement /></ProtectedRoute>} />
+          <Route path="/chicken/items" element={<ProtectedRoute><ChickenItems /></ProtectedRoute>} />
+          <Route path="/chicken/outstanding" element={<ProtectedRoute><ChickenOutstanding /></ProtectedRoute>} />
         </Routes>
       </main>
     </>

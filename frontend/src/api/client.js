@@ -133,4 +133,42 @@ export const billAPI = {
   list: () => API.get('/bills/'),
 };
 
+// ─── Accounting core ───
+export const accountingAPI = {
+  accounts: (params) => API.get('/accounting/accounts/', { params }),
+  parties: (params) => API.get('/accounting/parties/', { params }),
+  createParty: (data) => API.post('/accounting/parties/', data),
+  updateParty: (id, data) => API.put(`/accounting/parties/${id}/`, data),
+  partyStatement: (id, params) => API.get(`/accounting/reports/party/${id}/`, { params }),
+  trialBalance: (params) => API.get('/accounting/reports/trial-balance/', { params }),
+  pnl: (params) => API.get('/accounting/reports/pnl/', { params }),
+  outstanding: (params) => API.get('/accounting/reports/outstanding/', { params }),
+};
+
+// ─── Inventory ───
+export const inventoryAPI = {
+  units: () => API.get('/inventory/units/'),
+  createUnit: (data) => API.post('/inventory/units/', data),
+  items: (params) => API.get('/inventory/items/', { params }),
+  createItem: (data) => API.post('/inventory/items/', data),
+  updateItem: (id, data) => API.put(`/inventory/items/${id}/`, data),
+  stockOnHand: (params) => API.get('/inventory/stock-on-hand/', { params }),
+};
+
+// ─── Chicken Center ───
+export const chickenAPI = {
+  sales: (params) => API.get('/chicken/sales/', { params }),
+  createSale: (data) => API.post('/chicken/sales/', data),
+  purchases: () => API.get('/chicken/purchases/'),
+  createPurchase: (data) => API.post('/chicken/purchases/', data),
+  collections: () => API.get('/chicken/collections/'),
+  createCollection: (data) => API.post('/chicken/collections/', data),
+  payments: () => API.get('/chicken/payments/'),
+  createPayment: (data) => API.post('/chicken/payments/', data),
+  expenses: () => API.get('/chicken/expenses/'),
+  createExpense: (data) => API.post('/chicken/expenses/', data),
+  shrinkage: () => API.get('/chicken/shrinkage/'),
+  createShrinkage: (data) => API.post('/chicken/shrinkage/', data),
+};
+
 export default API;

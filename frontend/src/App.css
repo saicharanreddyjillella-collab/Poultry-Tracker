@@ -835,3 +835,37 @@ tbody tr:hover { background: #fafaf8; }
 .report-table th { font-size: 0.75rem; }
 .flock-stock-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.75rem; }
 .feed-badge-sm { padding: 0.1rem 0.35rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; }
+
+/* ═══ LANDING PAGE ═══ */
+.landing { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1rem; }
+.landing-head { text-align: center; margin-bottom: 2.5rem; }
+.landing-head h1 { font-size: 2rem; color: var(--primary); }
+.landing-head p { color: var(--text-muted); margin-top: 0.25rem; }
+.landing-cards { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+.landing-card {
+  display: flex; flex-direction: column; align-items: flex-start;
+  width: 320px; max-width: 90vw; padding: 1.75rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  text-decoration: none; color: var(--text); box-shadow: var(--shadow);
+  transition: transform 0.15s, box-shadow 0.15s; border-top: 4px solid var(--primary);
+}
+.landing-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.12); }
+.landing-card-chicken { border-top-color: #c0392b; }
+.landing-emoji { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.landing-card h2 { font-size: 1.25rem; margin-bottom: 0.4rem; }
+.landing-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.4; margin-bottom: 1rem; }
+.landing-go { font-weight: 600; color: var(--primary); }
+.landing-card-chicken .landing-go { color: #c0392b; }
+
+/* Chicken nav accent */
+.navbar-chicken { background: #7b241c; }
+
+/* WhatsApp status badge */
+.wa-badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 10px; font-size: 0.7rem; font-weight: 600; text-transform: capitalize; }
+.wa-sent { background: #d5f5e3; color: #196f3d; }
+.wa-pending { background: #fef3c7; color: #92400e; }
+.wa-failed { background: #fdecea; color: var(--danger); }
+.wa-disabled { background: #eee; color: #777; }
+
+/* Success banner */
+.alert-banner-success { background: #d5f5e3; color: #196f3d; border: 1px solid #58d68d; }

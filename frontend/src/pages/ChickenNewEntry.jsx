@@ -1,0 +1,188 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { accountingAPI, inventoryAPI, chickenAPI, getErrorMessage } from '../api/client';
+
+const BIZ = { business: 'chicken_center' };
+const TABS = ['Sale', 'Purchase', 'Collection', 'Payment', 'Expense', 'Shrinkage'];
+const MODES = ['CASH', 'UPI', 'BANK'];
+const EXPENSE_HEADS = ['FUEL', 'WOOD', 'COVERS', 'FOOD', 'STATIONERY', 'TRANSPORT', 'LABOUR', 'ICE', 'RENT', 'ELECTRICITY', 'MISC'];
+
+export default function ChickenNewEntry() {
+  const [tab, setTab] = useState('Sale');
+  const [parties, setParties] = useState([]);
+  const [items, setItems] = useState([]);
+  const [error, setError] = useState('');
+  const [ok, setOk] = useState('');
+  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ date: today, mode: 'CASH', account_code: 'FUEL' });
+
+  useEffect(() => {
+    accountingAPI.parties(BIZ).then(r => setParties(r.data)).catch(() => {});
+    inventoryAPI.items(BIZ).then(r => setItems(r.data)).catch(() => {});
+  }, []);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const reset = () => setForm({ date: today, mode: 'CASH', account_code: 'FUEL' });
+
+  const customers = parties.filter(p => p.party_type === 'CUSTOMER' || p.party_type === 'BOTH');
+  const suppliers = parties.filter(p => p.party_type === 'SUPPLIER' || p.party_type === 'BOTH');
+
+  const amountPreview = form.weight_kg && form.rate_per_kg
+    ? (Number(form.weight_kg) * Number(form.rate_per_kg)).toLocaleString('en-IN', { maximumFractionDigits: 2 })
+    : null;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(''); setOk(''); setSaving(true);
+    try {
+      let res;
+      if (tab === 'Sale') res = await chickenAPI.createSale({ party: form.party, item: form.item, date: form.date, weight_kg: form.weight_kg, rate_per_kg: form.rate_per_kg, note: form.note || '' });
+      else if (tab === 'Purchase') res = await chickenAPI.createPurchase({ party: form.party, item: form.item, date: form.date, weight_kg: form.weight_kg, rate_per_kg: form.rate_per_kg, note: form.note || '' });
+      else if (tab === 'Collection') res = await chickenAPI.createCollection({ party: form.party, date: form.date, amount: form.amount, mode: form.mode, note: form.note || '' });
+      else if (tab === 'Payment') res = await chickenAPI.createPayment({ party: form.party, date: form.date, amount: form.amount, mode: form.mode, note: form.note || '' });
+      else if (tab === 'Expense') res = await chickenAPI.createExpense({ date: form.date, account_code: form.account_code, amount: form.amount, mode: form.mode, note: form.note || '' });
+      else if (tab === 'Shrinkage') res = await chickenAPI.createShrinkage({ item: form.item, date: form.date, weight_kg: form.weight_kg, value: form.value || 0, reason: form.note || '' });
+
+      let msg = `${tab} saved.`;
+      if ((tab === 'Sale' || tab === 'Collection') && res?.data?.whatsapp_status) {
+        msg += ` WhatsApp: ${res.data.whatsapp_status}.`;
+      }
+      setOk(msg);
+      reset();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <h1>New Entry</h1>
+        </div>
+      </div>
+
+      <div className="report-view-tabs" style={{ marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        {TABS.map(t => (
+          <button key={t} className={`report-tab ${tab === t ? 'report-tab-active' : ''}`}
+            onClick={() => { setTab(t); setError(''); setOk(''); }}>{t}</button>
+        ))}
+      </div>
+
+      {error && <div className="error-msg">{error}</div>}
+      {ok && <div className="alert-banner alert-banner-success">{ok}</div>}
+
+      <form onSubmit={submit} className="form-card" style={{ maxWidth: 560 }}>
+        <div className="form-group">
+          <label>Date *</label>
+          <input type="date" value={form.date} max={today} onChange={e => set('date', e.target.value)} required />
+        </div>
+
+        {/* Party (sale/purchase/collection/payment) */}
+        {['Sale', 'Collection'].includes(tab) && (
+          <div className="form-group">
+            <label>Customer *</label>
+            <select value={form.party || ''} onChange={e => set('party', e.target.value)} required>
+              <option value="">Select customer…</option>
+              {customers.map(p => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` (${p.phone})` : ''}</option>)}
+            </select>
+          </div>
+        )}
+        {['Purchase', 'Payment'].includes(tab) && (
+          <div className="form-group">
+            <label>Supplier *</label>
+            <select value={form.party || ''} onChange={e => set('party', e.target.value)} required>
+              <option value="">Select supplier…</option>
+              {suppliers.map(p => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` (${p.phone})` : ''}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Item (sale/purchase/shrinkage) */}
+        {['Sale', 'Purchase', 'Shrinkage'].includes(tab) && (
+          <div className="form-group">
+            <label>Item *</label>
+            <select value={form.item || ''} onChange={e => set('item', e.target.value)} required>
+              <option value="">Select item…</option>
+              {items.map(it => <option key={it.id} value={it.id}>{it.name} ({it.base_unit_symbol})</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Weight + rate (sale/purchase) */}
+        {['Sale', 'Purchase'].includes(tab) && (
+          <div className="form-row">
+            <div className="form-group">
+              <label>Weight (kg) *</label>
+              <input type="text" inputMode="decimal" value={form.weight_kg || ''} onChange={e => set('weight_kg', e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label>Rate (₹/kg) *</label>
+              <input type="text" inputMode="decimal" value={form.rate_per_kg || ''} onChange={e => set('rate_per_kg', e.target.value)} required />
+            </div>
+          </div>
+        )}
+        {['Sale', 'Purchase'].includes(tab) && amountPreview && (
+          <p className="farm-meta">Amount: <strong>₹{amountPreview}</strong></p>
+        )}
+
+        {/* Shrinkage weight + value */}
+        {tab === 'Shrinkage' && (
+          <div className="form-row">
+            <div className="form-group">
+              <label>Weight lost (kg) *</label>
+              <input type="text" inputMode="decimal" value={form.weight_kg || ''} onChange={e => set('weight_kg', e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label>Value (₹, optional)</label>
+              <input type="text" inputMode="decimal" value={form.value || ''} onChange={e => set('value', e.target.value)} placeholder="Loss to book" />
+            </div>
+          </div>
+        )}
+
+        {/* Amount (collection/payment/expense) */}
+        {['Collection', 'Payment', 'Expense'].includes(tab) && (
+          <div className="form-group">
+            <label>Amount (₹) *</label>
+            <input type="text" inputMode="decimal" value={form.amount || ''} onChange={e => set('amount', e.target.value)} required />
+          </div>
+        )}
+
+        {/* Expense head */}
+        {tab === 'Expense' && (
+          <div className="form-group">
+            <label>Expense head *</label>
+            <select value={form.account_code} onChange={e => set('account_code', e.target.value)} required>
+              {EXPENSE_HEADS.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Mode (collection/payment/expense) */}
+        {['Collection', 'Payment', 'Expense'].includes(tab) && (
+          <div className="form-group">
+            <label>Mode *</label>
+            <select value={form.mode} onChange={e => set('mode', e.target.value)} required>
+              {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+        )}
+
+        <div className="form-group">
+          <label>{tab === 'Shrinkage' ? 'Reason' : 'Note'}</label>
+          <input value={form.note || ''} onChange={e => set('note', e.target.value)} />
+        </div>
+
+        <div className="form-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => navigate('/chicken')}>Done</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : `Save ${tab}`}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
