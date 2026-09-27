@@ -30,6 +30,7 @@ import ChickenPendingBills from './pages/ChickenPendingBills';
 import ChickenInvoice from './pages/ChickenInvoice';
 import ChickenDayClose from './pages/ChickenDayClose';
 import ChickenOpening from './pages/ChickenOpening';
+import ChickenLedgers from './pages/ChickenLedgers';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -120,6 +121,7 @@ function ChickenNav() {
         <Link to="/chicken/new" onClick={closeMenu}>New Entry</Link>
         <Link to="/chicken/transactions" onClick={closeMenu}>Transactions</Link>
         <Link to="/chicken/parties" onClick={closeMenu}>Parties</Link>
+        <Link to="/chicken/ledgers" onClick={closeMenu}>Ledgers</Link>
         <Link to="/chicken/outstanding" onClick={closeMenu}>Outstanding</Link>
         <Link to="/chicken/pending-bills" onClick={closeMenu}>Receivables</Link>
         <Link to="/chicken/reports" onClick={closeMenu}>Reports</Link>
@@ -198,6 +200,7 @@ function AppRoutes() {
           <Route path="/chicken/invoice/:id" element={<ProtectedRoute><ChickenInvoice /></ProtectedRoute>} />
           <Route path="/chicken/day-close" element={<ProtectedRoute><ChickenDayClose /></ProtectedRoute>} />
           <Route path="/chicken/opening" element={<ProtectedRoute><ChickenOpening /></ProtectedRoute>} />
+          <Route path="/chicken/ledgers" element={<ProtectedRoute><ChickenLedgers /></ProtectedRoute>} />
         </Routes>
       </main>
     </>

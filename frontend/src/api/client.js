@@ -140,6 +140,7 @@ export const accountingAPI = {
   createParty: (data) => API.post('/accounting/parties/', data),
   updateParty: (id, data) => API.put(`/accounting/parties/${id}/`, data),
   partyStatement: (id, params) => API.get(`/accounting/reports/party/${id}/`, { params }),
+  accountStatement: (id, params) => API.get(`/accounting/reports/account/${id}/`, { params }),
   trialBalance: (params) => API.get('/accounting/reports/trial-balance/', { params }),
   pnl: (params) => API.get('/accounting/reports/pnl/', { params }),
   cashBook: (params) => API.get('/accounting/reports/cash-book/', { params }),

@@ -880,3 +880,8 @@ tbody tr:hover { background: #fafaf8; }
 
 /* Search input */
 .search-input { width: 100%; max-width: 360px; padding: 0.55rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-family: inherit; }
+
+/* Ledger pick list */
+.ledger-picklist { display: flex; flex-direction: column; gap: 0.4rem; max-width: 520px; margin-top: 0.5rem; }
+.ledger-pick { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; font-family: inherit; font-size: 0.9rem; text-align: left; }
+.ledger-pick:hover { background: var(--bg); border-color: var(--primary); }
