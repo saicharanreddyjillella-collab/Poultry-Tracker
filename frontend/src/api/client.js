@@ -172,6 +172,7 @@ export const chickenAPI = {
   createShrinkage: (data) => API.post('/chicken/shrinkage/', data),
   reverse: (kind, id) => API.post(`/chicken/reverse/${kind}/${id}/`),
   pendingBills: (params) => API.get('/chicken/pending-bills/', { params }),
+  ageing: () => API.get('/chicken/ageing/'),
 };
 
 export default API;

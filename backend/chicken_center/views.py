@@ -206,3 +206,52 @@ def pending_bills(request):
     } for s in qs]
     total_due = sum((r['amount_due'] for r in rows), 0)
     return Response({'rows': rows, 'total_due': total_due})
+
+
+# ─── AGEING (how old are the pending dues) ───
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ageing(request):
+    """Pending bill dues bucketed by age. Buckets: 0-7, 8-15, 16-30, 31+.
+    Grouped per customer, with column and grand totals."""
+    from datetime import date as date_cls
+    from decimal import Decimal
+    today = date_cls.today()
+    buckets = ['0-7', '8-15', '16-30', '31+']
+
+    qs = (Sale.objects
+          .filter(status__in=['PENDING', 'PARTLY'])
+          .exclude(voucher__is_reversed=True)
+          .select_related('party')
+          .order_by('party__name', 'date', 'id'))
+
+    def bucket_of(days):
+        if days <= 7:
+            return '0-7'
+        if days <= 15:
+            return '8-15'
+        if days <= 30:
+            return '16-30'
+        return '31+'
+
+    per_party = {}
+    for s in qs:
+        days = (today - s.date).days
+        b = bucket_of(days)
+        row = per_party.setdefault(s.party_id, {
+            'party_id': s.party_id, 'party_name': s.party.name,
+            'phone': s.party.phone,
+            '0-7': Decimal('0'), '8-15': Decimal('0'),
+            '16-30': Decimal('0'), '31+': Decimal('0'),
+            'total': Decimal('0'), 'oldest_days': 0,
+        })
+        row[b] += s.amount_due
+        row['total'] += s.amount_due
+        row['oldest_days'] = max(row['oldest_days'], days)
+
+    rows = sorted(per_party.values(), key=lambda r: -r['oldest_days'])
+    totals = {b: sum((r[b] for r in rows), Decimal('0')) for b in buckets}
+    grand = sum((r['total'] for r in rows), Decimal('0'))
+    return Response({'buckets': buckets, 'rows': rows,
+                     'totals': totals, 'grand_total': grand})

@@ -118,7 +118,7 @@ function ChickenNav() {
         <Link to="/chicken/transactions" onClick={closeMenu}>Transactions</Link>
         <Link to="/chicken/parties" onClick={closeMenu}>Parties</Link>
         <Link to="/chicken/outstanding" onClick={closeMenu}>Outstanding</Link>
-        <Link to="/chicken/pending-bills" onClick={closeMenu}>Pending Bills</Link>
+        <Link to="/chicken/pending-bills" onClick={closeMenu}>Receivables</Link>
         <Link to="/chicken/reports" onClick={closeMenu}>Reports</Link>
         <Link to="/chicken/items" onClick={closeMenu}>Items</Link>
         <Link to="/" onClick={closeMenu}>Switch Business</Link>
