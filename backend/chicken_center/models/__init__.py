@@ -1,6 +1,6 @@
 from .transactions import (
-    Allocation,
+    Allocation, SaleLine,
     Sale, Purchase, Collection, Payment, Expense, Shrinkage, BUSINESS,
 )
 
-__all__ = ['Allocation', 'Sale', 'Purchase', 'Collection', 'Payment', 'Expense', 'Shrinkage', 'BUSINESS']
+__all__ = ['Allocation', 'SaleLine', 'Sale', 'Purchase', 'Collection', 'Payment', 'Expense', 'Shrinkage', 'BUSINESS']

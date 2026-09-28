@@ -69,12 +69,14 @@ export default function ChickenInvoice() {
             <tr><th>Item</th><th>Weight</th><th>Rate</th><th style={{ textAlign: 'right' }}>Amount</th></tr>
           </thead>
           <tbody>
-            <tr>
-              <td>{s.item_name}</td>
-              <td>{fmt(s.weight_kg)} kg</td>
-              <td>₹{fmt(s.rate_per_kg)}/kg</td>
-              <td style={{ textAlign: 'right' }}>₹{fmt(s.amount)}</td>
-            </tr>
+            {(s.lines && s.lines.length ? s.lines : [{ id: 0, item_name: s.item_name, weight_kg: s.weight_kg, rate_per_kg: s.rate_per_kg, amount: s.amount }]).map(l => (
+              <tr key={l.id}>
+                <td>{l.item_name}</td>
+                <td>{fmt(l.weight_kg)} kg</td>
+                <td>₹{fmt(l.rate_per_kg)}/kg</td>
+                <td style={{ textAlign: 'right' }}>₹{fmt(l.amount)}</td>
+              </tr>
+            ))}
             <tr className="bill-t-total">
               <td colSpan={3}>Total</td>
               <td style={{ textAlign: 'right' }}>₹{fmt(s.amount)}</td>

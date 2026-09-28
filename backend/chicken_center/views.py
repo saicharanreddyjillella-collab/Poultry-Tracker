@@ -12,7 +12,7 @@ from .serializers import (
     PaymentSerializer, ExpenseSerializer, ShrinkageSerializer,
 )
 from .services import (
-    create_sale, create_purchase, create_collection, create_payment,
+    create_sale, create_sale_multi, create_purchase, create_collection, create_payment,
     create_expense, create_shrinkage, reverse_transaction,
     set_party_opening, set_cash_opening,
 )
@@ -37,13 +37,26 @@ def sales(request):
         return Response(SaleSerializer(qs, many=True).data)
     d = request.data
     try:
-        sale = create_sale(
-            party=Party.objects.get(id=d['party']),
-            item=Item.objects.get(id=d['item']),
-            date=d.get('date') or date_cls.today(),
-            weight_kg=d['weight_kg'], rate_per_kg=d['rate_per_kg'],
-            note=d.get('note', ''), user=request.user,
-        )
+        # Multi-item if a non-empty 'lines' array is sent; else single-item.
+        lines = d.get('lines')
+        if lines:
+            sale = create_sale_multi(
+                party=Party.objects.get(id=d['party']),
+                date=d.get('date') or date_cls.today(),
+                lines=[{
+                    'item': Item.objects.get(id=ln['item']),
+                    'weight_kg': ln['weight_kg'], 'rate_per_kg': ln['rate_per_kg'],
+                } for ln in lines],
+                note=d.get('note', ''), user=request.user,
+            )
+        else:
+            sale = create_sale(
+                party=Party.objects.get(id=d['party']),
+                item=Item.objects.get(id=d['item']),
+                date=d.get('date') or date_cls.today(),
+                weight_kg=d['weight_kg'], rate_per_kg=d['rate_per_kg'],
+                note=d.get('note', ''), user=request.user,
+            )
         return Response(SaleSerializer(sale).data, status=201)
     except ValidationError as e:
         return _err(e)
@@ -358,17 +371,25 @@ def sales_summary(request):
     qs = (Sale.objects
           .filter(date__gte=df, date__lte=dt)
           .exclude(voucher__is_reversed=True)
-          .select_related('party', 'item'))
+          .select_related('party')
+          .prefetch_related('lines', 'lines__item'))
 
     by_cust, by_item = {}, {}
     grand_amt = Decimal('0')
     grand_wt = Decimal('0')
     for s in qs:
         c = by_cust.setdefault(s.party_id, {'name': s.party.name, 'weight': Decimal('0'), 'amount': Decimal('0'), 'bills': 0})
-        c['weight'] += s.weight_kg; c['amount'] += s.amount; c['bills'] += 1
-        it = by_item.setdefault(s.item_id, {'name': s.item.name, 'weight': Decimal('0'), 'amount': Decimal('0'), 'bills': 0})
-        it['weight'] += s.weight_kg; it['amount'] += s.amount; it['bills'] += 1
-        grand_amt += s.amount; grand_wt += s.weight_kg
+        c['amount'] += s.amount
+        c['bills'] += 1
+        grand_amt += s.amount
+        # weight and item breakdown come from lines (works for single + multi)
+        for ln in s.lines.all():
+            c['weight'] += ln.weight_kg
+            grand_wt += ln.weight_kg
+            it = by_item.setdefault(ln.item_id, {'name': ln.item.name, 'weight': Decimal('0'), 'amount': Decimal('0'), 'bills': 0})
+            it['weight'] += ln.weight_kg
+            it['amount'] += ln.amount
+            it['bills'] += 1
 
     cust_rows = sorted(by_cust.values(), key=lambda r: -r['amount'])
     item_rows = sorted(by_item.values(), key=lambda r: -r['amount'])

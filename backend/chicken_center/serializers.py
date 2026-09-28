@@ -1,11 +1,20 @@
 from rest_framework import serializers
-from .models import Sale, Purchase, Collection, Payment, Expense, Shrinkage
+from .models import Sale, SaleLine, Purchase, Collection, Payment, Expense, Shrinkage
+
+
+class SaleLineSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source='item.name', read_only=True)
+
+    class Meta:
+        model = SaleLine
+        fields = ['id', 'item', 'item_name', 'weight_kg', 'rate_per_kg', 'amount']
 
 
 class SaleSerializer(serializers.ModelSerializer):
     party_name = serializers.CharField(source='party.name', read_only=True)
-    item_name = serializers.CharField(source='item.name', read_only=True)
+    item_name = serializers.CharField(source='item.name', read_only=True, default=None)
     amount_due = serializers.ReadOnlyField()
+    lines = SaleLineSerializer(many=True, read_only=True)
 
     is_reversed = serializers.BooleanField(source='voucher.is_reversed', read_only=True, default=False)
 
@@ -14,7 +23,7 @@ class SaleSerializer(serializers.ModelSerializer):
         fields = ['id', 'party', 'party_name', 'item', 'item_name', 'date',
                   'weight_kg', 'rate_per_kg', 'amount', 'amount_received',
                   'amount_due', 'status', 'note',
-                  'whatsapp_status', 'created_at', 'is_reversed']
+                  'whatsapp_status', 'created_at', 'is_reversed', 'lines']
         read_only_fields = ['amount', 'amount_received', 'status', 'whatsapp_status']
 
 

@@ -19,6 +19,8 @@ export default function ChickenNewEntry() {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({ date: today, mode: 'CASH', account_code: 'FUEL' });
   const [pendingBills, setPendingBills] = useState(null);
+  const [multiMode, setMultiMode] = useState(false);
+  const [saleLines, setSaleLines] = useState([{ item: '', weight_kg: '', rate_per_kg: '' }]);
 
   useEffect(() => {
     accountingAPI.parties(BIZ).then(r => setParties(r.data)).catch(() => {});
@@ -49,7 +51,12 @@ export default function ChickenNewEntry() {
     setError(''); setOk(''); setSaving(true);
     try {
       let res;
-      if (tab === 'Sale') res = await chickenAPI.createSale({ party: form.party, item: form.item, date: form.date, weight_kg: form.weight_kg, rate_per_kg: form.rate_per_kg, note: form.note || '' });
+      if (tab === 'Sale' && multiMode) {
+        const lines = saleLines.filter(l => l.item && l.weight_kg && l.rate_per_kg);
+        if (!lines.length) { setError('Add at least one complete line.'); setSaving(false); return; }
+        res = await chickenAPI.createSale({ party: form.party, date: form.date, note: form.note || '', lines });
+      }
+      else if (tab === 'Sale') res = await chickenAPI.createSale({ party: form.party, item: form.item, date: form.date, weight_kg: form.weight_kg, rate_per_kg: form.rate_per_kg, note: form.note || '' });
       else if (tab === 'Purchase') res = await chickenAPI.createPurchase({ party: form.party, item: form.item, date: form.date, weight_kg: form.weight_kg, rate_per_kg: form.rate_per_kg, note: form.note || '' });
       else if (tab === 'Collection') res = await chickenAPI.createCollection({ party: form.party, date: form.date, amount: form.amount, mode: form.mode, note: form.note || '' });
       else if (tab === 'Payment') res = await chickenAPI.createPayment({ party: form.party, date: form.date, amount: form.amount, mode: form.mode, note: form.note || '' });
@@ -62,6 +69,7 @@ export default function ChickenNewEntry() {
       }
       setOk(msg);
       reset();
+      setSaleLines([{ item: '', weight_kg: '', rate_per_kg: '' }]);
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -113,8 +121,42 @@ export default function ChickenNewEntry() {
           </div>
         )}
 
-        {/* Item (sale/purchase/shrinkage) */}
-        {['Sale', 'Purchase', 'Shrinkage'].includes(tab) && (
+        {/* Multi-item toggle (Sale only) */}
+        {tab === 'Sale' && (
+          <label className="toggle-label" style={{ marginBottom: '0.5rem' }}>
+            <input type="checkbox" checked={multiMode} onChange={e => setMultiMode(e.target.checked)} /> Multiple items on one bill
+          </label>
+        )}
+
+        {/* Multi-item line editor */}
+        {tab === 'Sale' && multiMode && (
+          <div className="pending-panel">
+            {saleLines.map((ln, i) => (
+              <div className="form-row" key={i} style={{ alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ flex: 2 }}>
+                  <label>Item</label>
+                  <select value={ln.item} onChange={e => { const c = [...saleLines]; c[i] = { ...c[i], item: e.target.value }; setSaleLines(c); }}>
+                    <option value="">Select…</option>
+                    {items.map(it => <option key={it.id} value={it.id}>{it.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group"><label>kg</label><input type="text" inputMode="decimal" value={ln.weight_kg} onChange={e => { const c = [...saleLines]; c[i] = { ...c[i], weight_kg: e.target.value }; setSaleLines(c); }} /></div>
+                <div className="form-group"><label>₹/kg</label><input type="text" inputMode="decimal" value={ln.rate_per_kg} onChange={e => { const c = [...saleLines]; c[i] = { ...c[i], rate_per_kg: e.target.value }; setSaleLines(c); }} /></div>
+                <div className="form-group" style={{ flex: '0 0 auto' }}>
+                  <label>&nbsp;</label>
+                  <button type="button" className="btn-action btn-action-cancel" onClick={() => setSaleLines(saleLines.length > 1 ? saleLines.filter((_, j) => j !== i) : saleLines)}>✕</button>
+                </div>
+              </div>
+            ))}
+            <button type="button" className="btn btn-secondary" onClick={() => setSaleLines([...saleLines, { item: '', weight_kg: '', rate_per_kg: '' }])} style={{ marginTop: '0.4rem' }}>+ Add line</button>
+            <p className="farm-meta" style={{ marginTop: '0.5rem' }}>
+              Bill total: <strong>₹{saleLines.reduce((t, l) => t + (Number(l.weight_kg || 0) * Number(l.rate_per_kg || 0)), 0).toLocaleString('en-IN')}</strong>
+            </p>
+          </div>
+        )}
+
+        {/* Item (single-item sale / purchase / shrinkage) */}
+        {(['Purchase', 'Shrinkage'].includes(tab) || (tab === 'Sale' && !multiMode)) && (
           <div className="form-group">
             <label>Item *</label>
             <select value={form.item || ''} onChange={e => set('item', e.target.value)} required>
@@ -124,8 +166,8 @@ export default function ChickenNewEntry() {
           </div>
         )}
 
-        {/* Weight + rate (sale/purchase) */}
-        {['Sale', 'Purchase'].includes(tab) && (
+        {/* Weight + rate (single-item sale / purchase) */}
+        {(tab === 'Purchase' || (tab === 'Sale' && !multiMode)) && (
           <div className="form-row">
             <div className="form-group">
               <label>Weight (kg) *</label>
@@ -137,7 +179,7 @@ export default function ChickenNewEntry() {
             </div>
           </div>
         )}
-        {['Sale', 'Purchase'].includes(tab) && amountPreview && (
+        {(tab === 'Purchase' || (tab === 'Sale' && !multiMode)) && amountPreview && (
           <p className="farm-meta">Amount: <strong>₹{amountPreview}</strong></p>
         )}
 

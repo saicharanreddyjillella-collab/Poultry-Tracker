@@ -15,7 +15,7 @@ from accounting.models import Account, Party
 from accounting.services import post_voucher, reverse_voucher
 from inventory.models import Item
 from inventory.services import record_movement, reverse_movements_for_voucher
-from ..models import Sale, Purchase, Collection, Payment, Expense, Shrinkage, BUSINESS
+from ..models import Sale, SaleLine, Purchase, Collection, Payment, Expense, Shrinkage, BUSINESS
 from . import whatsapp as wa
 
 
@@ -54,11 +54,65 @@ def create_sale(*, party, item, date, weight_kg, rate_per_kg, note='', user=None
             party=party, item=item, date=date, weight_kg=weight_kg,
             rate_per_kg=rate, amount=amount, note=note, voucher=v, created_by=user,
         )
+        SaleLine.objects.create(sale=sale, item=item, weight_kg=weight_kg,
+                                rate_per_kg=rate, amount=amount)
 
     # after-commit messaging (best-effort)
     balance = party.balance()
     res = wa.send_whatsapp(party.phone, wa.build_sale_message(
         customer_name=party.name, weight_kg=weight_kg, amount=amount, balance=balance))
+    Sale.objects.filter(id=sale.id).update(whatsapp_status=res['status'])
+    sale.whatsapp_status = res['status']
+    return sale
+
+
+def create_sale_multi(*, party, date, lines, note='', user=None):
+    """Multi-item sale: one bill, several item lines. `lines` is a list of
+    {item, weight_kg, rate_per_kg}. Posts one SALE voucher for the total,
+    one stock movement per line, a bill header (no header item) with SaleLine
+    children, then one WhatsApp."""
+    if not lines:
+        raise ValidationError("A sale needs at least one line.")
+
+    parsed = []
+    total = Decimal('0')
+    for ln in lines:
+        item = ln['item']
+        w = D(ln['weight_kg'])
+        r = D(ln['rate_per_kg'])
+        if w <= 0 or r <= 0:
+            raise ValidationError("Each line needs positive weight and rate.")
+        amt = (w * r).quantize(Decimal('0.01'))
+        parsed.append((item, w, r, amt))
+        total += amt
+
+    with transaction.atomic():
+        # Credit each item's sales account for its own amount; debit customer total.
+        vlines = [{'account': _acc('DEBTORS'), 'party': party, 'debit': total}]
+        for item, w, r, amt in parsed:
+            vlines.append({'account': item.sales_account or _acc('SALES'), 'credit': amt})
+        v = post_voucher(
+            date=date, vtype='SALE',
+            narration=f"Sale to {party.name}: {len(parsed)} items",
+            business=BUSINESS, source_module='chicken_center.sale', user=user,
+            lines=vlines,
+        )
+        for item, w, r, amt in parsed:
+            record_movement(item=item, mtype='SALE_OUT', qty=w,
+                            unit=item.base_unit, date=date, business=BUSINESS,
+                            voucher=v, source_module='chicken_center.sale')
+        sale = Sale.objects.create(
+            party=party, item=None, date=date, weight_kg=None, rate_per_kg=None,
+            amount=total, note=note, voucher=v, created_by=user,
+        )
+        for item, w, r, amt in parsed:
+            SaleLine.objects.create(sale=sale, item=item, weight_kg=w,
+                                    rate_per_kg=r, amount=amt)
+
+    total_wt = sum((p[1] for p in parsed), Decimal('0'))
+    balance = party.balance()
+    res = wa.send_whatsapp(party.phone, wa.build_sale_message(
+        customer_name=party.name, weight_kg=total_wt, amount=total, balance=balance))
     Sale.objects.filter(id=sale.id).update(whatsapp_status=res['status'])
     sale.whatsapp_status = res['status']
     return sale

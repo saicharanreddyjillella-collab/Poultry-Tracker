@@ -20,10 +20,13 @@ class Sale(models.Model):
     Also a BILL: it can be settled by collections oldest-first."""
     STATUS_CHOICES = [('PENDING', 'Pending'), ('PARTLY', 'Partly Paid'), ('PAID', 'Paid')]
     party = models.ForeignKey(Party, on_delete=models.PROTECT, related_name='cc_sales')
-    item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name='cc_sales')
+    # Header-level item/weight/rate are used for single-item sales. Multi-item
+    # sales leave these null and carry SaleLine children instead. `amount` is
+    # always the bill total either way.
+    item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name='cc_sales', null=True, blank=True)
     date = models.DateField()
-    weight_kg = models.DecimalField(max_digits=12, decimal_places=3)
-    rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2)
+    weight_kg = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     amount_received = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='PENDING')
@@ -166,3 +169,19 @@ class Allocation(models.Model):
 
     def __str__(self):
         return f"₹{self.amount} of receipt #{self.collection_id} → bill #{self.sale_id}"
+
+
+class SaleLine(models.Model):
+    """One item line on a sale bill. A single-item sale has one line;
+    a multi-item sale has several. weight*rate = amount."""
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name='lines')
+    item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name='cc_sale_lines')
+    weight_kg = models.DecimalField(max_digits=12, decimal_places=3)
+    rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.item.name} {self.weight_kg}kg @ {self.rate_per_kg}"
