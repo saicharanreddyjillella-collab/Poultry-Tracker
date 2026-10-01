@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'accounting',
     'inventory',
     'chicken_center',
+    'layer_farm',
 ]
 
 MIDDLEWARE = [

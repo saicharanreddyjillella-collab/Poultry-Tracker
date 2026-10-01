@@ -21,6 +21,16 @@ DEFAULT_ACCOUNTS = [
 
     ('SALES', 'Sales', 'INCOME', False, 'chicken_center'),
     ('EGGSALES', 'Egg Sales', 'INCOME', False, 'layer'),
+    ('CULLSALES', 'Cull Hen Sales', 'INCOME', False, 'layer'),
+    ('MANURESALES', 'Manure Sales', 'INCOME', False, 'layer'),
+
+    # Layer flock cost accumulation (work-in-progress asset) and input purchases
+    ('FLOCKWIP', 'Flock Cost (WIP)', 'ASSET', False, 'layer'),
+    ('EGGSTOCK', 'Egg Stock', 'ASSET', False, 'layer'),
+    ('CHICKPUR', 'Chick Purchases', 'EXPENSE', False, 'layer'),
+    ('PREMIXPUR', 'Premix Purchases', 'EXPENSE', False, 'layer'),
+    ('MEDPUR', 'Medicine Purchases', 'EXPENSE', False, 'layer'),
+    ('VACCINEPUR', 'Vaccine Purchases', 'EXPENSE', False, 'layer'),
 
     ('PURCHASES', 'Purchases', 'EXPENSE', False, 'chicken_center'),
     ('RAWPUR', 'Raw Material Purchases', 'EXPENSE', False, 'feeds'),
