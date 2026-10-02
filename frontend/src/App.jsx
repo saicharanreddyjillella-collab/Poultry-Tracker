@@ -26,6 +26,8 @@ import LayerNewEntry from './pages/LayerNewEntry';
 import LayerFeedMill from './pages/LayerFeedMill';
 import LayerTransactions from './pages/LayerTransactions';
 import LayerMasters from './pages/LayerMasters';
+import LayerReports from './pages/LayerReports';
+import LayerDayClose from './pages/LayerDayClose';
 import ChickenNewEntry from './pages/ChickenNewEntry';
 import ChickenParties from './pages/ChickenParties';
 import ChickenPartyStatement from './pages/ChickenPartyStatement';
@@ -187,6 +189,8 @@ function LayerNav() {
         <Link to="/layer/feed" onClick={closeMenu}>Feed Mill</Link>
         <Link to="/layer/transactions" onClick={closeMenu}>Transactions</Link>
         <Link to="/layer/masters" onClick={closeMenu}>Masters</Link>
+        <Link to="/layer/reports" onClick={closeMenu}>Reports</Link>
+        <Link to="/layer/day-close" onClick={closeMenu}>Day Close</Link>
         <Link to="/" onClick={closeMenu}>Switch Business</Link>
         <div className="nav-mobile-user">
           <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
@@ -273,6 +277,8 @@ function AppRoutes() {
           <Route path="/layer/feed" element={<ProtectedRoute><LayerFeedMill /></ProtectedRoute>} />
           <Route path="/layer/transactions" element={<ProtectedRoute><LayerTransactions /></ProtectedRoute>} />
           <Route path="/layer/masters" element={<ProtectedRoute><LayerMasters /></ProtectedRoute>} />
+          <Route path="/layer/reports" element={<ProtectedRoute><LayerReports /></ProtectedRoute>} />
+          <Route path="/layer/day-close" element={<ProtectedRoute><LayerDayClose /></ProtectedRoute>} />
         </Routes>
       </main>
     </>
