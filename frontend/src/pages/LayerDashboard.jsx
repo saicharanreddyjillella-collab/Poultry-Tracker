@@ -25,6 +25,7 @@ export default function LayerDashboard() {
           <Link to="/layer/new" className="btn btn-primary">+ New Entry</Link>
           <Link to="/layer/flocks" className="btn btn-secondary">Flocks</Link>
           <Link to="/layer/feed" className="btn btn-secondary">Feed Mill</Link>
+          <Link to="/layer/masters" className="btn btn-secondary">Masters</Link>
         </div>
       </div>
 
