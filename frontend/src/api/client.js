@@ -231,6 +231,8 @@ export const layerAPI = {
   expenses: () => API.get('/layer/expenses/'),
   createExpense: (data) => API.post('/layer/expenses/', data),
   reverse: (kind, id) => API.post(`/layer/reverse/${kind}/${id}/`),
+  openingParty: (data) => API.post('/layer/opening/party/', data),
+  openingCash: (data) => API.post('/layer/opening/cash/', data),
 };
 
 export default API;

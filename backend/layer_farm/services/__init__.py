@@ -3,6 +3,7 @@ from .core import (
     apply_to_flock, create_expense, create_egg_sale, create_collection,
     create_payment, reverse_transaction, EGGS_PER_TRAY,
     feed_on_hand, raw_on_hand, egg_stock_on_hand,
+    set_party_opening, set_cash_opening,
 )
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     'apply_to_flock', 'create_expense', 'create_egg_sale', 'create_collection',
     'create_payment', 'reverse_transaction', 'EGGS_PER_TRAY',
     'feed_on_hand', 'raw_on_hand', 'egg_stock_on_hand',
+    'set_party_opening', 'set_cash_opening',
 ]

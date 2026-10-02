@@ -22,5 +22,7 @@ urlpatterns = [
     path('collections/', views.collections),
     path('payments/', views.payments),
     path('expenses/', views.expenses),
+    path('opening/party/', views.opening_party),
+    path('opening/cash/', views.opening_cash),
     path('reverse/<str:kind>/<int:pk>/', views.reverse_entry),
 ]

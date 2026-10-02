@@ -416,3 +416,40 @@ def reverse_transaction(voucher, user=None):
         FlockCost.objects.filter(voucher=voucher).delete()
         reverse_movements_for_voucher(voucher)
         return reverse_voucher(voucher, user=user)
+
+
+# ───────────────────── OPENING BALANCES ─────────────────────
+
+def set_party_opening(*, party, amount, as_of, user=None):
+    """Opening balance for a vendor/trader. +ve = they owe us (Dr party /
+    Cr OBE); -ve = we owe them. Plain voucher affecting overall balance."""
+    amount = D(amount)
+    if amount == 0:
+        raise ValidationError("Opening balance cannot be zero.")
+    obe = _acc('OBE')
+    ctrl = party.control_account
+    if amount > 0:
+        lines = [{'account': ctrl, 'party': party, 'debit': amount},
+                 {'account': obe, 'credit': amount}]
+    else:
+        lines = [{'account': obe, 'debit': -amount},
+                 {'account': ctrl, 'party': party, 'credit': -amount}]
+    return post_voucher(
+        date=as_of, vtype='OPENING', narration=f"Opening balance — {party.name}",
+        business=BUSINESS, source_module='layer.opening', user=user, lines=lines)
+
+
+def set_cash_opening(*, account_code, amount, as_of, user=None):
+    """Opening balance for cash/bank (Dr account / Cr OBE)."""
+    amount = D(amount)
+    if amount == 0:
+        raise ValidationError("Opening balance cannot be zero.")
+    acc = _acc(account_code)
+    obe = _acc('OBE')
+    if amount > 0:
+        lines = [{'account': acc, 'debit': amount}, {'account': obe, 'credit': amount}]
+    else:
+        lines = [{'account': obe, 'debit': -amount}, {'account': acc, 'credit': -amount}]
+    return post_voucher(
+        date=as_of, vtype='OPENING', narration=f"Opening balance — {acc.name}",
+        business=BUSINESS, source_module='layer.opening', user=user, lines=lines)

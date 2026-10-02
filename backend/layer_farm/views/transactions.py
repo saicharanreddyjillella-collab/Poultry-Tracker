@@ -17,7 +17,7 @@ from ..serializers import (
 from ..services import (
     create_purchase, create_feed_batch, send_feed_to_flock, apply_to_flock,
     create_expense, create_egg_sale, create_collection, create_payment,
-    reverse_transaction,
+    reverse_transaction, set_party_opening, set_cash_opening,
 )
 from ._helpers import err, today_or
 
@@ -230,5 +230,31 @@ def reverse_entry(request, kind, pk):
     try:
         reverse_transaction(obj.voucher, user=request.user)
         return Response({'status': 'reversed', 'kind': kind, 'id': pk})
+    except ValidationError as e:
+        return err(e)
+
+
+# ─── OPENING BALANCES ───
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def opening_party(request):
+    d = request.data
+    try:
+        set_party_opening(party=_party(d['party']), amount=d['amount'],
+                          as_of=today_or(d.get('as_of')), user=request.user)
+        return Response({'status': 'ok'}, status=201)
+    except ValidationError as e:
+        return err(e)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def opening_cash(request):
+    d = request.data
+    try:
+        set_cash_opening(account_code=d['account_code'], amount=d['amount'],
+                        as_of=today_or(d.get('as_of')), user=request.user)
+        return Response({'status': 'ok'}, status=201)
     except ValidationError as e:
         return err(e)
