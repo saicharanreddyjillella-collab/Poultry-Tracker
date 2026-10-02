@@ -12,6 +12,8 @@ urlpatterns = [
     path('flocks/<int:flock_id>/costs/', views.flock_costs),
     path('flocks/<int:flock_id>/summary/', views.flock_summary),
     path('dashboard/', views.dashboard),
+    path('flocks/<int:flock_id>/production/', views.flock_production),
+    path('feed-stock/', views.feed_stock),
     path('purchases/', views.purchases),
     path('feed-batches/', views.feed_batches),
     path('feed-to-flock/', views.feed_to_flock),

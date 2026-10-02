@@ -14,9 +14,10 @@ export default function LayerFeedMill() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const [stock, setStock] = useState([]);
   const load = () => {
-    Promise.all([layerAPI.feedBatches(), inventoryAPI.items(BIZ)]).then(([b, it]) => {
-      setBatches(b.data); setItems(it.data); setLoading(false);
+    Promise.all([layerAPI.feedBatches(), inventoryAPI.items(BIZ), layerAPI.feedStock()]).then(([b, it, s]) => {
+      setBatches(b.data); setItems(it.data); setStock(s.data.rows); setLoading(false);
     }).catch(() => setLoading(false));
   };
   useEffect(load, []);
@@ -115,6 +116,23 @@ export default function LayerFeedMill() {
         </form>
       )}
 
+      {stock.length > 0 && (
+        <>
+          <h3>Feed Stock on Hand</h3>
+          <div className="table-wrapper" style={{ maxWidth: 480, marginBottom: '1.5rem' }}>
+            <table className="report-table">
+              <thead><tr><th>Feed</th><th>Produced</th><th>Sent</th><th>On hand</th></tr></thead>
+              <tbody>
+                {stock.map(s => (
+                  <tr key={s.item_id}><td>{s.name}</td><td>{fmt(s.produced_kg)} kg</td><td>{fmt(s.sent_kg)} kg</td><td className={s.on_hand_kg < 0 ? 'text-danger' : ''}><strong>{fmt(s.on_hand_kg)} kg</strong></td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <h3>Batches</h3>
       {batches.length ? (
         <div className="table-wrapper">
           <table className="report-table">

@@ -13,9 +13,10 @@ export default function LayerFlockDetail() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const [prod, setProd] = useState(null);
   const load = () => {
-    Promise.all([layerAPI.flockSummary(id), layerAPI.flockCosts(id), layerAPI.dailyEntries({ flock: id })])
-      .then(([s, c, e]) => { setSummary(s.data); setCosts(c.data); setEntries(e.data); setLoading(false); })
+    Promise.all([layerAPI.flockSummary(id), layerAPI.flockCosts(id), layerAPI.dailyEntries({ flock: id }), layerAPI.flockProduction(id)])
+      .then(([s, c, e, p]) => { setSummary(s.data); setCosts(c.data); setEntries(e.data); setProd(p.data); setLoading(false); })
       .catch(() => setLoading(false));
   };
   useEffect(load, [id]);
@@ -104,20 +105,34 @@ export default function LayerFlockDetail() {
         </div>
       ) : <p className="farm-meta">No costs charged yet.</p>}
 
-      {/* Daily entries */}
-      <h3 style={{ marginTop: '1.5rem' }}>Daily Production</h3>
-      {entries.length ? (
-        <div className="table-wrapper">
-          <table className="report-table">
-            <thead><tr><th>Date</th><th>Eggs</th><th>Broken</th><th>Feed kg</th><th>Mortality</th><th>Culls</th></tr></thead>
-            <tbody>
-              {entries.map(e => (
-                <tr key={e.id}><td>{e.date}</td><td>{e.eggs}</td><td>{e.broken}</td><td>{fmt(e.feed_kg)}</td><td>{e.mortality}</td><td>{e.culls}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : <p className="farm-meta">No daily entries yet.</p>}
+      {/* Production analytics */}
+      <h3 style={{ marginTop: '1.5rem' }}>Production</h3>
+      {prod && prod.rows.length ? (
+        <>
+          <div className="stats-grid" style={{ marginBottom: '0.75rem' }}>
+            <div className="stat-card"><span className="stat-label">Avg Laying %</span><span className="stat-value">{prod.avg_laying_pct}%</span></div>
+            <div className="stat-card"><span className="stat-label">Peak Laying %</span><span className="stat-value">{prod.peak_laying_pct}%</span></div>
+            <div className="stat-card"><span className="stat-label">Feed / Egg</span><span className="stat-value">{prod.feed_per_egg_g != null ? `${prod.feed_per_egg_g} g` : '—'}</span></div>
+            <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{fmt(prod.total_feed_kg)} kg</span></div>
+          </div>
+          <div className="table-wrapper">
+            <table className="report-table">
+              <thead><tr><th>Date</th><th>Day</th><th>Eggs</th><th>Laying %</th><th>Feed/egg</th><th>Broken</th><th>Feed kg</th><th>Mort.</th><th>Culls</th><th>Live</th><th>Cum. eggs</th></tr></thead>
+              <tbody>
+                {prod.rows.slice().reverse().map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.date}</td><td>{r.day}</td><td>{r.eggs}</td>
+                    <td>{r.laying_pct}%</td>
+                    <td>{r.feed_per_egg_g != null ? `${r.feed_per_egg_g} g` : '—'}</td>
+                    <td>{r.broken}</td><td>{fmt(r.feed_kg)}</td><td>{r.mortality}</td><td>{r.culls}</td>
+                    <td>{r.live_birds}</td><td>{r.cumulative_eggs}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : <p className="farm-meta">No daily entries yet. Add one to track laying % and feed efficiency.</p>}
     </div>
   );
 }
