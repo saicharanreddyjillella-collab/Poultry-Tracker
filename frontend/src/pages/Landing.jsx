@@ -20,6 +20,12 @@ export default function Landing() {
           <p>Live-bird trading — sales, purchases, collections &amp; accounts</p>
           <span className="landing-go">Open →</span>
         </Link>
+        <Link to="/layer" className="landing-card landing-card-layer">
+          <span className="landing-emoji">🥚</span>
+          <h2>Sai Ram Layer Farm</h2>
+          <p>Egg production — per-flock cost, feed milling, egg sales &amp; accounts</p>
+          <span className="landing-go">Open →</span>
+        </Link>
       </div>
     </div>
   );

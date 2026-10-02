@@ -201,4 +201,34 @@ export async function downloadFile(url, filename) {
   window.URL.revokeObjectURL(a.href);
 }
 
+// ─── Layer Farm ───
+export const layerAPI = {
+  farms: () => API.get('/layer/farms/'),
+  createFarm: (data) => API.post('/layer/farms/', data),
+  flocks: (params) => API.get('/layer/flocks/', { params }),
+  createFlock: (data) => API.post('/layer/flocks/', data),
+  flockSummary: (id) => API.get(`/layer/flocks/${id}/summary/`),
+  flockCosts: (id) => API.get(`/layer/flocks/${id}/costs/`),
+  dashboard: () => API.get('/layer/dashboard/'),
+  dailyEntries: (params) => API.get('/layer/daily-entries/', { params }),
+  createDailyEntry: (data) => API.post('/layer/daily-entries/', data),
+  purchases: () => API.get('/layer/purchases/'),
+  createPurchase: (data) => API.post('/layer/purchases/', data),
+  feedBatches: () => API.get('/layer/feed-batches/'),
+  createFeedBatch: (data) => API.post('/layer/feed-batches/', data),
+  feedToFlock: () => API.get('/layer/feed-to-flock/'),
+  sendFeedToFlock: (data) => API.post('/layer/feed-to-flock/', data),
+  applications: () => API.get('/layer/applications/'),
+  createApplication: (data) => API.post('/layer/applications/', data),
+  eggSales: (params) => API.get('/layer/egg-sales/', { params }),
+  createEggSale: (data) => API.post('/layer/egg-sales/', data),
+  collections: () => API.get('/layer/collections/'),
+  createCollection: (data) => API.post('/layer/collections/', data),
+  payments: () => API.get('/layer/payments/'),
+  createPayment: (data) => API.post('/layer/payments/', data),
+  expenses: () => API.get('/layer/expenses/'),
+  createExpense: (data) => API.post('/layer/expenses/', data),
+  reverse: (kind, id) => API.post(`/layer/reverse/${kind}/${id}/`),
+};
+
 export default API;
