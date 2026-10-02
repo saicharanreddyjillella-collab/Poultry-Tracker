@@ -1,0 +1,91 @@
+/* ═══ SKELETON LOADING ═══ */
+@keyframes skeleton-pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.6; }
+}
+.skeleton-line {
+  background: #e0ddd9; border-radius: 6px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  margin-bottom: 0.5rem;
+}
+.skeleton-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.25rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.5rem;
+}
+.skeleton-stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;
+}
+.skeleton-chart {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  height: 300px; margin: 1.5rem 0;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+.skeleton-table {
+  display: flex; flex-direction: column; gap: 2px; margin-top: 1rem;
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+}
+.skeleton-table .skeleton-line { border-radius: 0; margin: 0; }
+
+/* ═══ CONFIRM MODAL ═══ */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal-card {
+  background: var(--surface); border-radius: 16px;
+  padding: 1.75rem; max-width: 420px; width: 100%;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+  animation: modal-in 0.2s ease-out;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-title { font-size: 1.15rem; margin-bottom: 0.5rem; }
+.modal-message { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem; }
+.modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+/* Alert banner */
+.alert-banner {
+  padding: 0.75rem 1rem; border-radius: var(--radius); margin-bottom: 1rem;
+  font-size: 0.9rem; font-weight: 500;
+}
+.alert-banner-warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+.row-missing-price { background: #fff8e1; }
+
+/* Bill close modal flags */
+.bill-flag-title { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem; }
+.bill-flag-row { display: flex; justify-content: space-between; align-items: center; }
+.bill-flag-hint { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+.bill-flags-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+.stock-divider { color: var(--border); font-weight: 300; }
+
+/* Unified report filters */
+.report-filters-bar {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+  gap: 0.75rem; margin-bottom: 1.25rem; padding: 0.75rem 1rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.report-view-tabs { display: flex; gap: 0.25rem; }
+.report-tab {
+  padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; background: var(--bg);
+  font-family: inherit; transition: background 0.15s;
+}
+.report-tab:hover { background: #e8e8e8; }
+.report-tab-active { background: var(--primary); color: white; border-color: var(--primary); }
+.report-filter-controls { display: flex; gap: 0.5rem; }
+.report-filter-controls select {
+  padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 0.85rem; font-family: inherit; background: white;
+}
+.report-subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+.report-table { font-size: 0.8rem; }
+.report-table th { font-size: 0.75rem; }
+.flock-stock-row { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.75rem; }
+.feed-badge-sm { padding: 0.1rem 0.35rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; }
+

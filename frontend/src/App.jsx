@@ -41,6 +41,10 @@ import ChickenLedgers from './pages/ChickenLedgers';
 import ChickenDaybook from './pages/ChickenDaybook';
 import ChickenSalesSummary from './pages/ChickenSalesSummary';
 import './App.css';
+import './styles/print.css';
+import './styles/bill.css';
+import './styles/components.css';
+import './styles/business.css';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
