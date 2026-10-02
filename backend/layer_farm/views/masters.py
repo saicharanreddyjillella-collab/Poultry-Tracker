@@ -48,6 +48,14 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        from rest_framework.exceptions import ValidationError
+        flock = serializer.validated_data['flock']
+        mort = serializer.validated_data.get('mortality', 0) or 0
+        culls = serializer.validated_data.get('culls', 0) or 0
+        if mort + culls > flock.live_birds:
+            raise ValidationError({
+                'mortality': f'Mortality + culls ({mort + culls}) cannot exceed '
+                             f'live birds ({flock.live_birds}).'})
         serializer.save(created_by=self.request.user)
 
 

@@ -7,6 +7,7 @@ cost move together. WhatsApp fires after commit, best-effort.
 """
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
+from django.db.models import Sum as models_Sum
 from django.core.exceptions import ValidationError
 from accounting.models import Account, Party
 from accounting.services import post_voucher, reverse_voucher
@@ -96,6 +97,15 @@ def create_feed_batch(*, date, feed_item, output_kg, inputs, overhead=0,
     if not inputs:
         raise ValidationError("A feed batch needs at least one material.")
 
+    # Each material must have enough stock on hand.
+    for i in inputs:
+        need = D(i['qty_kg'])
+        have = raw_on_hand(i['item'])
+        if need > have:
+            raise ValidationError(
+                f"Only {have} of {i['item'].name} in stock. Cannot consume {need}. "
+                f"Buy more (Purchase) first.")
+
     materials_cost = sum((D(i['cost']) for i in inputs), Decimal('0'))
     total_cost = (materials_cost + overhead).quantize(Decimal('0.01'))
     cost_per_kg = (total_cost / output_kg).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
@@ -134,6 +144,26 @@ def create_feed_batch(*, date, feed_item, output_kg, inputs, overhead=0,
         return batch
 
 
+def feed_on_hand(feed_item):
+    """Feed produced minus feed sent to flocks (reversals excluded)."""
+    from ..models import FeedBatch, FeedToFlock
+    produced = FeedBatch.objects.filter(feed_item=feed_item).exclude(
+        voucher__is_reversed=True).aggregate(t=models_Sum('output_kg'))['t'] or Decimal('0')
+    sent = FeedToFlock.objects.filter(feed_item=feed_item).exclude(
+        voucher__is_reversed=True).aggregate(t=models_Sum('qty_kg'))['t'] or Decimal('0')
+    return produced - sent
+
+
+def raw_on_hand(item):
+    """Raw material stock on hand, from inventory movements."""
+    return item.stock_on_hand(business=BUSINESS)
+
+
+def egg_stock_on_hand(flock):
+    """Eggs available for a flock = laid - broken - sold (in eggs)."""
+    return flock.egg_stock
+
+
 def feed_batch_cost(feed_item):
     """Weighted-average cost per kg of feed made so far (for valuing transfers
     when no specific batch is chosen). Falls back to latest batch."""
@@ -154,6 +184,11 @@ def send_feed_to_flock(*, flock, feed_item, date, qty_kg, cost_per_kg=None,
     qty_kg = D(qty_kg)
     if qty_kg <= 0:
         raise ValidationError("Quantity must be positive.")
+    avail = feed_on_hand(feed_item)
+    if qty_kg > avail:
+        raise ValidationError(
+            f"Only {avail} kg of {feed_item.name} in stock. Cannot send {qty_kg} kg. "
+            f"Produce more in the Feed Mill first.")
     cpk = D(cost_per_kg) if cost_per_kg is not None else feed_batch_cost(feed_item)
     amount = (qty_kg * cpk).quantize(Decimal('0.01'))
 
@@ -255,6 +290,13 @@ def create_egg_sale(*, party, flock, date, trays, rate_per_tray, note='', user=N
     trays = D(trays); rate = D(rate_per_tray)
     if trays <= 0 or rate <= 0:
         raise ValidationError("Trays and rate must be positive.")
+    eggs_needed = trays * EGGS_PER_TRAY
+    available = egg_stock_on_hand(flock)
+    if eggs_needed > available:
+        avail_trays = round(available / EGGS_PER_TRAY, 2)
+        raise ValidationError(
+            f"Only {available} eggs ({avail_trays} trays) in stock for {flock.name}. "
+            f"Cannot sell {trays} trays. Record daily egg production first.")
     amount = (trays * rate).quantize(Decimal('0.01'))
 
     with transaction.atomic():
