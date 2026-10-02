@@ -4,6 +4,7 @@ from . import views
 
 router = DefaultRouter()
 router.register('units', views.UnitViewSet)
+router.register('stock-groups', views.StockGroupViewSet)
 router.register('items', views.ItemViewSet)
 router.register('movements', views.StockMovementViewSet)
 

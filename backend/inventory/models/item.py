@@ -2,6 +2,7 @@ from decimal import Decimal
 from django.db import models
 from accounting.models import Account, BUSINESS_CHOICES
 from .unit import Unit
+from .stock_group import StockGroup
 
 
 class Item(models.Model):
@@ -21,6 +22,7 @@ class Item(models.Model):
     name = models.CharField(max_length=120)
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, default='TRADING')
     base_unit = models.ForeignKey(Unit, on_delete=models.PROTECT, related_name='items')
+    stock_group = models.ForeignKey(StockGroup, on_delete=models.PROTECT, null=True, blank=True, related_name='items')
     rate_basis = models.CharField(max_length=10, choices=RATE_BASIS_CHOICES, default='PER_KG')
     business = models.CharField(max_length=20, choices=BUSINESS_CHOICES, default='chicken_center')
     # Optional per-item account overrides (else business defaults are used):

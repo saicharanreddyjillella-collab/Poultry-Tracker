@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Unit, Item, StockMovement
+from .models import Unit, Item, StockMovement, StockGroup
 
 
 @admin.register(Unit)
@@ -18,3 +18,4 @@ class ItemAdmin(admin.ModelAdmin):
 class StockMovementAdmin(admin.ModelAdmin):
     list_display = ('date', 'item', 'type', 'qty_in_base', 'qty_out_base', 'business')
     list_filter = ('type', 'business')
+admin.site.register(StockGroup)
