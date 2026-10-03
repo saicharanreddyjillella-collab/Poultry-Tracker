@@ -158,6 +158,8 @@ export const inventoryAPI = {
   createItem: (data) => API.post('/inventory/items/', data),
   updateItem: (id, data) => API.put(`/inventory/items/${id}/`, data),
   stockOnHand: (params) => API.get('/inventory/stock-on-hand/', { params }),
+  stockGroups: (params) => API.get('/inventory/stock-groups/', { params }),
+  createStockGroup: (data) => API.post('/inventory/stock-groups/', data),
 };
 
 // ─── Chicken Center ───
