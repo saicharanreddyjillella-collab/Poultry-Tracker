@@ -21,7 +21,7 @@ export default function LayerMasters() {
   const [showItem, setShowItem] = useState(false);
   const [showParty, setShowParty] = useState(false);
   const [itemForm, setItemForm] = useState({ name: '', base_unit: '', stock_group: '' });
-  const [partyForm, setPartyForm] = useState({ name: '', phone: '', address: '', party_type: 'SUPPLIER' });
+  const [partyForm, setPartyForm] = useState({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -62,13 +62,14 @@ export default function LayerMasters() {
       const wantCode = partyForm.party_type === 'SUPPLIER' ? 'CREDITORS' : 'DEBTORS';
       const ctrl = accRes.data.find(a => a.code === wantCode);
       const payload = { ...partyForm, control_account: ctrl.id, business: 'layer' };
+      if (!payload.opening_balance) { delete payload.opening_balance; delete payload.opening_as_of; }
       if (editPartyId) await accountingAPI.updateParty(editPartyId, payload);
       else await accountingAPI.createParty(payload);
-      setShowParty(false); setEditPartyId(null); setPartyForm({ name: '', phone: '', address: '', party_type: 'SUPPLIER' }); load();
+      setShowParty(false); setEditPartyId(null); setPartyForm({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) }); load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
 
-  const editParty = (p) => { setEditPartyId(p.id); setPartyForm({ name: p.name, phone: p.phone || '', address: p.address || '', party_type: p.party_type }); setShowParty(true); setError(''); };
+  const editParty = (p) => { setEditPartyId(p.id); setPartyForm({ name: p.name, phone: p.phone || '', email: p.email || '', address: p.address || '', state: p.state || '', gst_number: p.gst_number || '', pan: p.pan || '', party_type: p.party_type, opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) }); setShowParty(true); setError(''); };
 
   const submitOpening = async (e) => {
     e.preventDefault(); setError(''); setOk('');
@@ -211,21 +212,37 @@ export default function LayerMasters() {
 
       {tab === 'Vendors & Traders' && (
         <>
-          <button className="btn btn-primary" onClick={() => { setEditPartyId(null); setPartyForm({ name: "", phone: "", address: "", party_type: "SUPPLIER" }); setShowParty(!showParty); }} style={{ marginBottom: '1rem' }}>+ Party</button>
+          <button className="btn btn-primary" onClick={() => { setEditPartyId(null); setPartyForm({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) }); setShowParty(!showParty); }} style={{ marginBottom: '1rem' }}>+ Party</button>
           {showParty && (
             <form onSubmit={submitParty} className="form-card" style={{ maxWidth: 520, marginBottom: '1.5rem' }}>
-              <h3>{editPartyId ? "Edit Party" : "Add Party"}</h3>
-              <div className="form-group">
-                <label>Type *</label>
-                <select value={partyForm.party_type} onChange={e => setPartyForm({ ...partyForm, party_type: e.target.value })}>
-                  <option value="SUPPLIER">Vendor (supplier)</option>
-                  <option value="CUSTOMER">Trader (egg buyer)</option>
-                  <option value="BOTH">Both</option>
-                </select>
+              <h3>{editPartyId ? "Edit Ledger" : "Add Ledger"}</h3>
+              <div className="form-row">
+                <div className="form-group"><label>Name *</label><input value={partyForm.name} onChange={e => setPartyForm({ ...partyForm, name: e.target.value })} required /></div>
+                <div className="form-group">
+                  <label>Type *</label>
+                  <select value={partyForm.party_type} onChange={e => setPartyForm({ ...partyForm, party_type: e.target.value })}>
+                    <option value="BOTH">Both</option>
+                    <option value="SUPPLIER">Vendor (supplier)</option>
+                    <option value="CUSTOMER">Trader (customer)</option>
+                  </select>
+                </div>
               </div>
-              <div className="form-group"><label>Name *</label><input value={partyForm.name} onChange={e => setPartyForm({ ...partyForm, name: e.target.value })} required /></div>
-              <div className="form-group"><label>Phone (WhatsApp)</label><input value={partyForm.phone} onChange={e => setPartyForm({ ...partyForm, phone: e.target.value })} /></div>
+              <div className="form-row">
+                <div className="form-group"><label>Phone (WhatsApp)</label><input value={partyForm.phone} onChange={e => setPartyForm({ ...partyForm, phone: e.target.value })} /></div>
+                <div className="form-group"><label>Email</label><input value={partyForm.email} onChange={e => setPartyForm({ ...partyForm, email: e.target.value })} /></div>
+              </div>
               <div className="form-group"><label>Address</label><input value={partyForm.address} onChange={e => setPartyForm({ ...partyForm, address: e.target.value })} /></div>
+              <div className="form-row">
+                <div className="form-group"><label>State</label><input value={partyForm.state} onChange={e => setPartyForm({ ...partyForm, state: e.target.value })} /></div>
+                <div className="form-group"><label>GST No.</label><input value={partyForm.gst_number} onChange={e => setPartyForm({ ...partyForm, gst_number: e.target.value })} /></div>
+                <div className="form-group"><label>PAN</label><input value={partyForm.pan} onChange={e => setPartyForm({ ...partyForm, pan: e.target.value })} /></div>
+              </div>
+              {!editPartyId && (
+                <div className="form-row">
+                  <div className="form-group"><label>Opening balance (₹)</label><input type="text" inputMode="decimal" value={partyForm.opening_balance} onChange={e => setPartyForm({ ...partyForm, opening_balance: e.target.value })} placeholder="+owes us / −we owe" /></div>
+                  <div className="form-group"><label>As of</label><input type="date" value={partyForm.opening_as_of} max={new Date().toISOString().slice(0,10)} onChange={e => setPartyForm({ ...partyForm, opening_as_of: e.target.value })} /></div>
+                </div>
+              )}
               <div className="form-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowParty(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary">{editPartyId ? "Save Changes" : "Save Party"}</button>
