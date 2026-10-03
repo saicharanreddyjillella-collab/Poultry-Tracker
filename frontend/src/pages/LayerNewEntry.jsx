@@ -37,7 +37,7 @@ export default function LayerNewEntry() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const reset = () => setForm({ date: form.date, mode: 'CASH', account_code: 'LABOUR', kind: form.kind, split_across_flocks: true });
 
-  const feedItems = items.filter(i => i.kind === 'FINISHED');
+  const feedItems = items; // everything is a stock item
 
   const submit = async (e) => {
     e.preventDefault(); setError(''); setOk(''); setSaving(true);
@@ -78,12 +78,12 @@ export default function LayerNewEntry() {
     </div>
   );
 
-  const itemSelect = (kinds) => (
+  const itemSelect = () => (
     <div className="form-group">
       <label>Item</label>
       <select value={form.item || ''} onChange={e => set('item', e.target.value)}>
         <option value="">Select item…</option>
-        {items.filter(i => !kinds || kinds.includes(i.kind)).map(it => <option key={it.id} value={it.id}>{it.name} ({it.base_unit_symbol})</option>)}
+        {items.map(it => <option key={it.id} value={it.id}>{it.name} ({it.base_unit_symbol})</option>)}
       </select>
     </div>
   );
@@ -127,7 +127,7 @@ export default function LayerNewEntry() {
             </div>
             {form.kind === 'CHICK' ? flockSelect() : (
               <div className="form-row">
-                {itemSelect(['RAW'])}
+                {itemSelect()}
                 <div className="form-group">
                   <label>Unit</label>
                   <select value={form.unit || ''} onChange={e => set('unit', e.target.value)}>
@@ -172,7 +172,7 @@ export default function LayerNewEntry() {
                 {APPLY_KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
             </div>
-            {itemSelect(null)}
+            {itemSelect()}
             <div className="form-row">
               <div className="form-group"><label>Qty (optional)</label><input type="text" inputMode="decimal" value={form.qty || ''} onChange={e => set('qty', e.target.value)} /></div>
               <div className="form-group"><label>Amount (₹) *</label><input type="text" inputMode="decimal" value={form.amount || ''} onChange={e => set('amount', e.target.value)} required /></div>

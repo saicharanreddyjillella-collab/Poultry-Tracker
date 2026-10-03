@@ -23,8 +23,9 @@ export default function LayerFeedMill() {
   useEffect(load, []);
 
   const fmt = (n) => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-  const rawItems = items.filter(i => i.kind === 'RAW');
-  const feedItems = items.filter(i => i.kind === 'FINISHED');
+  // Everything is a stock item — pick any item as a material or as output.
+  const rawItems = items;
+  const feedItems = items;
 
   const matCost = inputs.reduce((t, i) => t + (Number(i.cost) || 0), 0);
   const totalCost = matCost + (Number(form.overhead) || 0);
@@ -148,7 +149,7 @@ export default function LayerFeedMill() {
             </tbody>
           </table>
         </div>
-      ) : <p className="farm-meta">No feed batches yet. Create items (raw materials + a finished feed) under Items first.</p>}
+      ) : <p className="farm-meta">No feed batches yet. Add stock items (materials + feed) under Masters first.</p>}
     </div>
   );
 }
