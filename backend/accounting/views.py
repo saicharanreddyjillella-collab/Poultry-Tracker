@@ -39,6 +39,22 @@ class PartyViewSet(viewsets.ModelViewSet):
             qs = qs.filter(party_type__in=[ptype, 'BOTH'])
         return _filter_business(qs, self.request)
 
+    def perform_create(self, serializer):
+        from datetime import date as date_cls
+        from .services import set_party_opening
+        opening = serializer.validated_data.pop('opening_balance', None)
+        as_of = serializer.validated_data.pop('opening_as_of', None)
+        party = serializer.save()
+        if opening:
+            set_party_opening(party=party, amount=opening,
+                              as_of=as_of or date_cls.today(), user=self.request.user)
+
+    def perform_update(self, serializer):
+        # Opening fields are create-only; ignore on update.
+        serializer.validated_data.pop('opening_balance', None)
+        serializer.validated_data.pop('opening_as_of', None)
+        serializer.save()
+
 
 class VoucherViewSet(viewsets.ReadOnlyModelViewSet):
     """Vouchers are created via business-module actions (post_voucher), not

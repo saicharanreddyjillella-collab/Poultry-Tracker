@@ -14,8 +14,12 @@ class Party(models.Model):
 
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
     address = models.TextField(blank=True)
-    party_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='CUSTOMER')
+    state = models.CharField(max_length=80, blank=True)
+    gst_number = models.CharField(max_length=20, blank=True)
+    pan = models.CharField(max_length=15, blank=True)
+    party_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='BOTH')
     control_account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name='parties')
     business = models.CharField(max_length=20, choices=BUSINESS_CHOICES, default='chicken_center')
     active = models.BooleanField(default=True)

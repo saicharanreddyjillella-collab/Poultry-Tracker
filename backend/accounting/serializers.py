@@ -17,12 +17,18 @@ class AccountSerializer(serializers.ModelSerializer):
 class PartySerializer(serializers.ModelSerializer):
     balance = serializers.SerializerMethodField()
     control_account_code = serializers.CharField(source='control_account.code', read_only=True)
+    # Opening balance captured at creation (write-only; posts an OPENING voucher).
+    opening_balance = serializers.DecimalField(max_digits=14, decimal_places=2,
+                                               required=False, write_only=True)
+    opening_as_of = serializers.DateField(required=False, write_only=True)
 
     class Meta:
         model = Party
-        fields = ['id', 'name', 'phone', 'address', 'party_type',
+        fields = ['id', 'name', 'phone', 'email', 'address', 'state',
+                  'gst_number', 'pan', 'party_type',
                   'control_account', 'control_account_code',
-                  'business', 'active', 'balance']
+                  'business', 'active', 'balance',
+                  'opening_balance', 'opening_as_of']
 
     def get_balance(self, obj):
         return obj.balance()

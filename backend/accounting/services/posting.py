@@ -118,3 +118,25 @@ def reverse_voucher(voucher, user=None):
             object_id=str(voucher.id), detail={'reversal_id': rev.id},
         )
     return rev
+
+
+@transaction.atomic
+def set_party_opening(*, party, amount, as_of, user=None):
+    """Post a party's opening balance (business-agnostic core helper).
+    +ve = party owes us (Dr party control / Cr Opening Balance Equity);
+    -ve = we owe them. Returns the voucher, or None if amount is zero."""
+    amount = D(amount)
+    if amount == 0:
+        return None
+    obe = Account.objects.get(code='OBE')
+    ctrl = party.control_account
+    if amount > 0:
+        lines = [{'account': ctrl, 'party': party, 'debit': amount},
+                 {'account': obe, 'credit': amount}]
+    else:
+        lines = [{'account': obe, 'debit': -amount},
+                 {'account': ctrl, 'party': party, 'credit': -amount}]
+    return post_voucher(
+        date=as_of, vtype='OPENING', narration=f"Opening balance — {party.name}",
+        business=party.business, source_module='accounting.party_opening',
+        user=user, lines=lines)
