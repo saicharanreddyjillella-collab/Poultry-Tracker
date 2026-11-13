@@ -5,7 +5,11 @@ from .auth import (
 from .data import (
     FarmViewSet, FlockViewSet, DailyEntryViewSet, SaleViewSet,
     FeedRateViewSet, MedicationViewSet,
+)
+from .dashboard import (
     dashboard, flock_cumulative, farm_cumulative,
+)
+from .reports import (
     monthly_report, export_monthly_report, export_flock_report,
     region_performance, till_date_report,
 )

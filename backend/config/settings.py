@@ -19,10 +19,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'core',
-    'accounting',
-    'inventory',
-    'chicken_center',
-    'layer_farm',
 ]
 
 MIDDLEWARE = [

@@ -133,61 +133,6 @@ export const billAPI = {
   list: () => API.get('/bills/'),
 };
 
-// ─── Accounting core ───
-export const accountingAPI = {
-  accounts: (params) => API.get('/accounting/accounts/', { params }),
-  parties: (params) => API.get('/accounting/parties/', { params }),
-  createParty: (data) => API.post('/accounting/parties/', data),
-  updateParty: (id, data) => API.put(`/accounting/parties/${id}/`, data),
-  partyStatement: (id, params) => API.get(`/accounting/reports/party/${id}/`, { params }),
-  accountStatement: (id, params) => API.get(`/accounting/reports/account/${id}/`, { params }),
-  trialBalance: (params) => API.get('/accounting/reports/trial-balance/', { params }),
-  pnl: (params) => API.get('/accounting/reports/pnl/', { params }),
-  cashBook: (params) => API.get('/accounting/reports/cash-book/', { params }),
-  balanceSheet: (params) => API.get('/accounting/reports/balance-sheet/', { params }),
-  outstanding: (params) => API.get('/accounting/reports/outstanding/', { params }),
-  bookLock: (params) => API.get('/accounting/book-lock/', { params }),
-  setBookLock: (data) => API.post('/accounting/book-lock/', data),
-};
-
-// ─── Inventory ───
-export const inventoryAPI = {
-  units: () => API.get('/inventory/units/'),
-  createUnit: (data) => API.post('/inventory/units/', data),
-  items: (params) => API.get('/inventory/items/', { params }),
-  createItem: (data) => API.post('/inventory/items/', data),
-  updateItem: (id, data) => API.put(`/inventory/items/${id}/`, data),
-  stockOnHand: (params) => API.get('/inventory/stock-on-hand/', { params }),
-};
-
-// ─── Chicken Center ───
-export const chickenAPI = {
-  sales: (params) => API.get('/chicken/sales/', { params }),
-  createSale: (data) => API.post('/chicken/sales/', data),
-  purchases: () => API.get('/chicken/purchases/'),
-  createPurchase: (data) => API.post('/chicken/purchases/', data),
-  collections: () => API.get('/chicken/collections/'),
-  createCollection: (data) => API.post('/chicken/collections/', data),
-  payments: () => API.get('/chicken/payments/'),
-  createPayment: (data) => API.post('/chicken/payments/', data),
-  expenses: () => API.get('/chicken/expenses/'),
-  createExpense: (data) => API.post('/chicken/expenses/', data),
-  shrinkage: () => API.get('/chicken/shrinkage/'),
-  createShrinkage: (data) => API.post('/chicken/shrinkage/', data),
-  reverse: (kind, id) => API.post(`/chicken/reverse/${kind}/${id}/`),
-  pendingBills: (params) => API.get('/chicken/pending-bills/', { params }),
-  ageing: () => API.get('/chicken/ageing/'),
-  sale: (id) => API.get(`/chicken/sales/${id}/`),
-  openingParty: (data) => API.post('/chicken/opening/party/', data),
-  openingCash: (data) => API.post('/chicken/opening/cash/', data),
-  daybook: (params) => API.get('/chicken/daybook/', { params }),
-  salesSummary: (params) => API.get('/chicken/sales-summary/', { params }),
-  exportUrl: (kind, params) => {
-    const q = params ? '?' + new URLSearchParams(params).toString() : '';
-    return `${import.meta.env.VITE_API_URL || '/api'}/chicken/export/${kind}/${q}`;
-  },
-};
-
 // Authenticated file download (blob) — reused by report export buttons.
 export async function downloadFile(url, filename) {
   const token = localStorage.getItem('access_token');
@@ -200,39 +145,5 @@ export async function downloadFile(url, filename) {
   a.click();
   window.URL.revokeObjectURL(a.href);
 }
-
-// ─── Layer Farm ───
-export const layerAPI = {
-  farms: () => API.get('/layer/farms/'),
-  createFarm: (data) => API.post('/layer/farms/', data),
-  flocks: (params) => API.get('/layer/flocks/', { params }),
-  createFlock: (data) => API.post('/layer/flocks/', data),
-  flockSummary: (id) => API.get(`/layer/flocks/${id}/summary/`),
-  flockCosts: (id) => API.get(`/layer/flocks/${id}/costs/`),
-  flockProduction: (id) => API.get(`/layer/flocks/${id}/production/`),
-  feedStock: () => API.get('/layer/feed-stock/'),
-  dashboard: () => API.get('/layer/dashboard/'),
-  dailyEntries: (params) => API.get('/layer/daily-entries/', { params }),
-  createDailyEntry: (data) => API.post('/layer/daily-entries/', data),
-  purchases: () => API.get('/layer/purchases/'),
-  createPurchase: (data) => API.post('/layer/purchases/', data),
-  feedBatches: () => API.get('/layer/feed-batches/'),
-  createFeedBatch: (data) => API.post('/layer/feed-batches/', data),
-  feedToFlock: () => API.get('/layer/feed-to-flock/'),
-  sendFeedToFlock: (data) => API.post('/layer/feed-to-flock/', data),
-  applications: () => API.get('/layer/applications/'),
-  createApplication: (data) => API.post('/layer/applications/', data),
-  eggSales: (params) => API.get('/layer/egg-sales/', { params }),
-  createEggSale: (data) => API.post('/layer/egg-sales/', data),
-  collections: () => API.get('/layer/collections/'),
-  createCollection: (data) => API.post('/layer/collections/', data),
-  payments: () => API.get('/layer/payments/'),
-  createPayment: (data) => API.post('/layer/payments/', data),
-  expenses: () => API.get('/layer/expenses/'),
-  createExpense: (data) => API.post('/layer/expenses/', data),
-  reverse: (kind, id) => API.post(`/layer/reverse/${kind}/${id}/`),
-  openingParty: (data) => API.post('/layer/opening/party/', data),
-  openingCash: (data) => API.post('/layer/opening/cash/', data),
-};
 
 export default API;
