@@ -229,3 +229,18 @@ mortality decline.
   by-flock tables) + "Feed Forecast" nav link.
 - Tests: test_feed_forecast.py (11). Full suite 104 pass; no migration; FE builds.
 - Bugs: none.
+
+### F4 — Owner BI dashboard  ✅ DONE
+Design (user): all four sections — active-cycle overview, region/period
+summary, performance leaderboard, alerts feed.
+- owner_dashboard view (read-only aggregation): overview counts; active_cycle
+  rows (age/live/phase/mortality/scorecard rating); region_summary from
+  closed+billed flocks in the period (placed/sold/avg FCR/EPEF/mortality/
+  settlement paid); leaderboard top/bottom by EPEF; alerts feed (stale data,
+  population mismatch, weight-below, feed variance, water). period_days param
+  (default 90). Route /api/reports/owner-dashboard/.
+- Frontend: OwnerDashboard page (period selector, summary cards, alerts list,
+  active-cycle table, leaderboard, region table) + "Owner View" nav link.
+  New CSS: .badge, .alert-row*, .leaderboard-grid.
+- Tests: test_owner_dashboard.py (7). Full suite 111 pass; no migration; FE builds.
+- Bugs: none.

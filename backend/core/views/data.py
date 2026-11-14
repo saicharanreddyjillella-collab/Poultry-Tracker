@@ -897,3 +897,132 @@ def feed_forecast(request):
         },
         'per_flock': per_flock,
     })
+
+
+@api_view(['GET'])
+def owner_dashboard(request):
+    """Owner BI dashboard: active-cycle overview, region/period summary,
+    performance leaderboard, and an alerts feed. Read-only aggregation."""
+    from datetime import date, timedelta
+    from ..models import Flock, Farm, Bill
+
+    period_days = int(request.query_params.get('period_days', 90))
+    period_days = max(7, min(period_days, 730))
+    since = date.today() - timedelta(days=period_days)
+
+    active = list(Flock.objects.filter(status='active').select_related('farm'))
+    closed = list(Flock.objects.filter(status='closed').select_related('farm'))
+
+    # ── 1. Active-cycle overview ──
+    active_rows = []
+    total_live = 0
+    for f in active:
+        live = f.live_birds
+        total_live += live
+        sc = f.scorecard
+        active_rows.append({
+            'flock_id': f.id, 'farm_code': f.farm.farm_code, 'farm_name': f.farm.name,
+            'region': f.farm.region, 'age_days': f.age_days, 'live_birds': live,
+            'feed_phase': f.feed_schedule_status.get('current_feed_type'),
+            'mortality_pct': float(f.mortality_percentage),
+            'rating': sc['rating'], 'score': sc['overall_score'],
+        })
+
+    # ── 2. Region / period summary (closed flocks billed in the period) ──
+    period_closed = [f for f in closed if hasattr(f, 'bill') and f.bill and f.bill.generated_at.date() >= since]
+    region_map = {}
+    for f in period_closed:
+        r = f.farm.region or 'Unassigned'
+        agg = region_map.setdefault(r, {
+            'region': r, 'flocks': 0, 'birds_placed': 0, 'birds_sold': 0,
+            'sold_weight_kg': 0.0, 'feed_kg': 0.0, 'mortality_sum': 0.0,
+            'fcr_vals': [], 'epef_vals': [], 'paid': 0.0,
+        })
+        agg['flocks'] += 1
+        agg['birds_placed'] += f.chick_count
+        agg['birds_sold'] += f.total_sold_birds
+        agg['sold_weight_kg'] += float(f.total_sold_weight_kg)
+        agg['feed_kg'] += float(f.total_feed_kg)
+        agg['mortality_sum'] += float(f.mortality_percentage)
+        if f.fcr is not None:
+            agg['fcr_vals'].append(f.fcr)
+        if f.epef is not None:
+            agg['epef_vals'].append(f.epef)
+        agg['paid'] += float(f.bill.amount_paid)
+
+    region_summary = []
+    for r, a in sorted(region_map.items()):
+        n = a['flocks']
+        region_summary.append({
+            'region': a['region'], 'flocks': n,
+            'birds_placed': a['birds_placed'], 'birds_sold': a['birds_sold'],
+            'sold_weight_kg': round(a['sold_weight_kg'], 1),
+            'feed_bags': round(a['feed_kg'] / 50, 1),
+            'avg_mortality_pct': round(a['mortality_sum'] / n, 2) if n else 0,
+            'avg_fcr': round(sum(a['fcr_vals']) / len(a['fcr_vals']), 3) if a['fcr_vals'] else None,
+            'avg_epef': round(sum(a['epef_vals']) / len(a['epef_vals']), 1) if a['epef_vals'] else None,
+            'settlement_paid': round(a['paid'], 2),
+        })
+
+    # ── 3. Performance leaderboard (closed flocks in period, by EPEF) ──
+    graded = [f for f in period_closed if f.epef is not None]
+    graded.sort(key=lambda f: f.epef, reverse=True)
+    def _row(f):
+        return {
+            'flock_id': f.id, 'farm_code': f.farm.farm_code, 'farm_name': f.farm.name,
+            'region': f.farm.region, 'epef': f.epef, 'fcr': f.fcr,
+            'livability_pct': float(f.livability_percentage),
+            'grade': f.bill.farmer_grade if (hasattr(f, 'bill') and f.bill) else None,
+        }
+    leaderboard = {
+        'top': [_row(f) for f in graded[:5]],
+        'bottom': [_row(f) for f in graded[-5:][::-1]] if len(graded) > 5 else [],
+    }
+
+    # ── 4. Alerts feed (owner-level, across active flocks) ──
+    alerts = []
+    today = date.today()
+    for f in active:
+        # stale data: no entry in 2+ days
+        last = f.daily_entries.order_by('-date').first()
+        if last is None or (today - last.date).days >= 2:
+            alerts.append({'type': 'warning', 'flock_id': f.id, 'farm_code': f.farm.farm_code,
+                           'farm_name': f.farm.name, 'category': 'stale_data',
+                           'message': 'No daily entry in 2+ days'})
+        # population mismatch
+        rec = f.reconciliation
+        if not rec['is_balanced']:
+            alerts.append({'type': 'danger', 'flock_id': f.id, 'farm_code': f.farm.farm_code,
+                           'farm_name': f.farm.name, 'category': 'population',
+                           'message': f"Population mismatch (over by {rec['overcount']})"})
+        # weight below target
+        w = f.weight_vs_standard
+        if w and w['status'] == 'below':
+            alerts.append({'type': 'warning', 'flock_id': f.id, 'farm_code': f.farm.farm_code,
+                           'farm_name': f.farm.name, 'category': 'weight',
+                           'message': f"Weight {w['variance_pct']}% below target (d{w['day']})"})
+        # feed variance
+        fr = f.feed_reconciliation
+        if not fr['is_balanced']:
+            alerts.append({'type': 'warning', 'flock_id': f.id, 'farm_code': f.farm.farm_code,
+                           'farm_name': f.farm.name, 'category': 'feed_variance',
+                           'message': f"Feed {fr['status'].replace('_', ' ')} ({fr['variance_pct']}%)"})
+        # water alerts
+        if f.water_alerts:
+            alerts.append({'type': 'warning', 'flock_id': f.id, 'farm_code': f.farm.farm_code,
+                           'farm_name': f.farm.name, 'category': 'water',
+                           'message': f"{len(f.water_alerts)} day(s) water:feed out of range"})
+
+    return Response({
+        'period_days': period_days,
+        'overview': {
+            'active_flocks': len(active),
+            'total_live_birds': total_live,
+            'closed_in_period': len(period_closed),
+            'total_farms': Farm.objects.count(),
+        },
+        'active_cycle': active_rows,
+        'region_summary': region_summary,
+        'leaderboard': leaderboard,
+        'alerts': alerts,
+    })
