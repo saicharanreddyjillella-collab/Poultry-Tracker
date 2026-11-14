@@ -299,3 +299,24 @@ fail-fast in prod.
 - Verified: fail-fast raises without key (prod), boots with key, dev zero-config.
   Full suite 130 pass. (Settings-only; no migration, no FE change.)
 - Bugs: none.
+
+### E2 — Secrets audit + create_admin fix  ✅ DONE
+- Audit: no real secrets committed (only the DEBUG-only dev fallback key from
+  E1). Rewrote core/management/commands/create_admin.py: password from
+  --password or ADMIN_PASSWORD env, REQUIRED (no insecure default), validated,
+  never echoed. (Env-sourced secrets + .env.example were delivered in E1.)
+
+### E3 — Password policy + login lockout  ✅ DONE
+- AUTH_PASSWORD_VALIDATORS (similarity, min-length 8, common, numeric) in
+  settings; enforced via a shared _password_error() helper at ALL set points:
+  initial_setup, change_password, admin create-user, admin reset-password.
+- Login brute-force protection: DRF ScopedRateThrottle, scope 'login' at
+  10/min, wired on login_view (login_view.cls.throttle_scope).
+- Tests: test_auth_security.py (7: weak/common/numeric rejected at 3 set
+  points, strong accepted, 429 after login limit). conftest autouse fixture
+  clears the cache between tests so throttle state doesn't leak across the
+  many auth_admin logins.
+- Full suite 137 pass. Backend-only; no migration, no FE change.
+- Bugs found & fixed (both mine, caught by tests): throttle_scope must be set
+  on login_view.cls (not in the body); throttle cache leaked across tests
+  until the clear fixture was added.

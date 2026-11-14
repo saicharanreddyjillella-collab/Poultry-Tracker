@@ -1,9 +1,22 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from ..models import UserProfile, Farm
+
+
+def _password_error(password, user=None):
+    """Run Django's configured password validators. Returns a joined error
+    string if the password is weak, else None."""
+    try:
+        validate_password(password, user=user)
+        return None
+    except DjangoValidationError as e:
+        return ' '.join(e.messages)
 
 
 @api_view(['GET'])
@@ -26,8 +39,9 @@ def initial_setup(request):
 
     if not username or not password:
         return Response({'error': 'Username and password are required'}, status=400)
-    if len(password) < 8:
-        return Response({'error': 'Password must be at least 8 characters'}, status=400)
+    pw_err = _password_error(password)
+    if pw_err:
+        return Response({'error': pw_err}, status=400)
 
     user = User.objects.create_user(username=username, password=password,
                                      first_name=first_name, last_name=last_name)
@@ -45,6 +59,7 @@ def initial_setup(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
 def login_view(request):
     username = request.data.get('username')
     password = request.data.get('password')
@@ -61,6 +76,11 @@ def login_view(request):
     })
 
 
+# ScopedRateThrottle reads throttle_scope from the view; for @api_view
+# function views it must be set as an attribute on the wrapped view.
+login_view.cls.throttle_scope = 'login'
+
+
 @api_view(['GET'])
 def me_view(request):
     return Response(_user_data(request.user))
@@ -73,8 +93,9 @@ def change_password(request):
     new = request.data.get('new_password')
     if not user.check_password(current):
         return Response({'error': 'Current password is incorrect'}, status=400)
-    if len(new) < 8:
-        return Response({'error': 'New password must be at least 8 characters'}, status=400)
+    pw_err = _password_error(new, user=user)
+    if pw_err:
+        return Response({'error': pw_err}, status=400)
     user.set_password(new)
     user.save()
     return Response({'message': 'Password changed'})
@@ -110,6 +131,9 @@ def manage_users(request):
 
     if User.objects.filter(username=username).exists():
         return Response({'error': 'Username already exists'}, status=400)
+    pw_err = _password_error(password)
+    if pw_err:
+        return Response({'error': pw_err}, status=400)
 
     user = User.objects.create_user(username=username, password=password,
                                      first_name=first_name, last_name=last_name)
@@ -138,6 +162,9 @@ def manage_user_detail(request, user_id):
     user.first_name = request.data.get('first_name', user.first_name)
     user.last_name = request.data.get('last_name', user.last_name)
     if request.data.get('password'):
+        pw_err = _password_error(request.data['password'], user=user)
+        if pw_err:
+            return Response({'error': pw_err}, status=400)
         user.set_password(request.data['password'])
     user.save()
 
