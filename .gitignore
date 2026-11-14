@@ -9,3 +9,4 @@ dist/
 static/
 .pytest_cache/
 backend/media/
+backend/logs/

@@ -23,3 +23,4 @@ from .billing import (
 )
 from .documents import DocumentViewSet
 from .audit import AuditLogViewSet
+from .health import health
