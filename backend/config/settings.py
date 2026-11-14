@@ -4,9 +4,26 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production-abc123xyz')
-DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+# DEBUG defaults to False (safe for production). Set DEBUG=True in the
+# environment for local development.
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+# SECRET_KEY must be provided via the environment in production. In DEBUG we
+# fall back to a throwaway key so local dev is zero-config; with DEBUG off and
+# no key set we fail fast rather than boot with a known, insecure key.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-key-not-for-production'
+    else:
+        raise RuntimeError(
+            'SECRET_KEY environment variable must be set when DEBUG is False.'
+        )
+
+# ALLOWED_HOSTS defaults to localhost; set the real host(s) via the
+# environment in production (comma-separated).
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get(
+    'ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -92,7 +109,16 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS: allow everything in local dev; in production restrict to the origins
+# listed in CORS_ALLOWED_ORIGINS (comma-separated, e.g. https://sairamfeeds.in).
+_cors_origins = [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()]
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = _cors_origins
+    # CSRF trusted origins mirror the allowed CORS origins in production.
+    CSRF_TRUSTED_ORIGINS = _cors_origins
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
@@ -108,3 +134,20 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ─── Production security hardening (active only when DEBUG is False) ───
+# SECURE_SSL_REDIRECT and cookie-secure assume the app is served over HTTPS.
+# Set DISABLE_HTTPS=True in the environment only for a non-HTTPS internal
+# deployment where you knowingly accept the risk.
+if not DEBUG:
+    _https = os.environ.get('DISABLE_HTTPS', 'False').lower() != 'true'
+    SESSION_COOKIE_SECURE = _https
+    CSRF_COOKIE_SECURE = _https
+    SECURE_SSL_REDIRECT = _https
+    # Behind nginx/other proxy terminating TLS:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000 if _https else 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _https
+    SECURE_HSTS_PRELOAD = _https
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'

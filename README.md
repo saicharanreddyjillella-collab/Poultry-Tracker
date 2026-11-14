@@ -106,3 +106,23 @@ setup, landing, dashboards, bill/invoice header, browser tab). `.env` is
 git-ignored, so each customer's branding stays out of the repo — commit only
 `.env.example`. Leaving any key blank falls back to the default in
 `brand.js`.
+
+---
+
+## Production Security (settings)
+
+Settings are safe-by-default: `DEBUG` defaults to **False**, and when `DEBUG`
+is off a `SECRET_KEY` **must** be supplied via the environment (the app refuses
+to start otherwise). Configure via environment variables (see
+`backend/.env.example`):
+
+- `SECRET_KEY` — required in production. Generate with
+  `python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"`
+- `DEBUG=True` — for local development only.
+- `ALLOWED_HOSTS` — comma-separated hostnames (default `localhost,127.0.0.1`).
+- `CORS_ALLOWED_ORIGINS` — comma-separated front-end origins allowed to call the API.
+- `DISABLE_HTTPS=True` — only for a deliberate non-HTTPS internal deploy.
+
+With `DEBUG=False` the app also enables secure cookies, SSL redirect, HSTS and
+related headers (unless `DISABLE_HTTPS=True`). `docker-compose.yml` already
+passes these through from your deploy `.env`.

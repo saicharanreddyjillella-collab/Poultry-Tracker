@@ -278,3 +278,24 @@ mortality%, cost/kg, grade, settlement paid across cycles.
   per-cycle table) on FarmDetail. .trend-badge CSS.
 - Tests: test_farm_history.py (7). Full suite 130 pass; no migration; FE builds.
 - Bugs: none.
+
+---
+## Section E (enterprise hardening)
+
+### E1 — Harden production settings  ✅ DONE
+Decisions (user): DEBUG default False (True via env for dev); SECRET_KEY
+fail-fast in prod.
+- settings.py: DEBUG defaults False; SECRET_KEY required when DEBUG off (raises
+  RuntimeError otherwise, dev fallback key only under DEBUG); ALLOWED_HOSTS
+  defaults localhost (env-driven); CORS allow-all only in DEBUG else restricted
+  to CORS_ALLOWED_ORIGINS (+ CSRF_TRUSTED_ORIGINS); production SECURE_* block
+  (SSL redirect, secure cookies, HSTS, nosniff, X-Frame DENY, proxy SSL header)
+  gated on not-DEBUG with a DISABLE_HTTPS escape hatch.
+- backend/.env.example documents every var; .env gitignored.
+- pytest.ini sets test env (SECRET_KEY+DEBUG) via pytest-env (added to
+  requirements-dev) so the hardened settings load under test.
+- docker-compose already passed SECRET_KEY/DEBUG=False/ALLOWED_HOSTS;
+  added CORS_ALLOWED_ORIGINS. README security section added.
+- Verified: fail-fast raises without key (prod), boots with key, dev zero-config.
+  Full suite 130 pass. (Settings-only; no migration, no FE change.)
+- Bugs: none.
