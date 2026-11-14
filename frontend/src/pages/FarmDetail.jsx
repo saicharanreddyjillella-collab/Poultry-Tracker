@@ -3,9 +3,12 @@ import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { farmAPI, flockAPI, authAPI, getErrorMessage } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import DocumentsSection from '../components/DocumentsSection';
 
 export default function FarmDetail() {
   const { id } = useParams();
+  const { canEditFarm } = useAuth();
   const [farm, setFarm] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [supervisors, setSupervisors] = useState([]);
@@ -235,6 +238,8 @@ export default function FarmDetail() {
           </div>
         </>
       )}
+
+      <DocumentsSection farmId={farm.id} canEdit={canEditFarm(farm.id)} />
     </div>
   );
 }

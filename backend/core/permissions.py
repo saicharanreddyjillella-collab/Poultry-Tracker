@@ -86,3 +86,43 @@ class CanEditFlockData(BasePermission):
         if hasattr(request.user, 'profile'):
             return request.user.profile.can_edit_farm(obj.flock.farm)
         return False
+
+
+class CanAccessDocument(BasePermission):
+    """Documents follow the owning farm's edit rights.
+
+    Read: any authenticated user (list is filtered in the view).
+    Write: admin, or a supervisor who can edit the owning farm.
+    """
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        if hasattr(request.user, 'profile') and request.user.profile.is_admin:
+            return True
+        # For create, resolve the owning farm from farm/flock in the payload.
+        if request.method == 'POST':
+            from .models import Farm, Flock
+            farm_id = request.data.get('farm')
+            flock_id = request.data.get('flock')
+            farm = None
+            if farm_id:
+                farm = Farm.objects.filter(id=farm_id).first()
+            elif flock_id:
+                fl = Flock.objects.select_related('farm').filter(id=flock_id).first()
+                farm = fl.farm if fl else None
+            if farm and hasattr(request.user, 'profile'):
+                return request.user.profile.can_edit_farm(farm)
+            return False
+        return True  # object-level check for update/delete
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        if hasattr(request.user, 'profile') and request.user.profile.is_admin:
+            return True
+        farm = obj.owning_farm
+        if farm and hasattr(request.user, 'profile'):
+            return request.user.profile.can_edit_farm(farm)
+        return False

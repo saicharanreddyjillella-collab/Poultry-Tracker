@@ -11,6 +11,7 @@ router.register(r'feed-rates', views.FeedRateViewSet)
 router.register(r'medications', views.MedicationViewSet)
 router.register(r'feed-orders', views.FeedOrderViewSet)
 router.register(r'feed-transfers', views.FeedTransferViewSet)
+router.register(r'documents', views.DocumentViewSet, basename='document')
 
 urlpatterns = [
     path('', include(router.urls)),

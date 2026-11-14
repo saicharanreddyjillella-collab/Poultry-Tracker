@@ -8,3 +8,4 @@ dist/
 .DS_Store
 static/
 .pytest_cache/
+backend/media/

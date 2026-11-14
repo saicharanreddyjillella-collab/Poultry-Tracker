@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, Document
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
@@ -205,3 +205,39 @@ class BillSerializer(serializers.ModelSerializer):
         if obj.total_sold_birds and obj.total_sold_birds > 0:
             return round(float(obj.total_sold_weight_kg) / obj.total_sold_birds, 3)
         return None
+
+
+class DocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    uploaded_by_name = serializers.SerializerMethodField()
+    doc_type_display = serializers.CharField(source='get_doc_type_display', read_only=True)
+
+    class Meta:
+        model = Document
+        fields = [
+            'id', 'farm', 'flock', 'doc_type', 'doc_type_display', 'title',
+            'file', 'file_url', 'original_name', 'notes',
+            'uploaded_by', 'uploaded_by_name', 'uploaded_at',
+        ]
+        read_only_fields = ['uploaded_by', 'original_name']
+        extra_kwargs = {'file': {'write_only': True}}
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return None
+        request = self.context.get('request')
+        url = obj.file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_uploaded_by_name(self, obj):
+        u = obj.uploaded_by
+        if not u:
+            return None
+        return u.get_full_name() or u.username
+
+    def validate(self, data):
+        farm = data.get('farm')
+        flock = data.get('flock')
+        if not farm and not flock:
+            raise serializers.ValidationError('A document must be attached to a farm or a flock.')
+        return data

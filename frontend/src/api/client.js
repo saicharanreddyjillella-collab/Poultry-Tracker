@@ -64,6 +64,14 @@ export const farmAPI = {
   cumulative: (id) => API.get(`/farms/${id}/cumulative/`),
 };
 
+export const documentAPI = {
+  list: (params) => API.get('/documents/', { params }),
+  upload: (formData) => API.post('/documents/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete: (id) => API.delete(`/documents/${id}/`),
+};
+
 export const flockAPI = {
   list: () => API.get('/flocks/'),
   create: (data) => API.post('/flocks/', data),

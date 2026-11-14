@@ -882,3 +882,50 @@ class Bill(models.Model):
 
     def __str__(self):
         return f"Bill: {self.flock.farm.farm_code} - {self.flock.placement_date} - ₹{self.net_payable}"
+
+
+def document_upload_path(instance, filename):
+    """media/documents/farm_<id>/ or flock_<id>/<filename>."""
+    if instance.farm_id:
+        return f"documents/farm_{instance.farm_id}/{filename}"
+    if instance.flock_id:
+        return f"documents/flock_{instance.flock_id}/{filename}"
+    return f"documents/misc/{filename}"
+
+
+class Document(models.Model):
+    """A file attached to a farm or a flock (agreement, KYC, vet certificate, etc.)."""
+    DOC_TYPE_CHOICES = [
+        ('agreement', 'Farmer Agreement'),
+        ('kyc', 'KYC / ID Proof'),
+        ('bank', 'Bank Proof'),
+        ('vet_certificate', 'Vet / Cull Certificate'),
+        ('invoice', 'Invoice / Bill Copy'),
+        ('other', 'Other'),
+    ]
+
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, null=True, blank=True, related_name='documents')
+    flock = models.ForeignKey(Flock, on_delete=models.CASCADE, null=True, blank=True, related_name='documents')
+    doc_type = models.CharField(max_length=20, choices=DOC_TYPE_CHOICES, default='other')
+    title = models.CharField(max_length=200, blank=True, help_text="Short label; defaults to the file name")
+    file = models.FileField(upload_to=document_upload_path)
+    original_name = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_documents')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        target = f"farm {self.farm_id}" if self.farm_id else f"flock {self.flock_id}"
+        return f"{self.get_doc_type_display()} ({target})"
+
+    @property
+    def owning_farm(self):
+        """The farm this document belongs to, directly or via its flock."""
+        if self.farm_id:
+            return self.farm
+        if self.flock_id:
+            return self.flock.farm
+        return None
