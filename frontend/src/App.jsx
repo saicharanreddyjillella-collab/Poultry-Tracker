@@ -19,6 +19,7 @@ import './styles/print.css';
 import './styles/bill.css';
 import './styles/components.css';
 import './styles/business.css';
+import brand from './config/brand';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -44,7 +45,7 @@ function NavBar() {
 
   return (
     <nav className="navbar">
-      <Link to={isPlant ? '/feed' : '/'} className="nav-brand" onClick={closeMenu}>🐔 Sai Ram Feeds</Link>
+      <Link to={isPlant ? '/feed' : '/'} className="nav-brand" onClick={closeMenu}>{brand.feedsLogo} {brand.feedsName}</Link>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>

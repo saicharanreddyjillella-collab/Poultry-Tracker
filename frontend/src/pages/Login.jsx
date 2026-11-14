@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../api/client';
+import brand from '../config/brand';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -40,7 +41,7 @@ export default function Login() {
       <div className="login-card">
         <div className="login-header">
           <span style={{ fontSize: '2rem' }}>🐔</span>
-          <h1>Sai Ram Feeds</h1>
+          <h1>{brand.feedsName}</h1>
           <p>Sign in to your account</p>
         </div>
         {error && <div className="error-msg">{error}</div>}

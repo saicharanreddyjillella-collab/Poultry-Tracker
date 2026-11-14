@@ -87,3 +87,22 @@ poultry-tracker/
 │   └── package.json
 └── README.md
 ```
+
+---
+
+## White-Label Branding
+
+Every customer-facing name, logo, address and colour is driven by
+`frontend/src/config/brand.js`, sourced from build-time environment
+variables. To rebrand the product for another company:
+
+1. `cd frontend && cp .env.example .env`
+2. Edit `.env` — set `VITE_BRAND_COMPANY`, `VITE_BRAND_FEEDS_NAME`,
+   `VITE_BRAND_ADDRESS`, `VITE_BRAND_PRIMARY_COLOR`, etc.
+3. `npm run build`
+
+The built image carries that company's branding throughout (nav, login,
+setup, landing, dashboards, bill/invoice header, browser tab). `.env` is
+git-ignored, so each customer's branding stays out of the repo — commit only
+`.env.example`. Leaving any key blank falls back to the default in
+`brand.js`.

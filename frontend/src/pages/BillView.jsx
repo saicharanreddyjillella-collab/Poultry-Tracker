@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BillSkeleton } from '../components/Skeletons';
 import { useParams, Link } from 'react-router-dom';
 import { billAPI } from '../api/client';
+import brand from '../config/brand';
 
 export default function BillView() {
   const { flockId } = useParams();
@@ -33,8 +34,8 @@ export default function BillView() {
         {/* HEADER */}
         <div className="bill-top">
           <div className="bill-company">
-            <h2>Sai Ram Feeds</h2>
-            <p>Vill. Nagaram, Mdl. Lingalaghanpur, Dist. Jangaon - 506 167</p>
+            <h2>{brand.billName}</h2>
+            <p>{brand.address}</p>
           </div>
           <div className="bill-top-right">
             <span className={`bill-grade bill-grade-${bill.farmer_grade.toLowerCase().replace('+', 'plus')}`}>{bill.farmer_grade}</span>
