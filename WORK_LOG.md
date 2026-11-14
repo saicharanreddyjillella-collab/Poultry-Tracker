@@ -15,7 +15,23 @@ Order requested: 3.1, 3.3, 3.4, 3.2, 3.5, 3.6.
 - Result: 8/8 passed. No migration needed. Frontend builds clean.
 - Bugs found: none.
 
-## 3.3 — Culling separate from mortality  ⏳ NEXT
+## 3.3 — Culling separate from mortality  ✅ DONE
+- Added `DailyEntry.cull_count` field (migration 0020) + `Flock.total_culls`
+  and `Flock.cull_percentage` properties.
+- `live_birds` now subtracts culls: chicks - mortality - culls - sold.
+- Mortality % stays deaths-only (comparable); culls reported separately.
+- API: cull_count writable on daily entries (serializer __all__);
+  total_culls + cull_percentage on both Flock serializers; total_culls,
+  daily_culls, cumulative_culls and corrected live_birds in
+  flock_cumulative.
+- Frontend: Culls input on the daily-entry form; Culls stat card on
+  FlockDetail.
+- Tests: 7 new in test_performance.py (TestCulling).
+- Result: 15/15 performance tests pass; migration consistent; FE builds.
+- Bug/decision registered: BUG-001 (see below) — billing engine's
+  live_birds does NOT yet subtract culls. Left unchanged deliberately
+  (money-affecting); needs user decision before touching settlement.
+
 
 ## 3.4 — Daily bird-population reconciliation
 
@@ -26,5 +42,17 @@ Order requested: 3.1, 3.3, 3.4, 3.2, 3.5, 3.6.
 ## 3.6 — Water:feed ratio + deviation alert
 
 ---
-## Registered bugs
-(none yet)
+## Registered bugs / decisions
+### BUG-001 — Billing engine ignores culls in live-bird count  [OPEN — needs decision]
+`core/billing.py` computes `live_birds = chicks - total_mortality -
+total_sold_birds` (no culls). Now that culls are tracked separately, culled
+birds are currently counted as "live", which affects:
+  - `admin_cost` (admin_birds = sold + live) → slightly overstated
+  - shortage recovery (expected_live vs accounted) → may mis-flag shortage
+Options for Sai Charan to decide:
+  (a) Treat culls as accounted losses: live_birds = chicks - mortality -
+      culls - sold (consistent with the model). Culls then neither inflate
+      admin cost nor trigger shortage.
+  (b) Treat culls as shortage/recoverable (grower answerable for them).
+  (c) Make it a per-farm flag.
+Not changed yet — settlement math stays exactly as before until decided.

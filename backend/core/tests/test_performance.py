@@ -87,3 +87,62 @@ class TestEPEFApi:
         assert resp.status_code == 200
         row = next(r for r in resp.data if r["id"] == f.id)
         assert row["epef"] is None
+
+
+class TestCulling:
+    def test_total_culls_zero_default(self, farm, make_flock):
+        f = make_flock(farm, status="active")
+        assert f.total_culls == 0
+
+    def test_total_culls_sums_entries(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        _entry(f, 1, mortality=5)
+        DailyEntry.objects.filter(flock=f).update(cull_count=3)
+        _entry(f, 2)
+        DailyEntry.objects.filter(flock=f, date=f.placement_date + datetime.timedelta(days=2)).update(cull_count=4)
+        assert f.total_culls == 7
+
+    def test_culls_separate_from_mortality(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        e = _entry(f, 1, mortality=10)
+        e.cull_count = 5
+        e.save()
+        assert f.total_mortality == 10   # deaths only
+        assert f.total_culls == 5        # culls only
+
+    def test_cull_percentage(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        e = _entry(f, 1)
+        e.cull_count = 25
+        e.save()
+        assert f.cull_percentage == 2.5
+
+    def test_live_birds_subtracts_culls(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        e = _entry(f, 1, mortality=50)
+        e.cull_count = 20
+        e.save()
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=600, total_weight_kg=Decimal("1200"))
+        # 1000 - 50 mortality - 20 culls - 600 sold = 330
+        assert f.live_birds == 330
+
+    def test_cull_count_accepted_via_api(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, status="active")
+        resp = auth_admin.post("/api/daily-entries/", {
+            "flock": f.id, "date": str(f.placement_date),
+            "mortality_count": 4, "cull_count": 6,
+        }, format="json")
+        assert resp.status_code in (200, 201), resp.data
+        f.refresh_from_db()
+        assert f.total_mortality == 4
+        assert f.total_culls == 6
+
+    def test_culls_in_flock_cumulative(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        e = _entry(f, 1, mortality=10)
+        e.cull_count = 5
+        e.save()
+        resp = auth_admin.get(f"/api/flocks/{f.id}/cumulative/")
+        assert resp.status_code == 200
+        assert resp.data["total_culls"] == 5
+        assert resp.data["live_birds"] == 1000 - 10 - 5
