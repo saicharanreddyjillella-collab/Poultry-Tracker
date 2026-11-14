@@ -116,3 +116,32 @@ never split, so main was not affected.)
 
 ---
 ## Section 3 complete — all 6 items done (3.1, 3.3, 3.4, 3.2, 3.5, 3.6). 2 bugs found & fixed (BUG-001, BUG-002).
+
+---
+## Section 2 (compliance)
+
+### 2.2 — Grower PAN + entity-type master  ✅ DONE
+- Farm.pan + Farm.entity_type (individual/huf/firm/company/llp/fpo/other).
+  Helpers: has_valid_pan (PAN regex), is_individual_huf, tds_rate_pct
+  (1% Individual/HUF, 2% others).
+- FarmSerializer validates PAN format (normalised to upper); exposes
+  has_valid_pan + tds_rate_pct.
+- FarmForm: Grower Entity Type dropdown + PAN input.
+
+### 2.1 — TDS on grower payments (Section 194C)  ✅ DONE
+Policy (per CBDT Circular 4/2017; user decisions):
+- Base = net payable to farmer (growing charges + incentive − recoveries);
+  free-issued chicks/feed excluded.
+- Rate by entity type: 1% Individual/HUF, 2% others. No-PAN is only FLAGGED
+  (rate NOT bumped to 20%, bill NOT blocked) — per user decision.
+- Thresholds (₹30k single / ₹1 lakh FY aggregate) behind a BillConfig flag
+  apply_tds_thresholds (default on); apply_tds master switch (default on).
+- billing.py computes tds_rate_pct, tds_amount, amount_paid, tds_pan_missing;
+  FY aggregate summed from prior bills (Apr–Mar). config_snapshot records
+  rate/entity/pan.
+- Bill fields + BillConfig fields (migration 0021). BillView shows
+  "Less: TDS @ x%", "Amount Paid (after TDS)", and a PAN-missing warning.
+- Tests: core/tests/test_tds.py (11). Full suite 67 pass; FE builds.
+- Bugs: none.
+
+NOTE: tax rules — verify rates/thresholds with a CA before go-live.

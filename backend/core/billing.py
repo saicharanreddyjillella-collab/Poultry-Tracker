@@ -188,6 +188,37 @@ def generate_bill(flock, user=None):
     gross_payable = growing_charges_total + rate_incentive_total
     net_payable = (gross_payable - total_recoveries).quantize(Decimal('0.01'))
 
+    # ─── TDS (Section 194C) on the net amount payable to the grower ───
+    # Base is the net payable (growing charges + incentive - recoveries) —
+    # i.e. the grower's service income, excluding free-issued chicks/feed.
+    tds_rate = Decimal('0')
+    tds_amount = Decimal('0')
+    pan_missing = not farm.has_valid_pan
+    if config.apply_tds and net_payable > 0:
+        apply = True
+        if config.apply_tds_thresholds:
+            # Indian financial year: Apr 1 - Mar 31.
+            import datetime
+            today = datetime.date.today()
+            fy_start_year = today.year if today.month >= 4 else today.year - 1
+            fy_start = datetime.date(fy_start_year, 4, 1)
+            fy_end = datetime.date(fy_start_year + 1, 3, 31)
+            prior = (Bill.objects
+                     .filter(flock__farm=farm, generated_at__date__gte=fy_start,
+                             generated_at__date__lte=fy_end)
+                     .aggregate(t=Sum('net_payable'))['t'] or Decimal('0'))
+            fy_aggregate = Decimal(str(prior)) + net_payable
+            # No TDS only if BOTH this payment and the FY aggregate stay within limits.
+            if net_payable <= config.tds_single_payment_limit and fy_aggregate <= config.tds_annual_limit:
+                apply = False
+        if apply:
+            # Rate by grower entity type (1% Individual/HUF, 2% other). PAN
+            # absence is only flagged, not rate-changed (per business rule).
+            tds_rate = farm.tds_rate_pct
+            tds_amount = (net_payable * tds_rate / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    amount_paid = (net_payable - tds_amount).quantize(Decimal('0.01'))
+
     # ─── SAVE ───
     bill = Bill.objects.create(
         flock=flock,
@@ -220,12 +251,19 @@ def generate_bill(flock, user=None):
         total_recoveries=total_recoveries,
         gross_payable=gross_payable.quantize(Decimal('0.01')),
         net_payable=net_payable,
+        tds_rate_pct=tds_rate,
+        tds_amount=tds_amount,
+        tds_pan_missing=pan_missing,
+        amount_paid=amount_paid,
         config_snapshot={
             'chick_cost_per_bird': str(config.chick_cost_per_bird),
             'feed_cost_per_kg': str(config.feed_cost_per_kg),
             'admin_cost_per_chick': str(config.admin_cost_per_chick),
             'medicine_cost_per_chick': str(config.medicine_cost_per_chick),
             'medicine_use_actual': farm.medicine_use_actual,
+            'tds_rate_pct': str(tds_rate),
+            'entity_type': farm.entity_type,
+            'pan_present': farm.has_valid_pan,
         },
     )
     return bill

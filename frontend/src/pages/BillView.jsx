@@ -135,6 +135,18 @@ export default function BillView() {
           <div className="bill-final-line"><span>Gross Payable</span><span>₹{fmt(bill.gross_payable)}</span></div>
           {hasRecoveries && <div className="bill-final-line bill-final-deduct"><span>Less: Recoveries</span><span>- ₹{fmt(bill.total_recoveries)}</span></div>}
           <div className="bill-final-line bill-final-net"><span>Net Payable to Farmer</span><span>₹{fmt(bill.net_payable)}</span></div>
+          {parseFloat(bill.tds_amount) > 0 && (
+            <>
+              <div className="bill-final-line bill-final-deduct">
+                <span>Less: TDS @ {fmt(bill.tds_rate_pct)}%{bill.tds_pan_missing ? ' (PAN missing)' : ''}</span>
+                <span>- ₹{fmt(bill.tds_amount)}</span>
+              </div>
+              <div className="bill-final-line bill-final-net"><span>Amount Paid (after TDS)</span><span>₹{fmt(bill.amount_paid)}</span></div>
+            </>
+          )}
+          {parseFloat(bill.tds_amount) === 0 && bill.tds_pan_missing && (
+            <div className="bill-final-line" style={{ color: '#b9770e', fontSize: '0.8rem' }}>⚠️ Grower PAN not on file — add it for TDS compliance.</div>
+          )}
         </div>
       </div>
     </div>
