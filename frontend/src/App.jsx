@@ -18,6 +18,7 @@ import ChangePassword from './pages/ChangePassword';
 import FeedStock from './pages/FeedStock';
 import FeedForecast from './pages/FeedForecast';
 import OwnerDashboard from './pages/OwnerDashboard';
+import BreakEven from './pages/BreakEven';
 import BillView from './pages/BillView';
 import Landing from './pages/Landing';
 import ChickenDashboard from './pages/ChickenDashboard';
@@ -94,6 +95,7 @@ function NavBar() {
             <Link to="/reports" onClick={closeMenu}>Reports</Link>
             <Link to="/feed-forecast" onClick={closeMenu}>Feed Forecast</Link>
             <Link to="/owner-dashboard" onClick={closeMenu}>Owner View</Link>
+            <Link to="/break-even" onClick={closeMenu}>Break-even</Link>
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
@@ -253,6 +255,7 @@ function AppRoutes() {
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/feed-forecast" element={<ProtectedRoute><FeedForecast /></ProtectedRoute>} />
           <Route path="/owner-dashboard" element={<ProtectedRoute><OwnerDashboard /></ProtectedRoute>} />
+          <Route path="/break-even" element={<ProtectedRoute><BreakEven /></ProtectedRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/region" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/till-date" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

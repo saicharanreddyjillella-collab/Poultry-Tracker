@@ -244,3 +244,20 @@ summary, performance leaderboard, alerts feed.
   New CSS: .badge, .alert-row*, .leaderboard-grid.
 - Tests: test_owner_dashboard.py (7). Full suite 111 pass; no migration; FE builds.
 - Bugs: none.
+
+### F3 — Live-flock break-even projection  ✅ DONE
+Design (user reframe): instead of a hypothetical form, project break-even for
+every LIVE flock at current feed rates — a proxy for what a new placement
+breaks even at.
+- break_even_projection view: per active flock, feed-to-finish = consumed +
+  remaining intake (standard curve, birds declining by standard mortality) to
+  a finish age (default 42); total cost = chick + feed(kg × current rate) +
+  medicine + admin; projected weight = projected-live × standard finish weight;
+  cost/kg = total/weight = break-even price. Avg across flocks. finish_age
+  param. /api/reports/break-even/.
+- Frontend: BreakEven page (summary + per-flock table) + "Break-even" nav link.
+- Tests: test_break_even.py (8). Full suite 119 pass; no migration; FE builds.
+- Bugs found & fixed (both in the new code, caught by tests):
+  BUG-003 Decimal*float in cost calc (coerced config rates via D());
+  BUG-004 ROUND_HALF_UP not imported in data.py (added). NOTE for release
+  cherry-pick: ensure ROUND_HALF_UP import exists in reports.py too.
