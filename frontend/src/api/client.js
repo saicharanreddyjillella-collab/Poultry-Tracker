@@ -131,6 +131,7 @@ export const reportAPI = {
   monthly: (year, month) => API.get(`/reports/monthly/?year=${year}&month=${month}`),
   region: (region) => API.get(`/reports/region/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
   tillDate: () => API.get('/reports/till-date/'),
+  feedForecast: (weeks) => API.get(`/reports/feed-forecast/${weeks ? `?weeks=${weeks}` : ''}`),
 };
 
 export const billAPI = {

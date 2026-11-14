@@ -210,3 +210,22 @@ recovery waiver, or vet-certificate capture built. Revisit if needed later.
   against as an app backend; local now, S3/Spaces as the later upgrade path).
 - Tests: core/tests/test_documents.py (10). Full suite 93 pass; FE builds.
 - Bugs: none.
+
+---
+## Section F (planning)
+
+### F1 — Feed requirement forecast  ✅ DONE
+Design (user): all active flocks, 4-week default horizon, by week + phase;
+standard intake curve (calibrate-from-history later); apply standard
+mortality decline.
+- standards.py: DAILY_FEED_INTAKE_G (g/bird/day by age) + get_daily_feed_intake
+  (interpolated, clamped) + get_feed_phase (BPSC 0-10 / BSC 11-21 / BFP 22+).
+- views feed_forecast(): per active flock, per future day, birds alive
+  (declining by standard daily mortality = standard_mortality_pct/42) ×
+  intake/bird → kg, attributed to phase, bucketed into weeks. Returns weekly
+  (per-phase kg+bags), totals, and per-flock breakdown. weeks param (1-12,
+  default 4). Route /api/reports/feed-forecast/.
+- Frontend: FeedForecast page (horizon selector, summary cards, by-week and
+  by-flock tables) + "Feed Forecast" nav link.
+- Tests: test_feed_forecast.py (11). Full suite 104 pass; no migration; FE builds.
+- Bugs: none.
