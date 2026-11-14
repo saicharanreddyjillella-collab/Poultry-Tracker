@@ -71,3 +71,12 @@ def _make_flock(farm, chicks=1000, placed_days_ago=42, status="closed"):
 @pytest.fixture
 def make_flock(db):
     return _make_flock
+
+
+@pytest.fixture(autouse=True)
+def _clear_throttle_cache():
+    """Reset DRF throttle state (stored in the cache) between tests so the
+    login rate limit doesn't leak across the many auth_admin logins."""
+    from django.core.cache import cache
+    cache.clear()
+    yield
