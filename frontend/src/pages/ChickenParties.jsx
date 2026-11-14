@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { accountingAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'chicken_center' };
 const EMPTY = { name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) };
@@ -53,7 +54,7 @@ export default function ChickenParties() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; {brand.chickenShort}</button>
           <h1>Parties</h1>
         </div>
         <button className="btn btn-primary" onClick={openAdd}>+ Add Party</button>

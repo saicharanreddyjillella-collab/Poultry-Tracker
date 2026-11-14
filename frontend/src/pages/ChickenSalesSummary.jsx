@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { chickenAPI } from '../api/client';
+import brand from '../config/brand';
 
 function monthStartISO() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); }
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -24,7 +25,7 @@ export default function ChickenSalesSummary() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; {brand.chickenShort}</button>
           <h1>Sales Summary</h1>
         </div>
         <button className="btn btn-secondary" onClick={() => window.print()}>Print</button>

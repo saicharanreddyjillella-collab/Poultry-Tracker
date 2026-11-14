@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { layerAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 export default function LayerFlocks() {
   const [flocks, setFlocks] = useState([]);
@@ -44,7 +45,7 @@ export default function LayerFlocks() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/layer')}>&larr; Layer Farm</button>
+          <button className="back-link" onClick={() => navigate('/layer')}>&larr; {brand.layerShort}</button>
           <h1>Flocks</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import brand from '../config/brand';
 
 export default function Setup() {
   const [form, setForm] = useState({ username: '', password: '', confirm_password: '', first_name: '', last_name: '' });
@@ -46,7 +47,7 @@ export default function Setup() {
       <div className="login-card" style={{ maxWidth: 480 }}>
         <div className="login-header">
           <span style={{ fontSize: '2rem' }}>🐔</span>
-          <h1>Sai Ram Feeds</h1>
+          <h1>{brand.feedsName}</h1>
           <p>First Time Setup — Create Admin Account</p>
         </div>
         {error && <div className="error-msg">{error}</div>}

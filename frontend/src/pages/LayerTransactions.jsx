@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { layerAPI, getErrorMessage } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
+import brand from '../config/brand';
 
 const TABS = [
   { key: 'purchase', label: 'Purchases', fetch: () => layerAPI.purchases() },
@@ -76,7 +77,7 @@ export default function LayerTransactions() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/layer')}>&larr; Layer Farm</button>
+          <button className="back-link" onClick={() => navigate('/layer')}>&larr; {brand.layerShort}</button>
           <h1>Transactions</h1>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/layer/new')}>+ New Entry</button>

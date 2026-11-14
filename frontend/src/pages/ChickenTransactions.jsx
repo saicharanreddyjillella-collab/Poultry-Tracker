@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { chickenAPI, getErrorMessage } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
+import brand from '../config/brand';
 
 const TABS = [
   { key: 'sale', label: 'Sales', fetch: () => chickenAPI.sales() },
@@ -70,7 +71,7 @@ export default function ChickenTransactions() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; {brand.chickenShort}</button>
           <h1>Transactions</h1>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/chicken/new')}>+ New Entry</button>

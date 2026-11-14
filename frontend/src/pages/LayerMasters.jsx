@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { inventoryAPI, accountingAPI, layerAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'layer' };
 const CASH_ACCS = [['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI']];
@@ -86,7 +87,7 @@ export default function LayerMasters() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/layer')}>&larr; Layer Farm</button>
+          <button className="back-link" onClick={() => navigate('/layer')}>&larr; {brand.layerShort}</button>
           <h1>Masters</h1>
         </div>
       </div>

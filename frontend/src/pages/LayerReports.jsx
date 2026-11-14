@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountingAPI } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = 'layer';
 const TABS = ['P&L', 'Balance Sheet', 'Cash Book', 'Trial Balance'];
@@ -33,7 +34,7 @@ export default function LayerReports() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/layer')}>&larr; Layer Farm</button>
+          <button className="back-link" onClick={() => navigate('/layer')}>&larr; {brand.layerShort}</button>
           <h1>Reports</h1>
         </div>
         <button className="btn btn-secondary" onClick={() => window.print()}>Print</button>

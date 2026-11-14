@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { layerAPI, accountingAPI, inventoryAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'layer' };
 const TABS = ['Purchase', 'Feed → Flock', 'Apply', 'Egg Sale', 'Collection', 'Payment', 'Expense'];
@@ -92,7 +93,7 @@ export default function LayerNewEntry() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/layer')}>&larr; Layer Farm</button>
+          <button className="back-link" onClick={() => navigate('/layer')}>&larr; {brand.layerShort}</button>
           <h1>New Entry</h1>
         </div>
       </div>

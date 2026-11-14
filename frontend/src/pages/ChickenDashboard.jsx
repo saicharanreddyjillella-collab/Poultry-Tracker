@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { accountingAPI, inventoryAPI, chickenAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'chicken_center' };
 
@@ -39,7 +40,7 @@ export default function ChickenDashboard() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Chicken Center</h1>
+          <h1>{brand.chickenName}</h1>
           <p className="farm-meta">Live-bird trading — money &amp; stock</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

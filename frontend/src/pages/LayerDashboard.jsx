@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { layerAPI } from '../api/client';
+import brand from '../config/brand';
 
 export default function LayerDashboard() {
   const [data, setData] = useState(null);
@@ -18,7 +19,7 @@ export default function LayerDashboard() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Layer Farm</h1>
+          <h1>{brand.layerName}</h1>
           <p className="farm-meta">Per-flock cost &amp; egg production</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

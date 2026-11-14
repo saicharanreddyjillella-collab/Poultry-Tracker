@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { layerAPI, inventoryAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'layer' };
 
@@ -54,7 +55,7 @@ export default function LayerFeedMill() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/layer')}>&larr; Layer Farm</button>
+          <button className="back-link" onClick={() => navigate('/layer')}>&larr; {brand.layerShort}</button>
           <h1>Feed Mill</h1>
           <p className="farm-meta">Convert raw materials into feed — batch cost carries to flocks</p>
         </div>

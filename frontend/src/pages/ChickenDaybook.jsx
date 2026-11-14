@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { chickenAPI } from '../api/client';
+import brand from '../config/brand';
 
 export default function ChickenDaybook() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -19,7 +20,7 @@ export default function ChickenDaybook() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; {brand.chickenShort}</button>
           <h1>Daybook</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

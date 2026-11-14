@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountingAPI, chickenAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'chicken_center' };
 const CASH_ACCS = [['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI']];
@@ -41,7 +42,7 @@ export default function ChickenOpening() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; {brand.chickenShort}</button>
           <h1>Opening Balances</h1>
         </div>
       </div>

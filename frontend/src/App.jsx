@@ -47,6 +47,7 @@ import './styles/print.css';
 import './styles/bill.css';
 import './styles/components.css';
 import './styles/business.css';
+import brand from './config/brand';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -72,7 +73,7 @@ function NavBar() {
 
   return (
     <nav className="navbar">
-      <Link to={isPlant ? '/feed' : '/feeds'} className="nav-brand" onClick={closeMenu}>🐔 Sai Ram Feeds</Link>
+      <Link to={isPlant ? '/feed' : '/feeds'} className="nav-brand" onClick={closeMenu}>{brand.feedsLogo} {brand.feedsName}</Link>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
@@ -125,7 +126,7 @@ function ChickenNav() {
   const handleLogout = () => { logout(); closeMenu(); navigate('/login', { replace: true }); };
   return (
     <nav className="navbar navbar-chicken">
-      <Link to="/chicken" className="nav-brand" onClick={closeMenu}>🛒 Chicken Center</Link>
+      <Link to="/chicken" className="nav-brand" onClick={closeMenu}>{brand.chickenLogo} {brand.chickenName}</Link>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
@@ -176,7 +177,7 @@ function LayerNav() {
   const handleLogout = () => { logout(); closeMenu(); navigate('/login', { replace: true }); };
   return (
     <nav className="navbar navbar-layer">
-      <Link to="/layer" className="nav-brand" onClick={closeMenu}>🥚 Layer Farm</Link>
+      <Link to="/layer" className="nav-brand" onClick={closeMenu}>{brand.layerLogo} {brand.layerName}</Link>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
         <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountingAPI } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'chicken_center' };
 
@@ -50,7 +51,7 @@ export default function ChickenLedgers() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; {brand.chickenShort}</button>
           <h1>Ledgers</h1>
         </div>
         {selected && <button className="btn btn-secondary" onClick={() => window.print()}>Print</button>}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountingAPI, inventoryAPI, chickenAPI, getErrorMessage } from '../api/client';
+import brand from '../config/brand';
 
 const BIZ = { business: 'chicken_center' };
 const TABS = ['Sale', 'Purchase', 'Collection', 'Payment', 'Expense', 'Shrinkage'];
@@ -80,7 +81,7 @@ export default function ChickenNewEntry() {
     <div className="page">
       <div className="page-header">
         <div>
-          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; Chicken Center</button>
+          <button className="back-link" onClick={() => navigate('/chicken')}>&larr; {brand.chickenShort}</button>
           <h1>New Entry</h1>
         </div>
       </div>

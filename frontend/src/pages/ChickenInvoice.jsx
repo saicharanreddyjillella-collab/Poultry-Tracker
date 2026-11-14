@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { chickenAPI } from '../api/client';
+import brand from '../config/brand';
 
 // Seller details — edit here to change what prints on every invoice.
 const SELLER = {
-  name: 'Sai Charan Chicken Center',
-  line1: 'Nagaram, Jangaon',
-  line2: 'Telangana - 506167',
-  phone: '',
+  name: brand.chickenName,
+  line1: brand.address,
+  line2: '',
+  phone: brand.phone,
 };
 
 export default function ChickenInvoice() {
