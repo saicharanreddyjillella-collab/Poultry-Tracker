@@ -146,3 +146,64 @@ class TestCulling:
         assert resp.status_code == 200
         assert resp.data["total_culls"] == 5
         assert resp.data["live_birds"] == 1000 - 10 - 5
+
+
+class TestReconciliation:
+    def test_balanced_normal_flock(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        e = _entry(f, 1, mortality=30)
+        e.cull_count = 10
+        e.save()
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=500,
+                            total_weight_kg=Decimal("1000"))
+        r = f.reconciliation
+        assert r["opening"] == 1000
+        assert r["mortality"] == 30
+        assert r["culls"] == 10
+        assert r["sold"] == 500
+        assert r["accounted"] == 540
+        assert r["closing"] == 460
+        assert r["is_balanced"] is True
+        assert r["overcount"] == 0
+
+    def test_closing_matches_live_birds(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        e = _entry(f, 1, mortality=50)
+        e.cull_count = 25
+        e.save()
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=400,
+                            total_weight_kg=Decimal("800"))
+        assert f.reconciliation["closing"] == f.live_birds
+
+    def test_unbalanced_overcount_flagged(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        _entry(f, 1, mortality=200)
+        # sell more than remain -> over-accounted
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=900,
+                            total_weight_kg=Decimal("1800"))
+        r = f.reconciliation
+        # 200 + 900 = 1100 accounted vs 1000 placed -> closing -100
+        assert r["accounted"] == 1100
+        assert r["closing"] == -100
+        assert r["is_balanced"] is False
+        assert r["overcount"] == 100
+
+    def test_exact_zero_is_balanced(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        _entry(f, 1, mortality=100)
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=900,
+                            total_weight_kg=Decimal("1800"))
+        r = f.reconciliation
+        assert r["closing"] == 0
+        assert r["is_balanced"] is True
+
+    def test_reconciliation_in_flock_cumulative(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active")
+        _entry(f, 1, mortality=30)
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=500,
+                            total_weight_kg=Decimal("1000"))
+        resp = auth_admin.get(f"/api/flocks/{f.id}/cumulative/")
+        assert resp.status_code == 200
+        r = resp.data["reconciliation"]
+        assert r["closing"] == 470
+        assert r["is_balanced"] is True

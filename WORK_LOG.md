@@ -33,7 +33,17 @@ Order requested: 3.1, 3.3, 3.4, 3.2, 3.5, 3.6.
   (money-affecting); needs user decision before touching settlement.
 
 
-## 3.4 — Daily bird-population reconciliation
+## 3.4 — Daily bird-population reconciliation  ✅ DONE
+- System has no bird transfers (only feed transfers), so the identity is
+  opening(chick_count) - mortality - culls - sold = closing.
+- `Flock.reconciliation` property returns opening/mortality/culls/sold/
+  accounted/closing + is_balanced (closing >= 0) + overcount. Flags
+  data-entry errors where losses+sales exceed birds placed.
+- Exposed on both Flock serializers and in flock_cumulative payload.
+- Frontend: red "Population mismatch" banner on FlockDetail when unbalanced
+  (new .alert-banner-danger style).
+- Tests: 5 new (TestReconciliation). 37/37 pass; no migration; FE builds.
+- Bugs: none.
 
 ## 3.2 — Breed-standard weight variance
 

@@ -397,6 +397,15 @@ export default function FlockDetail() {
         </form>
       )}
 
+      {cumulative.reconciliation && !cumulative.reconciliation.is_balanced && (
+        <div className="alert-banner alert-banner-danger">
+          ⚠️ Population mismatch: {cumulative.reconciliation.accounted.toLocaleString()} birds accounted
+          (mortality {cumulative.reconciliation.mortality} + culls {cumulative.reconciliation.culls} + sold {cumulative.reconciliation.sold})
+          exceed the {cumulative.reconciliation.opening.toLocaleString()} placed by {cumulative.reconciliation.overcount.toLocaleString()}.
+          Check for an over-counted sale or mortality entry.
+        </div>
+      )}
+
       {/* Stats */}
       <div className="stats-grid stats-grid-wide">
         <div className="stat-card"><span className="stat-label">Live Birds</span><span className="stat-value">{cumulative.live_birds.toLocaleString()}</span></div>
