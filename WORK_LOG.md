@@ -62,3 +62,12 @@ also count culls. A flock with N deaths bills identically to one with the same
 N split across deaths + culls (verified by test).
 Also ported the full bill-engine test suite to main (core/tests/test_billing.py,
 17 tests) + 3 cull-as-mortality tests. Suite now 32 tests, all passing.
+
+### BUG-002 — data.py (release split) uses Sum without importing it  [RESOLVED 2026-11-14]
+Found while cherry-picking 3.1/3.3 to release/feeds-only: the earlier
+Feeds-only split of core/views/data.py left `Sum(...)` calls in the CRUD
+module (lines creating/validating daily entries) without
+`from django.db.models import Sum`. This is a latent 500 on daily-entry
+create — only surfaced now because the new cull API test exercises that
+path. Fixed by adding the import on release/feeds-only. (main's data.py was
+never split, so main was not affected.)
