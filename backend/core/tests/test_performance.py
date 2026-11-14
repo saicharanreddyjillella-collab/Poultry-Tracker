@@ -329,3 +329,66 @@ class TestScorecard:
         assert resp.status_code == 200
         assert "scorecard" in resp.data
         assert resp.data["scorecard"]["rating"] in ("Excellent", "Good", "Fair", "Poor")
+
+
+class TestWaterFeedRatio:
+    def _wentry(self, flock, day, water, bags):
+        e = DailyEntry.objects.create(
+            flock=flock, date=flock.placement_date + datetime.timedelta(days=day),
+            feed_bfp_bags=bags, water_consumed_liters=Decimal(str(water)),
+        )
+        return e
+
+    def test_ratio_none_without_feed(self, farm, make_flock):
+        f = make_flock(farm, status="active")
+        e = self._wentry(f, 1, water=500, bags=0)
+        assert e.water_feed_ratio is None
+        assert e.water_feed_status is None
+
+    def test_normal_ratio(self, farm, make_flock):
+        f = make_flock(farm, status="active")
+        e = self._wentry(f, 1, water=850, bags=10)  # 500 kg -> 1.7
+        assert e.water_feed_ratio == 1.7
+        assert e.water_feed_status == "normal"
+
+    def test_low_ratio_flagged(self, farm, make_flock):
+        f = make_flock(farm, status="active")
+        e = self._wentry(f, 1, water=400, bags=10)  # 0.8 < 1.2
+        assert e.water_feed_ratio == 0.8
+        assert e.water_feed_status == "low"
+
+    def test_high_ratio_flagged(self, farm, make_flock):
+        f = make_flock(farm, status="active")
+        e = self._wentry(f, 1, water=1500, bags=10)  # 3.0 > 2.5
+        assert e.water_feed_ratio == 3.0
+        assert e.water_feed_status == "high"
+
+    def test_band_boundaries_are_normal(self, farm, make_flock):
+        f = make_flock(farm, status="active")
+        # exactly 1.2 and 2.5 are within band (not < / not >)
+        lo = self._wentry(f, 1, water=600, bags=10)   # 1.2
+        hi = self._wentry(f, 2, water=1250, bags=10)  # 2.5
+        assert lo.water_feed_status == "normal"
+        assert hi.water_feed_status == "normal"
+
+    def test_flock_water_alerts_lists_only_abnormal(self, farm, make_flock):
+        f = make_flock(farm, status="active")
+        self._wentry(f, 1, water=850, bags=10)   # normal
+        self._wentry(f, 2, water=400, bags=10)   # low
+        self._wentry(f, 3, water=1500, bags=10)  # high
+        alerts = f.water_alerts
+        assert len(alerts) == 2
+        statuses = {a["status"] for a in alerts}
+        assert statuses == {"low", "high"}
+
+    def test_water_alerts_in_cumulative(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, status="active")
+        self._wentry(f, 1, water=400, bags=10)  # low
+        resp = auth_admin.get(f"/api/flocks/{f.id}/cumulative/")
+        assert resp.status_code == 200
+        assert len(resp.data["water_alerts"]) == 1
+        assert resp.data["water_alerts"][0]["status"] == "low"
+        # per-entry fields present
+        row = next(e for e in resp.data["entries"] if e["day_number"] == 1)
+        assert row["water_feed_ratio"] == 0.8
+        assert row["water_feed_status"] == "low"

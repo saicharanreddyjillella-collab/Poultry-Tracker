@@ -161,6 +161,8 @@ def flock_cumulative(request, flock_id):
             'cumulative_feed_bags': total_bags,
             'cumulative_feed_kg': total_bags * BAG_KG,
             'water_liters': float(entry.water_consumed_liters),
+            'water_feed_ratio': entry.water_feed_ratio,
+            'water_feed_status': entry.water_feed_status,
             'avg_body_weight_grams': float(entry.avg_body_weight_grams) if entry.avg_body_weight_grams else None,
             'standard_weight_grams': get_standard_weight(day_number),
         })
@@ -207,6 +209,7 @@ def flock_cumulative(request, flock_id):
         'reconciliation': flock.reconciliation,
         'weight_vs_standard': flock.weight_vs_standard,
         'scorecard': flock.scorecard,
+        'water_alerts': flock.water_alerts,
         'mortality_percentage': round((cum_mortality / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0,
         'live_birds': flock.chick_count - cum_mortality - cum_culls - total_sold_birds,
         'total_sold_birds': total_sold_birds,
