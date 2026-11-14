@@ -188,3 +188,25 @@ the FCR benchmark already work per kg. No work item.
 User: "keep it as normal, no change required." Disease/partial closures are
 billed via the normal close flow for now; no separate disease-event path,
 recovery waiver, or vet-certificate capture built. Revisit if needed later.
+
+---
+## Section A (grower-facing) — features
+
+### A3 — Document repository  ✅ DONE
+- Document model: FileField (upload_to by farm/flock), doc_type
+  (agreement/kyc/bank/vet_certificate/invoice/other), title, notes,
+  uploaded_by/at; links to Farm OR Flock (migration 0024). owning_farm
+  helper resolves farm via flock.
+- Media wired: MEDIA_URL/ROOT + 10MB upload cap in settings; urls serves
+  media in DEBUG; nginx /media/ location added (prod); backend/media
+  gitignored. docker-compose already had the media_files volume.
+- API: DocumentViewSet (multipart upload, list filtered by farm/flock,
+  delete), CanAccessDocument permission (reads open to authed; writes
+  follow owning-farm edit rights; supervisors see only their farms' docs).
+  documentAPI in client.js.
+- Frontend: reusable DocumentsSection component (upload form + list + view/
+  delete) on FarmDetail and FlockDetail, gated by canEditFarm.
+- Storage decision: local media volume (user asked re OneDrive — advised
+  against as an app backend; local now, S3/Spaces as the later upgrade path).
+- Tests: core/tests/test_documents.py (10). Full suite 93 pass; FE builds.
+- Bugs: none.

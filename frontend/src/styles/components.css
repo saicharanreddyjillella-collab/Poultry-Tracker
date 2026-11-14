@@ -121,3 +121,14 @@
 .scorecard-fill { height: 100%; background: linear-gradient(90deg, #58d68d, #196f3d); border-radius: 4px; }
 .scorecard-poor .scorecard-fill { background: linear-gradient(90deg, #f1948a, #c0392b); }
 .scorecard-fair .scorecard-fill { background: linear-gradient(90deg, #f8c471, #b9770e); }
+
+/* Document repository (A3) */
+.documents-section { margin-top: 2rem; }
+.documents-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.documents-head h3 { margin: 0; }
+.document-form { background: var(--surface, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+.btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+.link-action { background: none; border: none; color: var(--primary, #2d6a4f); cursor: pointer; font-size: 0.85rem; padding: 0; margin-right: 0.75rem; text-decoration: none; }
+.link-action:hover { text-decoration: underline; }
+.link-danger { color: var(--danger, #e74c3c); }
+.muted { color: #718096; font-size: 0.9rem; }

@@ -16,3 +16,4 @@ from .feed import (
 from .billing import (
     bill_config_view, close_flock_and_generate_bill, get_bill, list_bills,
 )
+from .documents import DocumentViewSet

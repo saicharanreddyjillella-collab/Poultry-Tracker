@@ -5,10 +5,13 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI, getErrorMessage } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
+import { useAuth } from '../context/AuthContext';
+import DocumentsSection from '../components/DocumentsSection';
 
 export default function FlockDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { canEditFarm } = useAuth();
   const [flock, setFlock] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [farmStock, setFarmStock] = useState(null);
@@ -788,6 +791,8 @@ export default function FlockDetail() {
         onConfirm={confirm.onConfirm}
         onCancel={() => setConfirm({ ...confirm, open: false })}
       />
+
+      <DocumentsSection flockId={flock.id} canEdit={canEditFarm(flock.farm)} />
     </div>
   );
 }
