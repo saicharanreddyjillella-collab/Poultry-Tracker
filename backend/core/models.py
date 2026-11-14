@@ -933,3 +933,27 @@ class Document(models.Model):
         if self.flock_id:
             return self.flock.farm
         return None
+
+
+class AuditLog(models.Model):
+    """Who changed what, when — recorded automatically for money-affecting
+    records (see core/audit.py). Rows are append-only; never edited."""
+    ACTION_CHOICES = [('create', 'Create'), ('update', 'Update'), ('delete', 'Delete')]
+
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='audit_entries')
+    actor_username = models.CharField(max_length=150, blank=True,
+                                      help_text="Kept even if the user is later deleted")
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    model = models.CharField(max_length=60, db_index=True)
+    object_id = models.CharField(max_length=40, db_index=True)
+    object_repr = models.CharField(max_length=200, blank=True)
+    changes = models.JSONField(default=dict, blank=True,
+                               help_text="update: {field: [before, after]}; create/delete: full snapshot")
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.action} {self.model}#{self.object_id} by {self.actor_username or 'system'}"

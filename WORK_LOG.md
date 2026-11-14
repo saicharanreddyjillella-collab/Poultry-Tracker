@@ -320,3 +320,19 @@ fail-fast in prod.
 - Bugs found & fixed (both mine, caught by tests): throttle_scope must be set
   on login_view.cls (not in the body); throttle cache leaked across tests
   until the clear fixture was added.
+
+### E4 — Audit log on money records  ✅ DONE
+- core.AuditLog (append-only): timestamp, actor FK + actor_username (survives
+  user deletion), action, model, object_id, object_repr, changes JSON
+  (update = {field:[before,after]}; create/delete = full snapshot). Migration 0025.
+- core/audit.py: pre_save/post_save/post_delete signal handlers on Farm, Flock,
+  Sale, DailyEntry, Medication, FeedOrder, FeedTransfer, Bill, BillConfig,
+  Document (FeedRate etc. deliberately excluded). Decimal/date/FK/file made
+  JSON-safe; no-op saves record nothing. Wired in CoreConfig.ready().
+- core/middleware.CurrentUserMiddleware: thread-local request so signals can
+  resolve the actor. DRF's JWT auth sets request.user during the view (before
+  save signals fire), so API changes capture the JWT user — verified by test.
+- Read-only admin-only API /api/audit-log/ (filters: model, object_id, actor,
+  action, limit). Read-only Django admin registration.
+- Tests: test_audit.py (12). Full suite 149 pass.
+- Bugs: none.

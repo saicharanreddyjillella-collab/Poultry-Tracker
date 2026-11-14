@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, Document
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, Document, AuditLog
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
@@ -241,3 +241,11 @@ class DocumentSerializer(serializers.ModelSerializer):
         if not farm and not flock:
             raise serializers.ValidationError('A document must be attached to a farm or a flock.')
         return data
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuditLog
+        fields = ['id', 'timestamp', 'actor', 'actor_username', 'action',
+                  'model', 'object_id', 'object_repr', 'changes']
+        read_only_fields = fields
