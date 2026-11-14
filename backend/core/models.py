@@ -479,6 +479,75 @@ class Flock(models.Model):
 
         return {'bpsc': bpsc, 'bsc': bsc, 'bfp': bfp, 'total': bpsc + bsc + bfp}
 
+    @property
+    def feed_reconciliation(self):
+        """Reconcile feed DISPATCHED to this flock against feed CONSUMED.
+
+        dispatched = delivered orders + transfers in - transfers out.
+        consumed   = sum of daily-entry feed bags.
+        variance   = dispatched - consumed (bags). A positive variance is
+        feed sent but not fed here (possible diversion or just unused stock
+        still on hand); a negative variance is feed fed that was never
+        recorded as dispatched (under-recorded dispatch / mill under-fill,
+        which flatters FCR).
+
+        status is 'balanced' when |variance| is within the configured
+        tolerance of dispatched, else 'over_dispatched' / 'under_dispatched'.
+        Tolerance comes from the active BillConfig.
+        """
+        from django.db.models import Sum
+        from django.apps import apps
+        FeedOrderModel = apps.get_model('core', 'FeedOrder')
+        FeedTransferModel = apps.get_model('core', 'FeedTransfer')
+
+        delivered = FeedOrderModel.objects.filter(flock=self, status='delivered') \
+            .values('feed_type').annotate(t=Sum('quantity_bags'))
+        del_map = {d['feed_type']: int(d['t']) for d in delivered}
+        t_in = {t['feed_type']: int(t['t']) for t in
+                FeedTransferModel.objects.filter(to_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))}
+        t_out = {t['feed_type']: int(t['t']) for t in
+                 FeedTransferModel.objects.filter(from_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))}
+        consumed = self.daily_entries.aggregate(
+            BPSC=Sum('feed_bpsc_bags'), BSC=Sum('feed_bsc_bags'), BFP=Sum('feed_bfp_bags'),
+        )
+
+        by_type = {}
+        disp_total = cons_total = 0
+        for ft in ('BPSC', 'BSC', 'BFP'):
+            disp = del_map.get(ft, 0) + t_in.get(ft, 0) - t_out.get(ft, 0)
+            cons = consumed.get(ft) or 0
+            by_type[ft] = {'dispatched': disp, 'consumed': cons, 'variance': disp - cons}
+            disp_total += disp
+            cons_total += cons
+
+        variance = disp_total - cons_total
+        variance_pct = round((variance / disp_total) * 100, 1) if disp_total else 0.0
+
+        # Tolerance from active config (fall back to 5%).
+        try:
+            BillConfigModel = apps.get_model('core', 'BillConfig')
+            tol = float(BillConfigModel.get_active().feed_reconciliation_tolerance_pct)
+        except Exception:
+            tol = 5.0
+
+        if abs(variance_pct) <= tol:
+            status = 'balanced'
+        elif variance > 0:
+            status = 'over_dispatched'
+        else:
+            status = 'under_dispatched'
+
+        return {
+            'dispatched_bags': disp_total,
+            'consumed_bags': cons_total,
+            'variance_bags': variance,
+            'variance_pct': variance_pct,
+            'tolerance_pct': tol,
+            'status': status,
+            'is_balanced': status == 'balanced',
+            'by_type': by_type,
+        }
+
 
 class DailyEntry(models.Model):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='daily_entries')
@@ -721,6 +790,9 @@ class BillConfig(models.Model):
     apply_tds_thresholds = models.BooleanField(default=True, help_text="If ON, skip TDS when this bill <= single limit AND the grower's FY total <= annual limit")
     tds_single_payment_limit = models.DecimalField(max_digits=12, decimal_places=2, default=30000.00, help_text="Per-payment TDS threshold (Sec 194C)")
     tds_annual_limit = models.DecimalField(max_digits=12, decimal_places=2, default=100000.00, help_text="Annual aggregate TDS threshold per grower (Sec 194C)")
+
+    # ── Feed-lot reconciliation ──
+    feed_reconciliation_tolerance_pct = models.DecimalField(max_digits=5, decimal_places=2, default=5.00, help_text="Allowed % gap between feed dispatched and consumed before a flock is flagged")
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

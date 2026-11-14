@@ -145,3 +145,20 @@ Policy (per CBDT Circular 4/2017; user decisions):
 - Bugs: none.
 
 NOTE: tax rules — verify rates/thresholds with a CA before go-live.
+
+---
+## Section 1 (settlement correctness)
+
+### 1.2 — Feed-lot reconciliation  ✅ DONE
+- Flock.feed_reconciliation: dispatched (delivered orders + transfers in −
+  transfers out) vs consumed (daily entries), per feed type + total.
+  variance = dispatched − consumed; status balanced / over_dispatched
+  (possible diversion or unused stock) / under_dispatched (under-recorded
+  dispatch / mill under-fill, flatters FCR). Tolerance from BillConfig
+  (feed_reconciliation_tolerance_pct, default 5%), migration 0022.
+- Exposed on both Flock serializers + flock_cumulative.
+- Frontend: "Feed Dispatched vs Fed" stat card on FlockDetail + a feed-
+  variance warning inside the Close & Generate Bill modal (surfaces the
+  variance before the payment run).
+- Tests: core/tests/test_feed_recon.py (9). Full suite 76 pass; FE builds.
+- Bugs: none.
