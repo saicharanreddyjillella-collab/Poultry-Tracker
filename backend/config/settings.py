@@ -161,6 +161,9 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = _https
     CSRF_COOKIE_SECURE = _https
     SECURE_SSL_REDIRECT = _https
+    # Health probes arrive over plain HTTP from inside the Docker network;
+    # exempt them from the HTTPS redirect so the container healthcheck works.
+    SECURE_REDIRECT_EXEMPT = [r'^api/health/$']
     # Behind nginx/other proxy terminating TLS:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_HSTS_SECONDS = 31536000 if _https else 0
@@ -168,3 +171,47 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = _https
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+
+# ─── Logging ───
+# Console always (captured by Docker/systemd); a rotating file in production.
+# LOG_LEVEL env controls verbosity (default INFO; DEBUG in dev).
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO').upper()
+LOG_DIR = os.environ.get('LOG_DIR', os.path.join(BASE_DIR, 'logs'))
+_handlers = ['console']
+_handler_defs = {
+    'console': {
+        'class': 'logging.StreamHandler',
+        'formatter': 'verbose',
+    },
+}
+if not DEBUG:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    _handler_defs['file'] = {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': os.path.join(LOG_DIR, 'app.log'),
+        'maxBytes': 10 * 1024 * 1024,   # 10 MB
+        'backupCount': 5,
+        'formatter': 'verbose',
+    }
+    _handlers.append('file')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} {levelname} [{name}] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': _handler_defs,
+    'root': {'handlers': _handlers, 'level': LOG_LEVEL},
+    'loggers': {
+        # Requests that error -> always at least WARNING; 4xx noise stays at WARNING.
+        'django.request': {'handlers': _handlers, 'level': 'WARNING', 'propagate': False},
+        # Our own code.
+        'core': {'handlers': _handlers, 'level': LOG_LEVEL, 'propagate': False},
+        # Quiet SQL echo even in DEBUG unless explicitly asked.
+        'django.db.backends': {'handlers': _handlers, 'level': os.environ.get('SQL_LOG_LEVEL', 'WARNING'), 'propagate': False},
+    },
+}

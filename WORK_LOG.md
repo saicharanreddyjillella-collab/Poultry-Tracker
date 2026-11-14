@@ -345,3 +345,20 @@ fail-fast in prod.
   149 pass on the production DB engine (first time run on Postgres; engine-
   agnostic, no fixes needed).
 - README: CI badge + section.
+
+### E6 + E8 — Logging & health endpoint  ✅ DONE
+- settings.LOGGING: console handler always; in prod (DEBUG=False) a
+  RotatingFileHandler at $LOG_DIR/app.log (default backend/logs/, 10MB x 5).
+  LOG_LEVEL env (default INFO prod / DEBUG dev); django.request at WARNING;
+  SQL logging opt-in via SQL_LOG_LEVEL. backend/logs/ gitignored.
+- GET /api/health/ (core/views/health.py): unauthenticated, unthrottled,
+  checks DB (SELECT 1) → {"status":"ok","db":"ok"} 200, or 503 "degraded".
+  SECURE_REDIRECT_EXEMPT = ['^api/health/$'] so load balancers can probe over
+  plain http in prod while everything else still 301s to https.
+- docker-compose: backend healthcheck hits /api/health/ (30s interval,
+  40s start_period).
+- Verified in prod mode (DEBUG=False): manage.py check clean, app.log created,
+  /api/health/ → 200 over http, /api/farms/ → 301 https.
+- Tests: test_health_logging.py (7). Full suite 156 pass.
+- Bugs: none in code. One test-setup slip: smoke test curled 127.0.0.1 with
+  ALLOWED_HOSTS=localhost → 400 (DisallowedHost, correctly logged to app.log).
