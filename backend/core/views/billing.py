@@ -41,6 +41,7 @@ def close_flock_and_generate_bill(request, flock_id):
     flag_fields = [
         'recovery_excess_mortality', 'recovery_negligence', 'recovery_shortage',
         'recovery_fcr', 'recovery_ifft', 'medicine_use_actual',
+        'fcr_benchmark_enabled',
     ]
     for field in flag_fields:
         if field in request.data:

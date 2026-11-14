@@ -218,3 +218,91 @@ class TestCullsAsMortality:
                             total_weight_kg=Decimal("1800"), rate_per_kg=Decimal("100"))
         bill = generate_bill(f)
         assert bill.first_week_mortality_recovery == Decimal("850.00")
+
+
+class TestFcrBenchmarkBand:
+    """FCR benchmark premium/deduction (1.1) — independent of area-avg recovery."""
+
+    def _setup(self, farm):
+        # isolate: all recoveries off, benchmark on
+        farm.recovery_excess_mortality = False
+        farm.recovery_negligence = False
+        farm.recovery_shortage = False
+        farm.recovery_fcr = False
+        farm.recovery_ifft = False
+        farm.fcr_benchmark_enabled = True
+        farm.save()
+        return farm
+
+    def test_premium_for_beating_band(self, farm, make_flock, config):
+        self._setup(farm)
+        f = make_flock(farm, chicks=1000)
+        _entry(f, 1, bfp=40)  # 2000 kg feed
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
+                            total_weight_kg=Decimal("1250"), rate_per_kg=Decimal("100"))  # FCR 1.6
+        bill = generate_bill(f)
+        assert bill.fcr_benchmark_adjustment == Decimal("234.38")
+
+    def test_deduction_for_missing_band(self, farm, make_flock, config):
+        self._setup(farm)
+        f = make_flock(farm, chicks=1000)
+        _entry(f, 1, bfp=44)  # 2200 kg feed
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
+                            total_weight_kg=Decimal("1100"), rate_per_kg=Decimal("100"))  # FCR 2.0
+        bill = generate_bill(f)
+        assert bill.fcr_benchmark_adjustment == Decimal("-536.25")
+
+    def test_no_adjustment_inside_band(self, farm, make_flock, config):
+        self._setup(farm)
+        f = make_flock(farm, chicks=1000)
+        _entry(f, 1, bfp=35)  # 1750 kg feed / 1000 kg sold -> FCR 1.75 (on benchmark)
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
+                            total_weight_kg=Decimal("1000"), rate_per_kg=Decimal("100"))
+        bill = generate_bill(f)
+        assert bill.fcr_benchmark_adjustment == Decimal("0")
+
+    def test_disabled_flag_no_adjustment(self, farm, make_flock, config):
+        self._setup(farm)
+        farm.fcr_benchmark_enabled = False
+        farm.save()
+        f = make_flock(farm, chicks=1000)
+        _entry(f, 1, bfp=40)
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
+                            total_weight_kg=Decimal("1250"), rate_per_kg=Decimal("100"))
+        bill = generate_bill(f)
+        assert bill.fcr_benchmark_adjustment == Decimal("0")
+
+    def test_premium_increases_gross_payable(self, farm, make_flock, config):
+        self._setup(farm)
+        f = make_flock(farm, chicks=1000)
+        _entry(f, 1, bfp=40)
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
+                            total_weight_kg=Decimal("1250"), rate_per_kg=Decimal("100"))
+        bill = generate_bill(f)
+        # gross = growing + incentive + benchmark adjustment
+        assert bill.gross_payable == (bill.growing_charges_total + bill.rate_incentive_total + bill.fcr_benchmark_adjustment).quantize(Decimal("0.01"))
+
+    def test_cap_limits_adjustment(self, farm, make_flock, config):
+        self._setup(farm)
+        config.fcr_benchmark_max_adjustment_per_kg = Decimal("0.100")  # tiny cap
+        config.save()
+        f = make_flock(farm, chicks=1000)
+        _entry(f, 1, bfp=40)  # FCR 1.6, would be 0.1875/kg uncapped
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
+                            total_weight_kg=Decimal("1250"), rate_per_kg=Decimal("100"))
+        bill = generate_bill(f)
+        # capped at 0.1/kg * 1250 = 125.00
+        assert bill.fcr_benchmark_adjustment == Decimal("125.00")
+
+    def test_independent_of_region_recovery(self, farm, make_flock, config):
+        """Both FCR mechanisms can run together (both flags on)."""
+        self._setup(farm)
+        farm.recovery_fcr = True  # region-avg recovery ALSO on
+        farm.save()
+        f = make_flock(farm, chicks=1000)
+        _entry(f, 1, bfp=40)
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
+                            total_weight_kg=Decimal("1250"), rate_per_kg=Decimal("100"))
+        bill = generate_bill(f)
+        # benchmark premium still applies regardless of region recovery
+        assert bill.fcr_benchmark_adjustment == Decimal("234.38")

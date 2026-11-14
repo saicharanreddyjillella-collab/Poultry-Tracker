@@ -132,6 +132,14 @@ export default function BillView() {
 
         {/* FINAL */}
         <div className="bill-final-compact">
+          {parseFloat(bill.fcr_benchmark_adjustment) !== 0 && (
+            <div className={`bill-final-line ${parseFloat(bill.fcr_benchmark_adjustment) >= 0 ? '' : 'bill-final-deduct'}`}>
+              <span>FCR Benchmark {parseFloat(bill.fcr_benchmark_adjustment) >= 0 ? 'Premium' : 'Deduction'}</span>
+              <span className={parseFloat(bill.fcr_benchmark_adjustment) >= 0 ? 'text-ok' : 'text-danger'}>
+                {parseFloat(bill.fcr_benchmark_adjustment) >= 0 ? '+ ' : '- '}₹{fmt(Math.abs(parseFloat(bill.fcr_benchmark_adjustment)))}
+              </span>
+            </div>
+          )}
           <div className="bill-final-line"><span>Gross Payable</span><span>₹{fmt(bill.gross_payable)}</span></div>
           {hasRecoveries && <div className="bill-final-line bill-final-deduct"><span>Less: Recoveries</span><span>- ₹{fmt(bill.total_recoveries)}</span></div>}
           <div className="bill-final-line bill-final-net"><span>Net Payable to Farmer</span><span>₹{fmt(bill.net_payable)}</span></div>

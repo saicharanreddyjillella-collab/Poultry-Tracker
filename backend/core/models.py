@@ -74,6 +74,7 @@ class Farm(models.Model):
     recovery_negligence = models.BooleanField(default=False, help_text="Apply farmer negligence recovery")
     recovery_shortage = models.BooleanField(default=True, help_text="Apply bird shortage recovery")
     recovery_fcr = models.BooleanField(default=True, help_text="Apply FCR recovery if exceeds area avg")
+    fcr_benchmark_enabled = models.BooleanField(default=False, help_text="Apply fixed-benchmark FCR premium/deduction (independent of area-avg FCR recovery)")
     recovery_ifft = models.BooleanField(default=True, help_text="Apply IFFT charges per bag")
     medicine_use_actual = models.BooleanField(default=False, help_text="If ON: use actual medicine cost. If OFF: use chicks × medicine_cost_per_chick")
 
@@ -790,6 +791,13 @@ class BillConfig(models.Model):
     # ── Feed-lot reconciliation ──
     feed_reconciliation_tolerance_pct = models.DecimalField(max_digits=5, decimal_places=2, default=5.00, help_text="Allowed % gap between feed dispatched and consumed before a flock is flagged")
 
+    # ── FCR benchmark band (premium for beating, deduction for missing) ──
+    fcr_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=1.75, help_text="Target FCR; beating earns a premium, missing a deduction")
+    fcr_benchmark_tolerance_pct = models.DecimalField(max_digits=5, decimal_places=2, default=5.00, help_text="Neutral band around the benchmark (± %); no adjustment inside it")
+    fcr_premium_per_kg_per_step = models.DecimalField(max_digits=6, decimal_places=3, default=0.300, help_text="₹/kg premium per 0.1 FCR below the band")
+    fcr_deduction_per_kg_per_step = models.DecimalField(max_digits=6, decimal_places=3, default=0.300, help_text="₹/kg deduction per 0.1 FCR above the band")
+    fcr_benchmark_max_adjustment_per_kg = models.DecimalField(max_digits=6, decimal_places=3, default=2.000, help_text="Cap on the per-kg premium/deduction magnitude")
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -843,6 +851,9 @@ class Bill(models.Model):
     # Rate incentive
     rate_incentive_per_kg = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     rate_incentive_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # FCR benchmark band (signed: + premium / - deduction)
+    fcr_benchmark_adjustment = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     # Recoveries
     first_week_mortality_recovery = models.DecimalField(max_digits=12, decimal_places=2, default=0)
