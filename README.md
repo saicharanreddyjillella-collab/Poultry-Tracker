@@ -1,5 +1,7 @@
 # 🐔 PoultryTrack — Poultry Integration Tracking Software
 
+![CI](https://github.com/saicharanreddyjillella-collab/Poultry-Tracker/actions/workflows/ci.yml/badge.svg)
+
 A full-stack web application for tracking daily mortality, feed consumption, and flock performance across multiple poultry farms.
 
 **Stack:** React (Vite) + Django REST Framework + SQLite
@@ -126,3 +128,12 @@ to start otherwise). Configure via environment variables (see
 With `DEBUG=False` the app also enables secure cookies, SSL redirect, HSTS and
 related headers (unless `DISABLE_HTTPS=True`). `docker-compose.yml` already
 passes these through from your deploy `.env`.
+
+---
+
+## Continuous Integration
+
+Every push and pull request to `main` or `release/feeds-only` runs
+`.github/workflows/ci.yml`: Django system check, migration-sync check, and the
+full pytest suite against **PostgreSQL 16** (matching production), plus the
+Vite frontend build. Keep CI green before merging or building an image.

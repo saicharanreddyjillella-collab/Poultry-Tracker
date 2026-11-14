@@ -336,3 +336,12 @@ fail-fast in prod.
   action, limit). Read-only Django admin registration.
 - Tests: test_audit.py (12). Full suite 149 pass.
 - Bugs: none.
+
+### E11 — CI pipeline  ✅ DONE
+- .github/workflows/ci.yml: on push/PR to main + release/feeds-only.
+  backend job: Postgres 16 service, pip cache, manage.py check,
+  makemigrations --check, pytest. frontend job: node 22, npm ci, vite build.
+- Verified the whole suite locally against a real Postgres 16 before pushing:
+  149 pass on the production DB engine (first time run on Postgres; engine-
+  agnostic, no fixes needed).
+- README: CI badge + section.
