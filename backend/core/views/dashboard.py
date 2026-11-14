@@ -130,6 +130,7 @@ def flock_cumulative(request, flock_id):
 
     BAG_KG = 50
     cum_mortality = 0
+    cum_culls = 0
     cum_bpsc = 0
     cum_bsc = 0
     cum_bfp = 0
@@ -137,6 +138,7 @@ def flock_cumulative(request, flock_id):
 
     for entry in entries:
         cum_mortality += entry.mortality_count
+        cum_culls += entry.cull_count
         cum_bpsc += entry.feed_bpsc_bags
         cum_bsc += entry.feed_bsc_bags
         cum_bfp += entry.feed_bfp_bags
@@ -148,6 +150,8 @@ def flock_cumulative(request, flock_id):
             'date': str(entry.date),
             'day_number': day_number,
             'daily_mortality': entry.mortality_count,
+            'daily_culls': entry.cull_count,
+            'cumulative_culls': cum_culls,
             'cumulative_mortality': cum_mortality,
             'mortality_percentage': round((cum_mortality / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0,
             'feed_bpsc_bags': entry.feed_bpsc_bags,
@@ -199,8 +203,9 @@ def flock_cumulative(request, flock_id):
         'age_days': flock.age_days,
         'status': flock.status,
         'total_mortality': cum_mortality,
+        'total_culls': cum_culls,
         'mortality_percentage': round((cum_mortality / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0,
-        'live_birds': flock.chick_count - cum_mortality - total_sold_birds,
+        'live_birds': flock.chick_count - cum_mortality - cum_culls - total_sold_birds,
         'total_sold_birds': total_sold_birds,
         'total_sold_weight': round(total_sold_weight, 2),
         'total_sold_weight_kg': round(total_sold_weight, 2),
@@ -214,6 +219,8 @@ def flock_cumulative(request, flock_id):
         'feed_schedule_status': flock.feed_schedule_status,
         'flock_feed_stock': flock.flock_feed_stock,
         'fcr': fcr,
+        'epef': flock.epef,
+        'avg_sold_weight_kg': flock.avg_sold_weight_kg,
         'total_medication_cost': float(sum(m.cost for m in meds)),
         'standard_curve': standard_curve,
         'entries': result_entries,

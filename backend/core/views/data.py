@@ -1,6 +1,7 @@
 """Farm / Flock / DailyEntry / Sale / FeedRate / Medication CRUD viewsets."""
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum
 from datetime import date
 
 from ..models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication

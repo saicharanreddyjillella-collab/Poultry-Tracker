@@ -144,6 +144,16 @@ class Flock(models.Model):
         return self.daily_entries.aggregate(total=models.Sum('mortality_count'))['total'] or 0
 
     @property
+    def total_culls(self):
+        return self.daily_entries.aggregate(total=models.Sum('cull_count'))['total'] or 0
+
+    @property
+    def cull_percentage(self):
+        if self.chick_count == 0:
+            return 0
+        return round((self.total_culls / self.chick_count) * 100, 2)
+
+    @property
     def total_feed_kg(self):
         agg = self.daily_entries.aggregate(
             bpsc=models.Sum('feed_bpsc_bags'),
@@ -211,7 +221,7 @@ class Flock(models.Model):
 
     @property
     def live_birds(self):
-        return self.chick_count - self.total_mortality - self.total_sold_birds
+        return self.chick_count - self.total_mortality - self.total_culls - self.total_sold_birds
 
     @property
     def fcr(self):
@@ -222,6 +232,29 @@ class Flock(models.Model):
         if sold_kg == 0:
             return None
         return round(float(self.total_feed_kg) / sold_kg, 3)
+
+    @property
+    def avg_sold_weight_kg(self):
+        """Average live weight per bird sold (kg). None if nothing sold."""
+        birds = self.total_sold_birds
+        if not birds:
+            return None
+        return round(float(self.total_sold_weight_kg) / birds, 3)
+
+    @property
+    def epef(self):
+        """European Production Efficiency Factor (European Broiler Index).
+
+        EPEF = (Livability % x Avg live weight kg x 100) / (Age days x FCR)
+        Higher is better (~400+ good). Only meaningful for a closed flock.
+        """
+        fcr = self.fcr
+        avg_wt = self.avg_sold_weight_kg
+        age = self.age_days
+        if fcr is None or not fcr or avg_wt is None or not age:
+            return None
+        livability = float(self.livability_percentage)
+        return round((livability * avg_wt * 100) / (age * fcr), 1)
 
     @property
     def total_medication_cost(self):
@@ -265,6 +298,7 @@ class DailyEntry(models.Model):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='daily_entries')
     date = models.DateField()
     mortality_count = models.PositiveIntegerField(default=0)
+    cull_count = models.PositiveIntegerField(default=0, help_text="Birds intentionally removed (culled), tracked separately from deaths")
 
     BAG_WEIGHT_KG = 50
 

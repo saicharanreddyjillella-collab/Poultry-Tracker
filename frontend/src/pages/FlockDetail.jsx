@@ -29,7 +29,7 @@ export default function FlockDetail() {
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, danger: false });
   const [entryForm, setEntryForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    mortality_count: '', feed_type: 'BPSC', feed_bags: '',
+    mortality_count: '', cull_count: '', feed_type: 'BPSC', feed_bags: '',
     water_consumed_liters: '', avg_body_weight_grams: '', notes: '',
   });
   const [saleForm, setSaleForm] = useState({
@@ -62,7 +62,7 @@ export default function FlockDetail() {
   useEffect(() => { load(); }, [id]);
 
   const resetEntryForm = () => {
-    setEntryForm({ date: new Date().toISOString().split('T')[0], mortality_count: '', feed_type: 'BPSC', feed_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
+    setEntryForm({ date: new Date().toISOString().split('T')[0], mortality_count: '', cull_count: '', feed_type: 'BPSC', feed_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
     setEditingEntry(null);
   };
 
@@ -76,6 +76,7 @@ export default function FlockDetail() {
     setEntryForm({
       date: entry.date,
       mortality_count: entry.daily_mortality || '',
+      cull_count: entry.daily_culls || '',
       feed_type,
       feed_bags: feed_bags || '',
       water_consumed_liters: entry.water_liters || '',
@@ -93,6 +94,7 @@ export default function FlockDetail() {
     e.preventDefault(); setError('');
     const bags = parseInt(entryForm.feed_bags) || 0;
     const mortality = parseInt(entryForm.mortality_count) || 0;
+    const culls = parseInt(entryForm.cull_count) || 0;
     const water = parseFloat(entryForm.water_consumed_liters) || 0;
     const bodyWeight = entryForm.avg_body_weight_grams ? parseFloat(entryForm.avg_body_weight_grams) : null;
 
@@ -127,6 +129,7 @@ export default function FlockDetail() {
     const data = {
       flock: id, date: entryForm.date,
       mortality_count: mortality,
+      cull_count: culls,
       feed_bpsc_bags: entryForm.feed_type === 'BPSC' ? bags : 0,
       feed_bsc_bags: entryForm.feed_type === 'BSC' ? bags : 0,
       feed_bfp_bags: entryForm.feed_type === 'BFP' ? bags : 0,
@@ -278,6 +281,7 @@ export default function FlockDetail() {
           <div className="form-row">
             <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} min={flock.placement_date} max={new Date().toISOString().split('T')[0]} /></div>
             <div className="form-group"><label>Mortality</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
+            <div className="form-group"><label>Culls</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.cull_count} onChange={e => setEntryForm({ ...entryForm, cull_count: e.target.value })} placeholder="0" /></div>
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -397,9 +401,13 @@ export default function FlockDetail() {
       <div className="stats-grid stats-grid-wide">
         <div className="stat-card"><span className="stat-label">Live Birds</span><span className="stat-value">{cumulative.live_birds.toLocaleString()}</span></div>
         <div className="stat-card stat-alert"><span className="stat-label">Mortality</span><span className="stat-value">{flock.total_mortality} ({flock.mortality_percentage}%)</span></div>
+        <div className="stat-card"><span className="stat-label">Culls</span><span className="stat-value">{flock.total_culls} ({flock.cull_percentage}%)</span></div>
         <div className="stat-card stat-success"><span className="stat-label">Sold</span><span className="stat-value">{cumulative.total_sold_birds.toLocaleString()} / {cumulative.total_sold_weight_kg.toLocaleString()} kg</span></div>
         <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{(cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags).toFixed(1)} bags<br/><small>{cumulative.total_feed_kg.toLocaleString()} kg</small></span></div>
         <div className="stat-card stat-info"><span className="stat-label">FCR</span><span className="stat-value">{cumulative.fcr ?? '—'}</span></div>
+        {cumulative.epef != null && (
+          <div className="stat-card stat-info"><span className="stat-label">EPEF</span><span className="stat-value">{cumulative.epef}</span></div>
+        )}
         <div className="stat-card"><span className="stat-label">Med Cost</span><span className="stat-value">₹{parseFloat(flock.total_medication_cost).toLocaleString()}</span></div>
         <div className="stat-card"><span className="stat-label">Current Feed</span><span className="stat-value"><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></span></div>
       </div>

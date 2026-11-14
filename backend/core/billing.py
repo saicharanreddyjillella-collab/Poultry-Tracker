@@ -17,7 +17,9 @@ def generate_bill(flock, user=None):
     entries = DailyEntry.objects.filter(flock=flock).order_by('date')
     sales = Sale.objects.filter(flock=flock)
 
-    total_mortality = entries.aggregate(t=Sum('mortality_count'))['t'] or 0
+    # Culls are treated as mortality for settlement (per business rule).
+    agg_losses = entries.aggregate(m=Sum('mortality_count'), c=Sum('cull_count'))
+    total_mortality = (agg_losses['m'] or 0) + (agg_losses['c'] or 0)
     total_sold_birds = sales.aggregate(t=Sum('bird_count'))['t'] or 0
     total_sold_weight = Decimal(str(sales.aggregate(t=Sum('total_weight_kg'))['t'] or 0))
     live_birds = chicks_placed - total_mortality - total_sold_birds
@@ -111,7 +113,8 @@ def generate_bill(flock, user=None):
         first_week_entries = entries.filter(
             date__lte=flock.placement_date + __import__('datetime').timedelta(days=7)
         )
-        first_week_deaths = first_week_entries.aggregate(t=Sum('mortality_count'))['t'] or 0
+        _fw = first_week_entries.aggregate(m=Sum('mortality_count'), c=Sum('cull_count'))
+        first_week_deaths = (_fw['m'] or 0) + (_fw['c'] or 0)  # culls counted as mortality
         first_week_pct = (first_week_deaths / chicks_placed) * 100 if chicks_placed > 0 else 0
         if first_week_pct > float(config.first_week_mortality_limit_pct):
             excess_chicks = first_week_deaths - int(chicks_placed * float(config.first_week_mortality_limit_pct) / 100)
@@ -122,16 +125,17 @@ def generate_bill(flock, user=None):
     if farm.recovery_negligence:
         # Calculate based on mortality by age bracket
         for entry in entries:
-            if entry.mortality_count > 0:
+            entry_losses = entry.mortality_count + entry.cull_count  # culls counted as mortality
+            if entry_losses > 0:
                 day = (entry.date - flock.placement_date).days
                 if day <= 15:
-                    negligence_recovery += Decimal(str(entry.mortality_count)) * config.negligence_rate_1_15
+                    negligence_recovery += Decimal(str(entry_losses)) * config.negligence_rate_1_15
                 elif day <= 20:
-                    negligence_recovery += Decimal(str(entry.mortality_count)) * config.negligence_rate_16_20
+                    negligence_recovery += Decimal(str(entry_losses)) * config.negligence_rate_16_20
                 elif day <= 35:
-                    negligence_recovery += Decimal(str(entry.mortality_count)) * config.negligence_rate_21_35
+                    negligence_recovery += Decimal(str(entry_losses)) * config.negligence_rate_21_35
                 else:
-                    negligence_recovery += Decimal(str(entry.mortality_count)) * config.negligence_rate_above_35
+                    negligence_recovery += Decimal(str(entry_losses)) * config.negligence_rate_above_35
 
     # 3. Shortage of birds
     if farm.recovery_shortage:

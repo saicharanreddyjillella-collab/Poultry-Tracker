@@ -165,3 +165,56 @@ class TestFinalPayable:
         bill = generate_bill(f)
         assert Bill.objects.filter(flock=f).count() == 1
         assert bill.config_snapshot["feed_cost_per_kg"] == "44.00"
+
+
+class TestCullsAsMortality:
+    """Business rule: culls are treated exactly as mortality in settlement."""
+
+    def test_culls_reduce_live_birds_in_bill(self, farm, make_flock, config):
+        _plain_farm(farm)
+        f = make_flock(farm, chicks=1000)
+        e = _entry(f, 1, mortality=30, bfp=40)
+        e.cull_count = 20
+        e.save()
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=900,
+                            total_weight_kg=Decimal("1800"), rate_per_kg=Decimal("100"))
+        bill = generate_bill(f)
+        assert bill.total_mortality == 50
+        assert bill.live_birds == 50
+
+    def test_cull_equivalent_to_death_in_bill(self, farm, make_flock, config):
+        _plain_farm(farm)
+        a = make_flock(farm, chicks=1000)
+        _entry(a, 1, mortality=40, bfp=40)
+        Sale.objects.create(flock=a, date=a.placement_date, bird_count=900,
+                            total_weight_kg=Decimal("1800"), rate_per_kg=Decimal("100"))
+        bill_a = generate_bill(a)
+
+        b = make_flock(farm, chicks=1000)
+        eb = _entry(b, 1, mortality=20, bfp=40)
+        eb.cull_count = 20
+        eb.save()
+        Sale.objects.create(flock=b, date=b.placement_date, bird_count=900,
+                            total_weight_kg=Decimal("1800"), rate_per_kg=Decimal("100"))
+        bill_b = generate_bill(b)
+
+        assert bill_a.total_mortality == bill_b.total_mortality == 40
+        assert bill_a.live_birds == bill_b.live_birds
+        assert bill_a.admin_cost == bill_b.admin_cost
+        assert bill_a.net_payable == bill_b.net_payable
+
+    def test_first_week_recovery_counts_culls(self, farm, make_flock, config):
+        farm.recovery_excess_mortality = True
+        farm.recovery_negligence = False
+        farm.recovery_shortage = False
+        farm.recovery_fcr = False
+        farm.recovery_ifft = False
+        farm.save()
+        f = make_flock(farm, chicks=1000)
+        e = _entry(f, 2, mortality=10, bfp=40)
+        e.cull_count = 30
+        e.save()
+        Sale.objects.create(flock=f, date=f.placement_date, bird_count=900,
+                            total_weight_kg=Decimal("1800"), rate_per_kg=Decimal("100"))
+        bill = generate_bill(f)
+        assert bill.first_week_mortality_recovery == Decimal("850.00")
