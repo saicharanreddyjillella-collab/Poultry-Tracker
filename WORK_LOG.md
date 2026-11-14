@@ -179,3 +179,12 @@ per-kg unit; stepped by 0.1 FCR.
 - Tests: TestFcrBenchmarkBand (7); values hand-verified (+234.38 beat,
   −536.25 miss, 0 on-band, 125.00 capped). Full suite 83 pass; FE builds.
 - Bugs: none.
+
+### 1.5 — Pay basis ₹/bird vs ₹/kg  — NOT NEEDED
+User: pay is ALWAYS per kg. No ₹/bird option required; growing charges and
+the FCR benchmark already work per kg. No work item.
+
+### 1.3 — Catastrophic-loss / partial-closure  — SKIPPED (user decision)
+User: "keep it as normal, no change required." Disease/partial closures are
+billed via the normal close flow for now; no separate disease-event path,
+recovery waiver, or vet-certificate capture built. Revisit if needed later.
