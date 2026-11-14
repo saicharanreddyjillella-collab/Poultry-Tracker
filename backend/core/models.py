@@ -224,6 +224,33 @@ class Flock(models.Model):
         return round(float(self.total_feed_kg) / sold_kg, 3)
 
     @property
+    def avg_sold_weight_kg(self):
+        """Average live weight per bird sold (kg). None if nothing sold."""
+        birds = self.total_sold_birds
+        if not birds:
+            return None
+        return round(float(self.total_sold_weight_kg) / birds, 3)
+
+    @property
+    def epef(self):
+        """European Production Efficiency Factor (a.k.a. European Broiler Index).
+
+        EPEF = (Livability % x Avg live weight kg x 100) / (Age days x FCR)
+
+        Higher is better. ~400+ is a strong broiler result, 300s is poor.
+        Only meaningful for a closed flock (needs final weight and FCR), so
+        returns None until the flock is closed and has sales.
+        """
+        fcr = self.fcr
+        avg_wt = self.avg_sold_weight_kg
+        age = self.age_days
+        if fcr is None or not fcr or avg_wt is None or not age:
+            return None
+        livability = float(self.livability_percentage)
+        epef = (livability * avg_wt * 100) / (age * fcr)
+        return round(epef, 1)
+
+    @property
     def total_medication_cost(self):
         return self.medications.aggregate(total=models.Sum('cost'))['total'] or 0
 

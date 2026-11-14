@@ -417,6 +417,8 @@ def flock_cumulative(request, flock_id):
         'feed_schedule_status': flock.feed_schedule_status,
         'flock_feed_stock': flock.flock_feed_stock,
         'fcr': fcr,
+        'epef': flock.epef,
+        'avg_sold_weight_kg': flock.avg_sold_weight_kg,
         'total_medication_cost': float(sum(m.cost for m in meds)),
         'standard_curve': standard_curve,
         'entries': result_entries,
