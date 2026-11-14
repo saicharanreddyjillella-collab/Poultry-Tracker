@@ -224,6 +224,32 @@ class Flock(models.Model):
         return self.chick_count - self.total_mortality - self.total_culls - self.total_sold_birds
 
     @property
+    def reconciliation(self):
+        """Daily bird-population reconciliation.
+
+        opening - mortality - culls - sold = closing (expected live birds).
+        is_balanced is False when total losses + sales exceed the opening
+        count, i.e. the computed closing would be negative, which signals a
+        data-entry error (an over-counted sale or mortality figure).
+        """
+        opening = self.chick_count
+        mortality = self.total_mortality
+        culls = self.total_culls
+        sold = self.total_sold_birds
+        accounted = mortality + culls + sold
+        closing = opening - accounted
+        return {
+            'opening': opening,
+            'mortality': mortality,
+            'culls': culls,
+            'sold': sold,
+            'accounted': accounted,
+            'closing': closing,
+            'is_balanced': closing >= 0,
+            'overcount': max(0, -closing),
+        }
+
+    @property
     def fcr(self):
         """FCR only calculated for closed flocks."""
         if self.status != 'closed':

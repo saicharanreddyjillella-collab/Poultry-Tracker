@@ -55,6 +55,7 @@
   font-size: 0.9rem; font-weight: 500;
 }
 .alert-banner-warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+.alert-banner-danger { background: #fdecea; color: #922b21; border: 1px solid #e74c3c; }
 .row-missing-price { background: #fff8e1; }
 
 /* Bill close modal flags */
