@@ -584,6 +584,11 @@ def break_even_projection(request):
     finish_wt_kg = D(get_standard_weight(finish_age)) / D(1000)
 
     rows = []
+    pool_cost = Decimal('0')
+    pool_weight = Decimal('0')
+    pool_feed_kg = Decimal('0')
+    pool_birds = 0
+    pool_chicks = 0
     for f in Flock.objects.filter(status='active').select_related('farm'):
         chicks = f.chick_count
         if chicks <= 0:
@@ -625,10 +630,20 @@ def break_even_projection(request):
             'cost_per_kg': float(cost_per_kg),
             'break_even_price_per_kg': float(cost_per_kg),
         })
+        pool_cost += total_cost
+        pool_weight += projected_weight
+        pool_feed_kg += total_feed_kg
+        pool_birds += max(0, projected_live)
+        pool_chicks += chicks
 
     rows.sort(key=lambda r: r['cost_per_kg'])
     costs = [r['cost_per_kg'] for r in rows if r['cost_per_kg'] > 0]
     avg_cost = round(sum(costs) / len(costs), 2) if costs else 0
+
+    if pool_weight > 0:
+        blended = (pool_cost / pool_weight).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    else:
+        blended = Decimal('0')
 
     return Response({
         'finish_age': finish_age,
@@ -641,5 +656,13 @@ def break_even_projection(request):
         },
         'active_flocks': len(rows),
         'avg_break_even_per_kg': avg_cost,
+        'overall': {
+            'blended_break_even_per_kg': float(blended),
+            'total_cost': round(float(pool_cost), 2),
+            'total_projected_weight_kg': round(float(pool_weight), 1),
+            'total_feed_to_finish_bags': round(float(pool_feed_kg) / BAG_KG, 1),
+            'total_projected_birds': pool_birds,
+            'total_chicks_placed': pool_chicks,
+        },
         'flocks': rows,
     })
