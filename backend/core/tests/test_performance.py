@@ -264,3 +264,68 @@ class TestWeightVsStandard:
         w = resp.data["weight_vs_standard"]
         assert w["standard_g"] == 838.0
         assert w["status"] == "on_track"
+
+
+class TestScorecard:
+    def test_active_flock_livability_and_weight_only(self, farm, make_flock):
+        """Active flock: only livability + weight components (no EPEF/FCR)."""
+        f = make_flock(farm, chicks=1000, status="active", placed_days_ago=21)
+        e = _entry(f, 21, mortality=30)   # 3% mortality
+        e.avg_body_weight_grams = Decimal("700")  # day21 std 838 -> -16.5%
+        e.save()
+        sc = f.scorecard
+        labels = [c["label"] for c in sc["components"]]
+        assert labels == ["livability", "weight"]
+        assert sc["overall_score"] == 83.5
+        assert sc["rating"] == "Good"
+        assert sc["farmer_grade"] is None
+
+    def test_excellent_closed_flock(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="closed", placed_days_ago=42)
+        e = _entry(f, 42, mortality=50, bfp=40)   # 5% mortality, 2000kg feed
+        e.avg_body_weight_grams = Decimal("2677")  # on target
+        e.save()
+        Sale.objects.create(flock=f, date=f.placement_date + datetime.timedelta(days=40),
+                            bird_count=950, total_weight_kg=Decimal("1900"))
+        sc = f.scorecard
+        labels = sorted(c["label"] for c in sc["components"])
+        assert labels == ["epef", "fcr", "livability", "weight"]
+        assert sc["overall_score"] == 100.0
+        assert sc["rating"] == "Excellent"
+
+    def test_poor_closed_flock(self, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="closed", placed_days_ago=42)
+        _entry(f, 2, mortality=250, bfp=52)   # 25% mortality, 2600kg feed
+        Sale.objects.create(flock=f, date=f.placement_date + datetime.timedelta(days=40),
+                            bird_count=700, total_weight_kg=Decimal("1050"))
+        sc = f.scorecard
+        assert sc["rating"] == "Poor"
+        assert sc["overall_score"] < 50
+
+    def test_rating_bands(self, farm, make_flock):
+        # Just check the band function via a mid flock -> Fair/Good boundary.
+        f = make_flock(farm, chicks=1000, status="active", placed_days_ago=21)
+        # ~10% mortality -> survived 90 -> liv 94.7; no weight -> only livability
+        _entry(f, 1, mortality=100)
+        sc = f.scorecard
+        assert sc["components"][0]["label"] == "livability"
+        # single component => overall == livability score
+        assert sc["overall_score"] == sc["components"][0]["score"]
+
+    def test_farmer_grade_surfaced_when_bill_exists(self, farm, make_flock, config):
+        from core.billing import generate_bill
+        f = make_flock(farm, chicks=1000, status="closed", placed_days_ago=42)
+        _entry(f, 2, mortality=30, bfp=40)
+        Sale.objects.create(flock=f, date=f.placement_date + datetime.timedelta(days=40),
+                            bird_count=950, total_weight_kg=Decimal("1900"), rate_per_kg=Decimal("100"))
+        generate_bill(f)
+        sc = f.scorecard
+        assert sc["farmer_grade"] is not None
+
+    def test_scorecard_in_cumulative(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active", placed_days_ago=21)
+        _entry(f, 1, mortality=30)
+        resp = auth_admin.get(f"/api/flocks/{f.id}/cumulative/")
+        assert resp.status_code == 200
+        assert "scorecard" in resp.data
+        assert resp.data["scorecard"]["rating"] in ("Excellent", "Good", "Fair", "Poor")
