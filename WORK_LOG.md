@@ -257,6 +257,10 @@ breaks even at.
   param. /api/reports/break-even/.
 - Frontend: BreakEven page (summary + per-flock table) + "Break-even" nav link.
 - Tests: test_break_even.py (8). Full suite 119 pass; no migration; FE builds.
+- FOLLOW-UP: added a pooled/blended break-even across ALL live flocks
+  (total cost / total projected weight — the true weight-weighted figure,
+  not the mean of per-flock rates) + pooled totals (cost, weight, feed,
+  birds). Shown as the lead card on the page. +4 tests (TestBlendedBreakEven).
 - Bugs found & fixed (both in the new code, caught by tests):
   BUG-003 Decimal*float in cost calc (coerced config rates via D());
   BUG-004 ROUND_HALF_UP not imported in data.py (added). NOTE for release

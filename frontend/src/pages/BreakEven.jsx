@@ -27,10 +27,16 @@ export default function BreakEven() {
       {loading ? <p className="muted">Loading…</p> : data && (
         <>
           <div className="stats-grid stats-grid-wide">
+            <div className="stat-card stat-info"><span className="stat-label">Blended Break-even (all live)</span><span className="stat-value">₹{fmt(data.overall.blended_break_even_per_kg)}<small>/kg</small></span></div>
+            <div className="stat-card"><span className="stat-label">Avg of Flocks</span><span className="stat-value">₹{fmt(data.avg_break_even_per_kg)}<small>/kg</small></span></div>
             <div className="stat-card"><span className="stat-label">Active Flocks</span><span className="stat-value">{data.active_flocks}</span></div>
-            <div className="stat-card stat-info"><span className="stat-label">Avg Break-even</span><span className="stat-value">₹{fmt(data.avg_break_even_per_kg)}<small>/kg</small></span></div>
             <div className="stat-card"><span className="stat-label">Feed Rate</span><span className="stat-value">₹{fmt(data.rates.feed_cost_per_kg)}<small>/kg</small></span></div>
-            <div className="stat-card"><span className="stat-label">Chick Cost</span><span className="stat-value">₹{fmt(data.rates.chick_cost_per_bird)}<small>/bird</small></span></div>
+          </div>
+          <div className="stats-grid stats-grid-wide" style={{ marginTop: '0.75rem' }}>
+            <div className="stat-card"><span className="stat-label">Total Projected Cost</span><span className="stat-value">₹{fmt(data.overall.total_cost)}</span></div>
+            <div className="stat-card"><span className="stat-label">Total Projected Weight</span><span className="stat-value">{fmt(data.overall.total_projected_weight_kg)}<small> kg</small></span></div>
+            <div className="stat-card"><span className="stat-label">Total Feed to Finish</span><span className="stat-value">{fmt(data.overall.total_feed_to_finish_bags)}<small> bags</small></span></div>
+            <div className="stat-card"><span className="stat-label">Projected Birds</span><span className="stat-value">{fmt(data.overall.total_projected_birds)}</span></div>
           </div>
 
           {data.flocks.length === 0 ? <p className="muted">No active flocks to project.</p> : (

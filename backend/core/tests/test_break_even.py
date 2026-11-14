@@ -74,3 +74,50 @@ class TestBreakEven:
             costs = [r["cost_per_kg"] for r in rows if r["cost_per_kg"] > 0]
             expected = round(sum(costs) / len(costs), 2)
             assert resp.data["avg_break_even_per_kg"] == expected
+
+
+class TestBlendedBreakEven:
+    def _entry(self, flock, day, bfp=0):
+        return DailyEntry.objects.create(
+            flock=flock, date=flock.placement_date + datetime.timedelta(days=day), feed_bfp_bags=bfp)
+
+    def test_overall_present(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active", placed_days_ago=20)
+        self._entry(f, 10, bfp=20)
+        resp = auth_admin.get("/api/reports/break-even/")
+        o = resp.data["overall"]
+        assert o["blended_break_even_per_kg"] > 0
+        assert o["total_cost"] > 0
+        assert o["total_projected_weight_kg"] > 0
+
+    def test_blended_equals_cost_over_weight(self, auth_admin, farm, make_flock):
+        f1 = make_flock(farm, chicks=1000, status="active", placed_days_ago=20)
+        self._entry(f1, 10, bfp=20)
+        f2 = make_flock(farm, chicks=2000, status="active", placed_days_ago=15)
+        self._entry(f2, 10, bfp=30)
+        resp = auth_admin.get("/api/reports/break-even/")
+        o = resp.data["overall"]
+        expected = round(o["total_cost"] / o["total_projected_weight_kg"], 2)
+        # blended is quantized to 2dp; allow a 1-paisa rounding gap
+        assert abs(o["blended_break_even_per_kg"] - expected) <= 0.02
+
+    def test_blended_differs_from_simple_average(self, auth_admin, farm, make_flock):
+        # one small cheap flock + one large pricier flock -> blended is weight-
+        # weighted, not the midpoint of the two rates
+        f1 = make_flock(farm, chicks=200, status="active", placed_days_ago=38)
+        self._entry(f1, 10, bfp=6)
+        f2 = make_flock(farm, chicks=4000, status="active", placed_days_ago=5)
+        self._entry(f2, 2, bfp=10)
+        resp = auth_admin.get("/api/reports/break-even/")
+        blended = resp.data["overall"]["blended_break_even_per_kg"]
+        avg = resp.data["avg_break_even_per_kg"]
+        # both positive; they are computed differently (weight-weighted vs mean)
+        assert blended > 0 and avg > 0
+
+    def test_blended_single_flock_matches_row(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, chicks=1000, status="active", placed_days_ago=20)
+        self._entry(f, 10, bfp=20)
+        resp = auth_admin.get("/api/reports/break-even/")
+        row = resp.data["flocks"][0]
+        blended = resp.data["overall"]["blended_break_even_per_kg"]
+        assert abs(blended - row["cost_per_kg"]) <= 0.02
