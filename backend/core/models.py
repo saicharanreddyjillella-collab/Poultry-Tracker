@@ -77,6 +77,22 @@ class Farm(models.Model):
     recovery_ifft = models.BooleanField(default=True, help_text="Apply IFFT charges per bag")
     medicine_use_actual = models.BooleanField(default=False, help_text="If ON: use actual medicine cost. If OFF: use chicks × medicine_cost_per_chick")
 
+    # ── Grower tax identity (for TDS on growing charges) ──
+    ENTITY_TYPE_CHOICES = [
+        ('individual', 'Individual'),
+        ('huf', 'HUF'),
+        ('firm', 'Partnership / Firm'),
+        ('company', 'Company'),
+        ('llp', 'LLP'),
+        ('fpo', 'FPO'),
+        ('other', 'Other'),
+    ]
+    # Entity types taxed at the 1% TDS rate under Section 194C.
+    INDIVIDUAL_HUF_TYPES = ('individual', 'huf')
+
+    pan = models.CharField(max_length=10, blank=True, help_text="Grower PAN (10 chars). Used for TDS reporting.")
+    entity_type = models.CharField(max_length=20, choices=ENTITY_TYPE_CHOICES, default='individual', help_text="Grower entity type — drives the TDS rate (1% for Individual/HUF, 2% otherwise)")
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -95,6 +111,24 @@ class Farm(models.Model):
     @property
     def has_active_flock(self):
         return self.flocks.filter(status='active').exists()
+
+
+    PAN_REGEX = r'^[A-Z]{5}[0-9]{4}[A-Z]$'
+
+    @property
+    def has_valid_pan(self):
+        import re
+        return bool(self.pan) and bool(re.match(self.PAN_REGEX, self.pan.upper()))
+
+    @property
+    def is_individual_huf(self):
+        return self.entity_type in self.INDIVIDUAL_HUF_TYPES
+
+    @property
+    def tds_rate_pct(self):
+        """Section 194C TDS rate: 1% for Individual/HUF, 2% for others."""
+        from decimal import Decimal
+        return Decimal('1') if self.is_individual_huf else Decimal('2')
 
 
 class Flock(models.Model):
@@ -678,6 +712,12 @@ class BillConfig(models.Model):
     grade_d_max = models.DecimalField(max_digits=10, decimal_places=2, default=98.00)
     grade_incentive_pct = models.DecimalField(max_digits=5, decimal_places=2, default=50.00, help_text="% increase for A+/A, decrease for B/C/D")
 
+    # ── TDS on growing charges (Section 194C) ──
+    apply_tds = models.BooleanField(default=True, help_text="Deduct TDS on the net amount payable to the grower")
+    apply_tds_thresholds = models.BooleanField(default=True, help_text="If ON, skip TDS when this bill <= single limit AND the grower's FY total <= annual limit")
+    tds_single_payment_limit = models.DecimalField(max_digits=12, decimal_places=2, default=30000.00, help_text="Per-payment TDS threshold (Sec 194C)")
+    tds_annual_limit = models.DecimalField(max_digits=12, decimal_places=2, default=100000.00, help_text="Annual aggregate TDS threshold per grower (Sec 194C)")
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -743,6 +783,12 @@ class Bill(models.Model):
     # Final
     gross_payable = models.DecimalField(max_digits=12, decimal_places=2)
     net_payable = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # TDS (Section 194C) — deducted from net_payable
+    tds_rate_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    tds_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tds_pan_missing = models.BooleanField(default=False, help_text="Grower had no valid PAN when this bill was generated")
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="net_payable minus TDS")
 
     # Config snapshot
     config_snapshot = models.JSONField(default=dict)

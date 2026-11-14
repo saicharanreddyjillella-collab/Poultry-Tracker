@@ -15,6 +15,7 @@ export default function FarmForm() {
 
   const [form, _setForm] = useState({
     farm_code: '', name: '', owner_name: '', shed_type: 'OPEN', region: '', location: '', capacity: 5000,
+    pan: '', entity_type: 'individual',
   });
   const setForm = (v) => { _setForm(v); setDirty(true); };
 
@@ -81,6 +82,26 @@ export default function FarmForm() {
         <div className="form-group">
           <label>Owner / Farmer Name *</label>
           <input value={form.owner_name} onChange={e => setForm({ ...form, owner_name: e.target.value })} required />
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Grower Entity Type</label>
+            <select value={form.entity_type} onChange={e => setForm({ ...form, entity_type: e.target.value })}>
+              <option value="individual">Individual</option>
+              <option value="huf">HUF</option>
+              <option value="firm">Partnership / Firm</option>
+              <option value="company">Company</option>
+              <option value="llp">LLP</option>
+              <option value="fpo">FPO</option>
+              <option value="other">Other</option>
+            </select>
+            <small className="field-hint">1% TDS for Individual/HUF, 2% otherwise</small>
+          </div>
+          <div className="form-group">
+            <label>PAN</label>
+            <input value={form.pan || ''} onChange={e => setForm({ ...form, pan: e.target.value.toUpperCase() })} placeholder="ABCDE1234F" maxLength={10} style={{ textTransform: 'uppercase' }} />
+            <small className="field-hint">Used for TDS reporting (optional)</small>
+          </div>
         </div>
         <div className="form-row">
           <div className="form-group">

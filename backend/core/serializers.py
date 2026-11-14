@@ -105,10 +105,22 @@ class FarmSerializer(serializers.ModelSerializer):
     active_flocks = serializers.SerializerMethodField()
     closed_flocks = serializers.SerializerMethodField()
     supervisor_names = serializers.SerializerMethodField()
+    has_valid_pan = serializers.ReadOnlyField()
+    tds_rate_pct = serializers.ReadOnlyField()
 
     class Meta:
         model = Farm
         fields = '__all__'
+
+    def validate_pan(self, value):
+        import re
+        if value:
+            value = value.strip().upper()
+            if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]$', value):
+                raise serializers.ValidationError(
+                    'PAN must be 10 characters: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F).'
+                )
+        return value
 
     def get_active_flocks(self, obj):
         flocks = obj.flocks.filter(status='active')
