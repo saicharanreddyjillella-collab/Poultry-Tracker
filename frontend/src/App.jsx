@@ -13,6 +13,7 @@ import Reports from './pages/Reports';
 import UserManagement from './pages/UserManagement';
 import ChangePassword from './pages/ChangePassword';
 import FeedStock from './pages/FeedStock';
+import FeedForecast from './pages/FeedForecast';
 import BillView from './pages/BillView';
 import './App.css';
 import './styles/print.css';
@@ -62,6 +63,7 @@ function NavBar() {
         {!isPlant && (
           <>
             <Link to="/reports" onClick={closeMenu}>Reports</Link>
+            <Link to="/feed-forecast" onClick={closeMenu}>Feed Forecast</Link>
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
@@ -114,6 +116,7 @@ function AppRoutes() {
           <Route path="/flocks/:id" element={<ProtectedRoute><FlockDetail /></ProtectedRoute>} />
           <Route path="/flocks/:flockId/bill" element={<ProtectedRoute><BillView /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/feed-forecast" element={<ProtectedRoute><FeedForecast /></ProtectedRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/region" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/till-date" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

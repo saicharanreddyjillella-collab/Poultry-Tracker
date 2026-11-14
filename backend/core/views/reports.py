@@ -329,3 +329,96 @@ def till_date_report(request):
         'latest_feed_rates': latest_rates,
         'feed_rates': FeedRateSerializer(FeedRate.objects.all()[:30], many=True).data,
     })
+
+@api_view(['GET'])
+def feed_forecast(request):
+    """Forward feed-requirement forecast across all active flocks.
+
+    For each active flock and each future day in the horizon, estimate birds
+    alive (declining by a standard daily mortality rate) x daily feed intake
+    per bird (standard curve), attributed to the feed phase for that age.
+    Bucketed by week and phase. Horizon defaults to 4 weeks (28 days).
+    """
+    from datetime import date, timedelta
+    from ..models import Flock, BillConfig
+    from ..standards import get_daily_feed_intake, get_feed_phase
+
+    weeks = int(request.query_params.get('weeks', 4))
+    weeks = max(1, min(weeks, 12))
+    horizon_days = weeks * 7
+    BAG_KG = 50
+
+    config = BillConfig.get_active()
+    # Standard flock-cycle mortality spread evenly across ~42 days -> daily rate.
+    total_mort_pct = float(config.standard_mortality_pct) / 100.0
+    daily_mort_rate = total_mort_pct / 42.0
+
+    today = date.today()
+    active = Flock.objects.filter(status='active').select_related('farm')
+
+    # buckets[week_index][phase] = kg
+    buckets = [{'BPSC': 0.0, 'BSC': 0.0, 'BFP': 0.0} for _ in range(weeks)]
+    per_flock = []
+
+    for flock in active:
+        live = flock.live_birds
+        if live <= 0:
+            continue
+        flock_total_kg = 0.0
+        birds = float(live)
+        for d in range(horizon_days):
+            day_date = today + timedelta(days=d)
+            age = (day_date - flock.placement_date).days
+            if age < 0 or age > 56:
+                # not yet placed (shouldn't happen for active) or past typical cycle
+                birds = birds * (1 - daily_mort_rate)
+                continue
+            intake_g = get_daily_feed_intake(age)
+            kg = (birds * intake_g) / 1000.0
+            phase = get_feed_phase(age)
+            wk = d // 7
+            buckets[wk][phase] += kg
+            flock_total_kg += kg
+            birds = birds * (1 - daily_mort_rate)
+        if flock_total_kg > 0:
+            per_flock.append({
+                'flock_id': flock.id,
+                'farm_code': flock.farm.farm_code,
+                'farm_name': flock.farm.name,
+                'live_birds': live,
+                'forecast_kg': round(flock_total_kg, 1),
+                'forecast_bags': round(flock_total_kg / BAG_KG, 1),
+            })
+
+    week_rows = []
+    grand = {'BPSC': 0.0, 'BSC': 0.0, 'BFP': 0.0}
+    for i, b in enumerate(buckets):
+        start = today + timedelta(days=i * 7)
+        end = today + timedelta(days=i * 7 + 6)
+        for ph in ('BPSC', 'BSC', 'BFP'):
+            grand[ph] += b[ph]
+        total_kg = b['BPSC'] + b['BSC'] + b['BFP']
+        week_rows.append({
+            'week': i + 1,
+            'start': str(start),
+            'end': str(end),
+            'bpsc_kg': round(b['BPSC'], 1), 'bpsc_bags': round(b['BPSC'] / BAG_KG, 1),
+            'bsc_kg': round(b['BSC'], 1), 'bsc_bags': round(b['BSC'] / BAG_KG, 1),
+            'bfp_kg': round(b['BFP'], 1), 'bfp_bags': round(b['BFP'] / BAG_KG, 1),
+            'total_kg': round(total_kg, 1), 'total_bags': round(total_kg / BAG_KG, 1),
+        })
+
+    grand_total_kg = grand['BPSC'] + grand['BSC'] + grand['BFP']
+    return Response({
+        'generated_on': str(today),
+        'weeks': weeks,
+        'active_flocks': len(per_flock),
+        'weekly': week_rows,
+        'totals': {
+            'bpsc_kg': round(grand['BPSC'], 1), 'bpsc_bags': round(grand['BPSC'] / BAG_KG, 1),
+            'bsc_kg': round(grand['BSC'], 1), 'bsc_bags': round(grand['BSC'] / BAG_KG, 1),
+            'bfp_kg': round(grand['BFP'], 1), 'bfp_bags': round(grand['BFP'] / BAG_KG, 1),
+            'total_kg': round(grand_total_kg, 1), 'total_bags': round(grand_total_kg / BAG_KG, 1),
+        },
+        'per_flock': per_flock,
+    })
