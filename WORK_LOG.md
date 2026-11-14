@@ -43,7 +43,7 @@ Order requested: 3.1, 3.3, 3.4, 3.2, 3.5, 3.6.
 
 ---
 ## Registered bugs / decisions
-### BUG-001 — Billing engine ignores culls in live-bird count  [OPEN — needs decision]
+### BUG-001 — Billing engine ignores culls in live-bird count  [RESOLVED 2026-11-14]
 `core/billing.py` computes `live_birds = chicks - total_mortality -
 total_sold_birds` (no culls). Now that culls are tracked separately, culled
 birds are currently counted as "live", which affects:
@@ -55,4 +55,10 @@ Options for Sai Charan to decide:
       admin cost nor trigger shortage.
   (b) Treat culls as shortage/recoverable (grower answerable for them).
   (c) Make it a per-farm flag.
-Not changed yet — settlement math stays exactly as before until decided.
+RESOLUTION (user decision): treat culls as mortality. billing.py now folds
+cull_count into total_mortality, so live_birds, admin cost and shortage all
+count culls as losses; first-week excess-mortality and negligence recoveries
+also count culls. A flock with N deaths bills identically to one with the same
+N split across deaths + culls (verified by test).
+Also ported the full bill-engine test suite to main (core/tests/test_billing.py,
+17 tests) + 3 cull-as-mortality tests. Suite now 32 tests, all passing.
