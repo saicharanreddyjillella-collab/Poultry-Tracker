@@ -133,6 +133,7 @@ export const reportAPI = {
   tillDate: () => API.get('/reports/till-date/'),
   feedForecast: (weeks) => API.get(`/reports/feed-forecast/${weeks ? `?weeks=${weeks}` : ''}`),
   ownerDashboard: (periodDays) => API.get(`/reports/owner-dashboard/${periodDays ? `?period_days=${periodDays}` : ''}`),
+  breakEven: (finishAge) => API.get(`/reports/break-even/${finishAge ? `?finish_age=${finishAge}` : ''}`),
 };
 
 export const billAPI = {

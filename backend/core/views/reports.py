@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Sum
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from ..models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
 from ..serializers import FeedRateSerializer
@@ -549,4 +549,97 @@ def owner_dashboard(request):
         'region_summary': region_summary,
         'leaderboard': leaderboard,
         'alerts': alerts,
+    })
+
+@api_view(['GET'])
+def break_even_projection(request):
+    """Projected break-even for every ACTIVE flock at current feed rates.
+
+    For each live flock, project to a finish age (default 42 days):
+      feed-to-finish = feed consumed so far + remaining intake (standard curve,
+                       birds declining by standard daily mortality)
+      total cost = chick + feed(kg × current feed rate) + medicine + admin
+      projected sold weight = projected live birds at finish × standard
+                              finish weight
+      cost_per_kg = total cost / projected sold weight
+      break_even_price = cost_per_kg (price that just covers production cost)
+    Reading live flocks' break-evens is a proxy for what a new placement
+    would land at under current rates.
+    """
+    from datetime import date, timedelta
+    from ..models import Flock, BillConfig
+    from ..standards import get_daily_feed_intake, get_standard_weight
+
+    finish_age = int(request.query_params.get('finish_age', 42))
+    finish_age = max(28, min(finish_age, 56))
+    config = BillConfig.get_active()
+    BAG_KG = 50
+    D = lambda v: Decimal(str(v))
+
+    feed_rate = D(config.feed_cost_per_kg)
+    chick_cost = D(config.chick_cost_per_bird)
+    admin_cost = D(config.admin_cost_per_chick)
+    med_cost = D(config.medicine_cost_per_chick)
+    daily_mort = (float(config.standard_mortality_pct) / 100.0) / 42.0
+    finish_wt_kg = D(get_standard_weight(finish_age)) / D(1000)
+
+    rows = []
+    for f in Flock.objects.filter(status='active').select_related('farm'):
+        chicks = f.chick_count
+        if chicks <= 0:
+            continue
+        age = f.age_days
+        consumed_kg = D(f.total_feed_kg)
+
+        # Remaining feed from tomorrow to finish_age, birds declining by mortality.
+        birds = float(f.live_birds)
+        remaining_g = 0.0
+        for a in range(age + 1, finish_age + 1):
+            remaining_g += birds * get_daily_feed_intake(a)
+            birds = birds * (1 - daily_mort)
+        remaining_kg = D(remaining_g) / D(1000)
+        projected_live = int(round(birds))  # birds alive at finish
+
+        total_feed_kg = (consumed_kg + remaining_kg)
+        feed_cost = (total_feed_kg * feed_rate)
+        chick_total = D(chicks) * chick_cost
+        med_total = D(chicks) * med_cost
+        # admin on expected marketed birds (projected live at finish)
+        admin_total = D(max(0, projected_live)) * admin_cost
+        total_cost = (chick_total + feed_cost + med_total + admin_total)
+
+        projected_weight = D(max(0, projected_live)) * finish_wt_kg
+        if projected_weight > 0:
+            cost_per_kg = (total_cost / projected_weight).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        else:
+            cost_per_kg = Decimal('0')
+
+        rows.append({
+            'flock_id': f.id, 'farm_code': f.farm.farm_code, 'farm_name': f.farm.name,
+            'region': f.farm.region, 'age_days': age,
+            'chicks_placed': chicks, 'projected_live_at_finish': max(0, projected_live),
+            'feed_consumed_bags': round(float(consumed_kg) / BAG_KG, 1),
+            'feed_to_finish_bags': round(float(total_feed_kg) / BAG_KG, 1),
+            'projected_weight_kg': round(float(projected_weight), 1),
+            'total_cost': round(float(total_cost), 2),
+            'cost_per_kg': float(cost_per_kg),
+            'break_even_price_per_kg': float(cost_per_kg),
+        })
+
+    rows.sort(key=lambda r: r['cost_per_kg'])
+    costs = [r['cost_per_kg'] for r in rows if r['cost_per_kg'] > 0]
+    avg_cost = round(sum(costs) / len(costs), 2) if costs else 0
+
+    return Response({
+        'finish_age': finish_age,
+        'feed_rate_per_kg': float(feed_rate),
+        'rates': {
+            'chick_cost_per_bird': float(chick_cost),
+            'feed_cost_per_kg': float(feed_rate),
+            'admin_cost_per_chick': float(admin_cost),
+            'medicine_cost_per_chick': float(med_cost),
+        },
+        'active_flocks': len(rows),
+        'avg_break_even_per_kg': avg_cost,
+        'flocks': rows,
     })

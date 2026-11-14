@@ -32,6 +32,7 @@ urlpatterns = [
     path('reports/till-date/', views.till_date_report),
     path('reports/feed-forecast/', views.feed_forecast),
     path('reports/owner-dashboard/', views.owner_dashboard),
+    path('reports/break-even/', views.break_even_projection),
     path('flocks/<int:flock_id>/export/', views.export_flock_report),
     path('feed-orders/<int:order_id>/mark-sent/', views.mark_order_sent),
     path('feed-orders/<int:order_id>/mark-delivered/', views.mark_order_delivered),

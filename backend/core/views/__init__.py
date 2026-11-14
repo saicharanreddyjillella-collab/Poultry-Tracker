@@ -12,6 +12,7 @@ from .dashboard import (
 from .reports import (
     monthly_report, export_monthly_report, export_flock_report,
     region_performance, till_date_report, feed_forecast, owner_dashboard,
+    break_even_projection,
 )
 from .feed import (
     FeedOrderViewSet, FeedTransferViewSet,
