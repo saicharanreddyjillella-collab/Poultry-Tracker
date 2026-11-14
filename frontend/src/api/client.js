@@ -132,6 +132,7 @@ export const reportAPI = {
   region: (region) => API.get(`/reports/region/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
   tillDate: () => API.get('/reports/till-date/'),
   feedForecast: (weeks) => API.get(`/reports/feed-forecast/${weeks ? `?weeks=${weeks}` : ''}`),
+  ownerDashboard: (periodDays) => API.get(`/reports/owner-dashboard/${periodDays ? `?period_days=${periodDays}` : ''}`),
 };
 
 export const billAPI = {

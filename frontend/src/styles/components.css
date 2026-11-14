@@ -132,3 +132,15 @@
 .link-action:hover { text-decoration: underline; }
 .link-danger { color: var(--danger, #e74c3c); }
 .muted { color: #718096; font-size: 0.9rem; }
+
+/* Owner dashboard (F4) */
+.badge { display: inline-block; background: #e74c3c; color: #fff; border-radius: 10px; padding: 0.05rem 0.5rem; font-size: 0.75rem; font-weight: 700; vertical-align: middle; }
+.alert-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.alert-row { display: grid; grid-template-columns: auto auto 1fr; gap: 0.6rem; align-items: center; padding: 0.5rem 0.75rem; border-radius: var(--radius); background: #f8fafc; border-left: 4px solid #cbd5e0; font-size: 0.9rem; }
+.alert-row-danger { background: #fdecea; border-left-color: #e74c3c; }
+.alert-row-warning { background: #fff8e1; border-left-color: #f39c12; }
+.alert-row-info { background: #e8f4fd; border-left-color: #3498db; }
+.alert-msg { color: #4a5568; }
+.leaderboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.leaderboard-grid h4 { margin: 0 0 0.4rem; }
+@media (max-width: 640px) { .leaderboard-grid { grid-template-columns: 1fr; } }
