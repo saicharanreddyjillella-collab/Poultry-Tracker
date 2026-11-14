@@ -205,6 +205,7 @@ def flock_cumulative(request, flock_id):
         'total_mortality': cum_mortality,
         'total_culls': cum_culls,
         'reconciliation': flock.reconciliation,
+        'weight_vs_standard': flock.weight_vs_standard,
         'mortality_percentage': round((cum_mortality / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0,
         'live_birds': flock.chick_count - cum_mortality - cum_culls - total_sold_birds,
         'total_sold_birds': total_sold_birds,

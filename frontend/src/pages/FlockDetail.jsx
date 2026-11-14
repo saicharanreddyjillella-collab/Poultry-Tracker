@@ -417,6 +417,15 @@ export default function FlockDetail() {
         {cumulative.epef != null && (
           <div className="stat-card stat-info"><span className="stat-label">EPEF</span><span className="stat-value">{cumulative.epef}</span></div>
         )}
+        {cumulative.weight_vs_standard && (
+          <div className={`stat-card ${cumulative.weight_vs_standard.status === 'below' ? 'stat-alert' : cumulative.weight_vs_standard.status === 'above' ? 'stat-success' : ''}`}>
+            <span className="stat-label">Weight vs Target (d{cumulative.weight_vs_standard.day})</span>
+            <span className="stat-value">
+              {cumulative.weight_vs_standard.actual_g}g
+              <br/><small>{cumulative.weight_vs_standard.variance_pct > 0 ? '+' : ''}{cumulative.weight_vs_standard.variance_pct}% vs {cumulative.weight_vs_standard.standard_g}g</small>
+            </span>
+          </div>
+        )}
         <div className="stat-card"><span className="stat-label">Med Cost</span><span className="stat-value">₹{parseFloat(flock.total_medication_cost).toLocaleString()}</span></div>
         <div className="stat-card"><span className="stat-label">Current Feed</span><span className="stat-value"><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></span></div>
       </div>
@@ -534,20 +543,21 @@ export default function FlockDetail() {
                       <tbody>
                         {cumulative.entries.filter(e => e.avg_body_weight_grams).map((e, i) => {
                           const diff = e.avg_body_weight_grams - e.standard_weight_grams;
-                          const pct = ((diff / e.standard_weight_grams) * 100).toFixed(1);
-                          const isGood = diff >= 0;
+                          const pctNum = (diff / e.standard_weight_grams) * 100;
+                          const pct = pctNum.toFixed(1);
+                          const status = pctNum > 3 ? 'above' : pctNum < -3 ? 'below' : 'on_track';
                           return (
                             <tr key={i}>
                               <td>{e.day_number}</td>
                               <td>{e.date}</td>
                               <td><strong>{e.avg_body_weight_grams}</strong></td>
                               <td>{e.standard_weight_grams}</td>
-                              <td className={isGood ? 'text-ok' : 'text-danger'}>
+                              <td className={status === 'below' ? 'text-danger' : status === 'above' ? 'text-ok' : ''}>
                                 {diff > 0 ? '+' : ''}{diff.toFixed(0)} g ({pct}%)
                               </td>
                               <td>
-                                <span className={`weight-status ${isGood ? 'weight-above' : 'weight-below'}`}>
-                                  {isGood ? '▲ Above' : '▼ Below'}
+                                <span className={`weight-status weight-${status}`}>
+                                  {status === 'above' ? '▲ Above' : status === 'below' ? '▼ Below' : '● On track'}
                                 </span>
                               </td>
                             </tr>

@@ -329,6 +329,7 @@ tbody tr:hover { background: #fafaf8; }
 }
 .weight-above { background: #d5f5e3; color: #196f3d; }
 .weight-below { background: #fdecea; color: var(--danger); }
+.weight-on_track { background: #e8f4fd; color: #1b5e7e; }
 .text-muted-cell { color: var(--text-muted); font-size: 0.8rem; }
 
 /* Feed stock & orders */

@@ -250,6 +250,40 @@ class Flock(models.Model):
         }
 
     @property
+    def weight_vs_standard(self):
+        """Latest recorded body weight vs the Cobb-400 standard for that age.
+
+        Returns None if no body weight has been recorded. status is
+        'on_track' within +/-3% of standard, else 'above' / 'below'.
+        """
+        from .standards import get_standard_weight
+        entry = (self.daily_entries
+                 .exclude(avg_body_weight_grams__isnull=True)
+                 .order_by('-date').first())
+        if entry is None or entry.avg_body_weight_grams is None:
+            return None
+        day = (entry.date - self.placement_date).days
+        actual = float(entry.avg_body_weight_grams)
+        standard = float(get_standard_weight(day))
+        variance_g = round(actual - standard, 1)
+        variance_pct = round((variance_g / standard) * 100, 1) if standard else 0
+        if variance_pct > 3:
+            status = 'above'
+        elif variance_pct < -3:
+            status = 'below'
+        else:
+            status = 'on_track'
+        return {
+            'day': day,
+            'date': str(entry.date),
+            'actual_g': actual,
+            'standard_g': standard,
+            'variance_g': variance_g,
+            'variance_pct': variance_pct,
+            'status': status,
+        }
+
+    @property
     def fcr(self):
         """FCR only calculated for closed flocks."""
         if self.status != 'closed':
