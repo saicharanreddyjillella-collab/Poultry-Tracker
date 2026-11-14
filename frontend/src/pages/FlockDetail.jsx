@@ -453,6 +453,15 @@ export default function FlockDetail() {
         <div className="stat-card"><span className="stat-label">Culls</span><span className="stat-value">{flock.total_culls} ({flock.cull_percentage}%)</span></div>
         <div className="stat-card stat-success"><span className="stat-label">Sold</span><span className="stat-value">{cumulative.total_sold_birds.toLocaleString()} / {cumulative.total_sold_weight_kg.toLocaleString()} kg</span></div>
         <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{(cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags).toFixed(1)} bags<br/><small>{cumulative.total_feed_kg.toLocaleString()} kg</small></span></div>
+        {cumulative.feed_reconciliation && (
+          <div className={`stat-card ${cumulative.feed_reconciliation.is_balanced ? '' : 'stat-alert'}`}>
+            <span className="stat-label">Feed Dispatched vs Fed</span>
+            <span className="stat-value">
+              {cumulative.feed_reconciliation.dispatched_bags} / {cumulative.feed_reconciliation.consumed_bags} bags
+              <br/><small>{cumulative.feed_reconciliation.is_balanced ? '● balanced' : `${cumulative.feed_reconciliation.variance_bags > 0 ? '+' : ''}${cumulative.feed_reconciliation.variance_bags} bags (${cumulative.feed_reconciliation.variance_pct}%)`}</small>
+            </span>
+          </div>
+        )}
         <div className="stat-card stat-info"><span className="stat-label">FCR</span><span className="stat-value">{cumulative.fcr ?? '—'}</span></div>
         {cumulative.epef != null && (
           <div className="stat-card stat-info"><span className="stat-label">EPEF</span><span className="stat-value">{cumulative.epef}</span></div>
@@ -720,6 +729,15 @@ export default function FlockDetail() {
           <div className="modal-card" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <h3 className="modal-title">Close Flock & Generate Bill</h3>
             <p className="modal-message">Review billing settings before generating the bill. This cannot be undone.</p>
+            {cumulative.feed_reconciliation && !cumulative.feed_reconciliation.is_balanced && (
+              <div className="alert-banner alert-banner-warning" style={{ marginBottom: '1rem' }}>
+                ⚠️ Feed variance: {cumulative.feed_reconciliation.dispatched_bags} bags dispatched vs {cumulative.feed_reconciliation.consumed_bags} consumed
+                ({cumulative.feed_reconciliation.variance_bags > 0 ? '+' : ''}{cumulative.feed_reconciliation.variance_bags} bags, {cumulative.feed_reconciliation.variance_pct}%).
+                {cumulative.feed_reconciliation.status === 'over_dispatched'
+                  ? ' More feed was sent than fed here — check for diversion or unused stock.'
+                  : ' More feed was fed than recorded as dispatched — check for missing dispatch records.'}
+              </div>
+            )}
 
             <div style={{ marginBottom: '1rem' }}>
               <label className="bill-flag-title">Medicine Cost Method</label>
