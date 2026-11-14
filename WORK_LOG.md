@@ -45,7 +45,18 @@ Order requested: 3.1, 3.3, 3.4, 3.2, 3.5, 3.6.
 - Tests: 5 new (TestReconciliation). 37/37 pass; no migration; FE builds.
 - Bugs: none.
 
-## 3.2 — Breed-standard weight variance
+## 3.2 — Breed-standard weight variance  ✅ DONE
+- Backend `Flock.weight_vs_standard` property: latest body-weight entry vs
+  Cobb-400 standard for that age; returns day/actual/standard/variance_g/
+  variance_pct/status (on_track within +/-3%, else above/below). None if no
+  weight recorded. Authoritative (usable in API + future report exports),
+  not just client-computed.
+- Exposed on both Flock serializers + flock_cumulative summary.
+- Frontend: "Weight vs Target" stat card (color by status); existing
+  per-entry comparison table upgraded to the same +/-3% band with an
+  "On track" state (new .weight-on_track style).
+- Tests: 6 new (TestWeightVsStandard). 43/43 pass; no migration; FE builds.
+- Bugs: none.
 
 ## 3.5 — Unified performance scorecard
 

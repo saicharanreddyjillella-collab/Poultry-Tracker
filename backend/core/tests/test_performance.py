@@ -207,3 +207,60 @@ class TestReconciliation:
         r = resp.data["reconciliation"]
         assert r["closing"] == 470
         assert r["is_balanced"] is True
+
+
+class TestWeightVsStandard:
+    def test_none_when_no_weight_recorded(self, farm, make_flock):
+        f = make_flock(farm, status="active", placed_days_ago=21)
+        _entry(f, 1, mortality=0)  # no body weight
+        assert f.weight_vs_standard is None
+
+    def test_on_track_within_band(self, farm, make_flock):
+        # day 21 Cobb-400 standard = 838g; 850g is +1.4% -> on_track
+        f = make_flock(farm, status="active", placed_days_ago=21)
+        e = _entry(f, 21)
+        e.avg_body_weight_grams = Decimal("850")
+        e.save()
+        w = f.weight_vs_standard
+        assert w["day"] == 21
+        assert w["standard_g"] == 838.0
+        assert w["actual_g"] == 850.0
+        assert w["variance_g"] == 12.0
+        assert w["variance_pct"] == 1.4
+        assert w["status"] == "on_track"
+
+    def test_below_standard(self, farm, make_flock):
+        # day 21 std 838; 700g is -16.5% -> below
+        f = make_flock(farm, status="active", placed_days_ago=21)
+        e = _entry(f, 21)
+        e.avg_body_weight_grams = Decimal("700")
+        e.save()
+        w = f.weight_vs_standard
+        assert w["status"] == "below"
+        assert w["variance_g"] == -138.0
+
+    def test_above_standard(self, farm, make_flock):
+        # day 21 std 838; 950g is +13.4% -> above
+        f = make_flock(farm, status="active", placed_days_ago=21)
+        e = _entry(f, 21)
+        e.avg_body_weight_grams = Decimal("950")
+        e.save()
+        assert f.weight_vs_standard["status"] == "above"
+
+    def test_uses_latest_weight_entry(self, farm, make_flock):
+        f = make_flock(farm, status="active", placed_days_ago=21)
+        e1 = _entry(f, 14); e1.avg_body_weight_grams = Decimal("436"); e1.save()
+        e2 = _entry(f, 21); e2.avg_body_weight_grams = Decimal("838"); e2.save()
+        w = f.weight_vs_standard
+        assert w["day"] == 21
+        assert w["actual_g"] == 838.0
+        assert w["status"] == "on_track"
+
+    def test_weight_vs_standard_in_cumulative(self, auth_admin, farm, make_flock):
+        f = make_flock(farm, status="active", placed_days_ago=21)
+        e = _entry(f, 21); e.avg_body_weight_grams = Decimal("838"); e.save()
+        resp = auth_admin.get(f"/api/flocks/{f.id}/cumulative/")
+        assert resp.status_code == 200
+        w = resp.data["weight_vs_standard"]
+        assert w["standard_g"] == 838.0
+        assert w["status"] == "on_track"
