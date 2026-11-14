@@ -351,6 +351,27 @@ class Flock(models.Model):
         }
 
     @property
+    def water_alerts(self):
+        """Daily entries whose water:feed ratio is outside the normal band.
+
+        Returns a list (most recent first) of {date, day, ratio, status,
+        water_liters, feed_kg} for every entry flagged 'low' or 'high'.
+        """
+        alerts = []
+        for e in self.daily_entries.all():  # Meta ordering is -date
+            status = e.water_feed_status
+            if status in ('low', 'high'):
+                alerts.append({
+                    'date': str(e.date),
+                    'day': (e.date - self.placement_date).days,
+                    'ratio': e.water_feed_ratio,
+                    'status': status,
+                    'water_liters': float(e.water_consumed_liters),
+                    'feed_kg': e.total_feed_kg,
+                })
+        return alerts
+
+    @property
     def fcr(self):
         """FCR only calculated for closed flocks."""
         if self.status != 'closed':
@@ -484,6 +505,32 @@ class DailyEntry(models.Model):
     @property
     def total_feed_kg(self):
         return self.total_feed_bags * self.BAG_WEIGHT_KG
+
+    # Normal broiler water:feed ratio is ~1.6-2.0 L water per kg feed.
+    # Outside this band can signal illness/under-drinking (low) or heat
+    # stress / water spillage (high).
+    WATER_FEED_LOW = 1.2
+    WATER_FEED_HIGH = 2.5
+
+    @property
+    def water_feed_ratio(self):
+        """Litres of water per kg of feed for this day. None if no feed."""
+        feed_kg = self.total_feed_kg
+        if not feed_kg:
+            return None
+        return round(float(self.water_consumed_liters) / feed_kg, 2)
+
+    @property
+    def water_feed_status(self):
+        """'normal', 'low', 'high', or None (when the ratio can't be computed)."""
+        ratio = self.water_feed_ratio
+        if ratio is None:
+            return None
+        if ratio < self.WATER_FEED_LOW:
+            return 'low'
+        if ratio > self.WATER_FEED_HIGH:
+            return 'high'
+        return 'normal'
 
 
 class Sale(models.Model):

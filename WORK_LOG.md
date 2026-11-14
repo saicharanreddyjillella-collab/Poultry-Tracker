@@ -71,7 +71,17 @@ Order requested: 3.1, 3.3, 3.4, 3.2, 3.5, 3.6.
   Poor cases. 49/49 pass; no migration; FE builds.
 - Bugs: none.
 
-## 3.6 — Water:feed ratio + deviation alert
+## 3.6 — Water:feed ratio + deviation alert  ✅ DONE
+- DailyEntry.water_feed_ratio (L water / kg feed) + water_feed_status
+  ('low' <1.2, 'high' >2.5, else 'normal'; None when no feed). Band
+  constants WATER_FEED_LOW/HIGH.
+- Flock.water_alerts lists flagged entries (date/day/ratio/status/water/
+  feed), most recent first.
+- Exposed: per-entry ratio+status in cumulative rows; water_alerts in
+  summary; water_alerts on both Flock serializers.
+- Frontend: 💧 water-alert banner on FlockDetail when any day is out of band.
+- Tests: 7 new (TestWaterFeedRatio). 56/56 pass; no migration; FE builds.
+- Bugs: none.
 
 ---
 ## Registered bugs / decisions
@@ -103,3 +113,6 @@ module (lines creating/validating daily entries) without
 create — only surfaced now because the new cull API test exercises that
 path. Fixed by adding the import on release/feeds-only. (main's data.py was
 never split, so main was not affected.)
+
+---
+## Section 3 complete — all 6 items done (3.1, 3.3, 3.4, 3.2, 3.5, 3.6). 2 bugs found & fixed (BUG-001, BUG-002).

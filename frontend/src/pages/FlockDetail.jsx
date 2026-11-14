@@ -406,6 +406,15 @@ export default function FlockDetail() {
         </div>
       )}
 
+      {cumulative.water_alerts && cumulative.water_alerts.length > 0 && (
+        <div className="alert-banner alert-banner-warning">
+          💧 Water:feed ratio out of range on {cumulative.water_alerts.length} day{cumulative.water_alerts.length > 1 ? 's' : ''}:
+          {' '}{cumulative.water_alerts.slice(0, 3).map(a => `d${a.day} ${a.ratio}L/kg (${a.status})`).join(', ')}
+          {cumulative.water_alerts.length > 3 ? '…' : ''}.
+          {' '}Low can signal illness/under-drinking; high can signal heat stress or spillage.
+        </div>
+      )}
+
       {/* Performance scorecard */}
       {cumulative.scorecard && cumulative.scorecard.components.length > 0 && (
         <div className={`scorecard scorecard-${cumulative.scorecard.rating.toLowerCase()}`}>
