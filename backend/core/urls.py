@@ -26,6 +26,7 @@ urlpatterns = [
     path('dashboard/', views.dashboard),
     path('flocks/<int:flock_id>/cumulative/', views.flock_cumulative),
     path('farms/<int:farm_id>/cumulative/', views.farm_cumulative),
+    path('farms/<int:farm_id>/performance-history/', views.farm_performance_history),
     path('reports/monthly/', views.monthly_report),
     path('reports/monthly/export/', views.export_monthly_report),
     path('reports/region/', views.region_performance),

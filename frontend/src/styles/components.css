@@ -144,3 +144,6 @@
 .leaderboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .leaderboard-grid h4 { margin: 0 0 0.4rem; }
 @media (max-width: 640px) { .leaderboard-grid { grid-template-columns: 1fr; } }
+
+/* Performance-history trend badges (F2) */
+.trend-badge { font-size: 0.8rem; margin-left: 0.3rem; vertical-align: middle; }

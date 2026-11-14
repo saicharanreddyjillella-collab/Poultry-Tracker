@@ -5,6 +5,7 @@ import { useParams, Link } from 'react-router-dom';
 import { farmAPI, flockAPI, authAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import DocumentsSection from '../components/DocumentsSection';
+import FarmPerformanceHistory from '../components/FarmPerformanceHistory';
 
 export default function FarmDetail() {
   const { id } = useParams();
@@ -239,6 +240,7 @@ export default function FarmDetail() {
         </>
       )}
 
+      <FarmPerformanceHistory farmId={farm.id} />
       <DocumentsSection farmId={farm.id} canEdit={canEditFarm(farm.id)} />
     </div>
   );

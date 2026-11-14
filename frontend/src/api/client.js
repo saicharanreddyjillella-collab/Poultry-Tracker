@@ -62,6 +62,7 @@ export const farmAPI = {
   update: (id, data) => API.put(`/farms/${id}/`, data),
   delete: (id) => API.delete(`/farms/${id}/`),
   cumulative: (id) => API.get(`/farms/${id}/cumulative/`),
+  performanceHistory: (id) => API.get(`/farms/${id}/performance-history/`),
 };
 
 export const documentAPI = {
