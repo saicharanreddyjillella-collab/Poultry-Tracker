@@ -362,3 +362,15 @@ fail-fast in prod.
 - Tests: test_health_logging.py (7). Full suite 156 pass.
 - Bugs: none in code. One test-setup slip: smoke test curled 127.0.0.1 with
   ALLOWED_HOSTS=localhost → 400 (DisallowedHost, correctly logged to app.log).
+
+### E10 — Pin dependencies  ✅ DONE
+- backend/requirements.txt pinned to exact versions; gunicorn + psycopg2-binary
+  moved into it (Dockerfile no longer installs them ad hoc). requirements-dev.txt
+  pinned and now includes -r requirements.txt.
+- Finding: Dockerfile is python:3.11-slim, so prod could never get Django 6.x
+  (needs 3.12+) and had been silently resolving to Django 5.2 while the dev
+  venv ran 6.1 — exactly the drift pinning prevents. Pinned to Django 5.2.19
+  (LTS, supported to Apr 2028), i.e. what production actually runs.
+- Verified: fresh venv from the pinned files; main 156 pass, release 186 pass,
+  manage.py check clean; also green with DeprecationWarning-as-error.
+- Bugs: none.

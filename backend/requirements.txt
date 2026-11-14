@@ -1,8 +1,10 @@
-django
-djangorestframework
-djangorestframework-simplejwt
-django-cors-headers
-openpyxl
-psycopg2-binary
-gunicorn
-Pillow
+# Pinned runtime dependencies (E10). Upgrade deliberately: bump, run the suite, commit.
+# Python 3.11+ (Dockerfile: python:3.11-slim; CI: 3.12). Django 5.2 is LTS (supported to Apr 2028).
+Django==5.2.19
+djangorestframework==3.18.3
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+openpyxl==3.1.5
+psycopg2-binary==2.9.13
+gunicorn==27.0.1
+Pillow==13.0.0
