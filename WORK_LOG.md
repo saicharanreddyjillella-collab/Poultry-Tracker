@@ -58,7 +58,18 @@ Order requested: 3.1, 3.3, 3.4, 3.2, 3.5, 3.6.
 - Tests: 6 new (TestWeightVsStandard). 43/43 pass; no migration; FE builds.
 - Bugs: none.
 
-## 3.5 — Unified performance scorecard
+## 3.5 — Unified performance scorecard  ✅ DONE
+- `Flock.scorecard` property composes available metrics into component
+  scores (0-100) and an overall rating (Excellent>=85 / Good>=70 /
+  Fair>=50 / Poor). Components: livability (always), weight-vs-target
+  (once weighed), EPEF + FCR (closed flocks). Surfaces farmer_grade from
+  the bill when one exists. Works for active and closed flocks.
+- Exposed on both Flock serializers + flock_cumulative.
+- Frontend: scorecard panel at top of FlockDetail — rating, overall score,
+  grade, and per-component bars (new .scorecard styles).
+- Tests: 6 new (TestScorecard); hand-verified 100/Excellent, 83.5/Good,
+  Poor cases. 49/49 pass; no migration; FE builds.
+- Bugs: none.
 
 ## 3.6 — Water:feed ratio + deviation alert
 

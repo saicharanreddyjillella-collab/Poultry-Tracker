@@ -406,6 +406,37 @@ export default function FlockDetail() {
         </div>
       )}
 
+      {/* Performance scorecard */}
+      {cumulative.scorecard && cumulative.scorecard.components.length > 0 && (
+        <div className={`scorecard scorecard-${cumulative.scorecard.rating.toLowerCase()}`}>
+          <div className="scorecard-head">
+            <div>
+              <span className="scorecard-label">Performance</span>
+              <span className="scorecard-rating">{cumulative.scorecard.rating}</span>
+            </div>
+            <div className="scorecard-score">
+              {cumulative.scorecard.overall_score}<small>/100</small>
+              {cumulative.scorecard.farmer_grade && (
+                <span className="scorecard-grade">Grade {cumulative.scorecard.farmer_grade}</span>
+              )}
+            </div>
+          </div>
+          <div className="scorecard-bars">
+            {cumulative.scorecard.components.map((c) => (
+              <div className="scorecard-bar" key={c.label}>
+                <div className="scorecard-bar-top">
+                  <span className="scorecard-bar-label">{c.label}</span>
+                  <span className="scorecard-bar-detail">{c.detail}</span>
+                </div>
+                <div className="scorecard-track">
+                  <div className="scorecard-fill" style={{ width: `${Math.max(0, Math.min(100, c.score))}%` }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="stats-grid stats-grid-wide">
         <div className="stat-card"><span className="stat-label">Live Birds</span><span className="stat-value">{cumulative.live_birds.toLocaleString()}</span></div>

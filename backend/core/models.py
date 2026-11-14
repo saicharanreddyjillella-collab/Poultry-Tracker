@@ -284,6 +284,73 @@ class Flock(models.Model):
         }
 
     @property
+    def scorecard(self):
+        """Unified flock performance scorecard.
+
+        Composes the metrics that are available into component scores
+        (0-100) and an overall rating. Works for active and closed flocks;
+        components that need a closed flock (EPEF, farmer grade) are only
+        included once present.
+        """
+        components = []  # list of (label, score 0-100, detail)
+
+        # Livability (always available): 100% - mortality% - cull% vs a
+        # ~95% healthy benchmark (5% standard mortality). Culls count as loss.
+        survived_pct = 100 - float(self.mortality_percentage) - float(self.cull_percentage)
+        liv_score = max(0.0, min(100.0, (survived_pct / 95.0) * 100))
+        components.append(('livability', round(liv_score, 1),
+                           f'{round(survived_pct, 1)}% survived'))
+
+        # Weight vs standard (once a weight is recorded).
+        wvs = self.weight_vs_standard
+        if wvs is not None:
+            pct = wvs['variance_pct']
+            # on target = 100; scale down ~2 points per % below, cap bonus at 100.
+            wt_score = max(0.0, min(100.0, 100 + pct * 2))
+            components.append(('weight', round(wt_score, 1),
+                               f"{'+' if pct > 0 else ''}{pct}% vs target"))
+
+        # EPEF (closed flocks): 400 -> 100, 300 -> 50, linear, capped.
+        epef = self.epef
+        if epef is not None:
+            epef_score = max(0.0, min(100.0, (epef - 200) / 2.0))
+            components.append(('epef', round(epef_score, 1), f'EPEF {epef}'))
+
+        # FCR (closed flocks) vs 1.65 standard: at/below standard = 100,
+        # each 0.1 above drops ~15 points.
+        fcr = self.fcr
+        if fcr is not None:
+            std_fcr = 1.65
+            fcr_score = max(0.0, min(100.0, 100 - max(0.0, (fcr - std_fcr)) * 150))
+            components.append(('fcr', round(fcr_score, 1), f'FCR {fcr}'))
+
+        overall = round(sum(c[1] for c in components) / len(components), 1) if components else 0.0
+        if overall >= 85:
+            rating = 'Excellent'
+        elif overall >= 70:
+            rating = 'Good'
+        elif overall >= 50:
+            rating = 'Fair'
+        else:
+            rating = 'Poor'
+
+        # Farmer grade from the bill, if generated (closed flocks).
+        farmer_grade = None
+        try:
+            farmer_grade = self.bill.farmer_grade
+        except Exception:
+            farmer_grade = None
+
+        return {
+            'overall_score': overall,
+            'rating': rating,
+            'farmer_grade': farmer_grade,
+            'components': [
+                {'label': l, 'score': sc, 'detail': d} for (l, sc, d) in components
+            ],
+        }
+
+    @property
     def fcr(self):
         """FCR only calculated for closed flocks."""
         if self.status != 'closed':
