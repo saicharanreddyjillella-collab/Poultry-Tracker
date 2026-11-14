@@ -24,6 +24,7 @@ export default function FlockDetail() {
     recovery_shortage: true,
     recovery_fcr: true,
     recovery_ifft: true,
+    fcr_benchmark_enabled: false,
     medicine_use_actual: false,
   });
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, danger: false });
@@ -758,6 +759,7 @@ export default function FlockDetail() {
                 <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_shortage} onChange={e => setCloseFlags({ ...closeFlags, recovery_shortage: e.target.checked })} /> Bird Shortage</label>
                 <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_fcr} onChange={e => setCloseFlags({ ...closeFlags, recovery_fcr: e.target.checked })} /> FCR Recovery</label>
                 <label className="toggle-label"><input type="checkbox" checked={closeFlags.recovery_ifft} onChange={e => setCloseFlags({ ...closeFlags, recovery_ifft: e.target.checked })} /> IFFT Charges</label>
+                <label className="toggle-label"><input type="checkbox" checked={closeFlags.fcr_benchmark_enabled} onChange={e => setCloseFlags({ ...closeFlags, fcr_benchmark_enabled: e.target.checked })} /> FCR Benchmark (premium/deduction)</label>
               </div>
             </div>
 

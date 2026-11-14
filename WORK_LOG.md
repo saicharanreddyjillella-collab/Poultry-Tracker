@@ -162,3 +162,20 @@ NOTE: tax rules — verify rates/thresholds with a CA before go-live.
   variance before the payment run).
 - Tests: core/tests/test_feed_recon.py (9). Full suite 76 pass; FE builds.
 - Bugs: none.
+
+### 1.1 — FCR benchmark band premium/deduction  ✅ DONE
+Design (user decisions): keep BOTH FCR mechanisms, each its own farm flag;
+per-kg unit; stepped by 0.1 FCR.
+- New Farm.fcr_benchmark_enabled (default off), independent of the existing
+  recovery_fcr (region-average). Both can run together by choice.
+- BillConfig: fcr_benchmark (1.75), fcr_benchmark_tolerance_pct (5%),
+  fcr_premium_per_kg_per_step (0.3), fcr_deduction_per_kg_per_step (0.3),
+  fcr_benchmark_max_adjustment_per_kg (2.0). Migration 0023.
+- billing.py: signed fcr_benchmark_adjustment (+premium below band /
+  −deduction above band, stepped per 0.1 FCR, capped), folded into
+  gross_payable. Bill.fcr_benchmark_adjustment field.
+- Close modal: FCR Benchmark toggle (close view flag_fields). BillView:
+  "FCR Benchmark Premium/Deduction" line.
+- Tests: TestFcrBenchmarkBand (7); values hand-verified (+234.38 beat,
+  −536.25 miss, 0 on-band, 125.00 capped). Full suite 83 pass; FE builds.
+- Bugs: none.

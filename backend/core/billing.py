@@ -184,8 +184,32 @@ def generate_bill(flock, user=None):
 
     total_recoveries = (first_week_recovery + negligence_recovery + shortage_recovery + fcr_recovery + ifft_charges).quantize(Decimal('0.01'))
 
+    # ─── FCR BENCHMARK BAND (premium for beating, deduction for missing) ───
+    # Independent of the area-average FCR recovery above; both are flag-gated
+    # on the farm and can run together by explicit choice.
+    fcr_benchmark_adjustment = Decimal('0')
+    if farm.fcr_benchmark_enabled and total_sold_weight > 0:
+        actual_fcr_b = Decimal(str(total_feed_kg)) / total_sold_weight
+        benchmark = config.fcr_benchmark
+        tol = benchmark * (config.fcr_benchmark_tolerance_pct / Decimal('100'))
+        band_low = benchmark - tol
+        band_high = benchmark + tol
+        step = Decimal('0.1')
+        if actual_fcr_b < band_low:
+            # Beat the band -> premium. Steps measured from the lower edge.
+            steps = (band_low - actual_fcr_b) / step
+            per_kg = (steps * config.fcr_premium_per_kg_per_step)
+            per_kg = min(per_kg, config.fcr_benchmark_max_adjustment_per_kg)
+            fcr_benchmark_adjustment = (per_kg * total_sold_weight).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        elif actual_fcr_b > band_high:
+            # Missed the band -> deduction (negative).
+            steps = (actual_fcr_b - band_high) / step
+            per_kg = (steps * config.fcr_deduction_per_kg_per_step)
+            per_kg = min(per_kg, config.fcr_benchmark_max_adjustment_per_kg)
+            fcr_benchmark_adjustment = -(per_kg * total_sold_weight).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
     # ─── FINAL ───
-    gross_payable = growing_charges_total + rate_incentive_total
+    gross_payable = growing_charges_total + rate_incentive_total + fcr_benchmark_adjustment
     net_payable = (gross_payable - total_recoveries).quantize(Decimal('0.01'))
 
     # ─── TDS (Section 194C) on the net amount payable to the grower ───
@@ -243,6 +267,7 @@ def generate_bill(flock, user=None):
         growing_charges_total=growing_charges_total,
         rate_incentive_per_kg=rate_incentive_per_kg,
         rate_incentive_total=rate_incentive_total,
+        fcr_benchmark_adjustment=fcr_benchmark_adjustment,
         first_week_mortality_recovery=first_week_recovery,
         negligence_recovery=negligence_recovery,
         shortage_recovery=shortage_recovery,
