@@ -41,3 +41,20 @@ class BillConfigAdmin(admin.ModelAdmin):
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
     list_display = ('flock', 'farmer_grade', 'production_cost_per_kg', 'net_payable', 'generated_at')
+
+
+from .models import AuditLog  # noqa: E402
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'actor_username', 'action', 'model', 'object_id', 'object_repr')
+    list_filter = ('action', 'model')
+    search_fields = ('actor_username', 'object_id', 'object_repr')
+    readonly_fields = [f.name for f in AuditLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
