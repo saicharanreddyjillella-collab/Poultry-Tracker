@@ -265,3 +265,16 @@ breaks even at.
   BUG-003 Decimal*float in cost calc (coerced config rates via D());
   BUG-004 ROUND_HALF_UP not imported in data.py (added). NOTE for release
   cherry-pick: ensure ROUND_HALF_UP import exists in reports.py too.
+
+### F2 — Multi-cycle farm performance trends  ✅ DONE
+Design (user): on the farm detail page; track FCR, EPEF, livability,
+mortality%, cost/kg, grade, settlement paid across cycles.
+- farm_performance_history(farm_id) view: closed flocks in placement order,
+  each with its metrics (from model props + bill); averages per metric;
+  trend direction (first vs last non-null, direction-aware: lower FCR/cost/
+  mortality = improving, higher EPEF/livability = improving).
+  /api/farms/<id>/performance-history/.
+- Frontend: FarmPerformanceHistory component (averages w/ trend badges +
+  per-cycle table) on FarmDetail. .trend-badge CSS.
+- Tests: test_farm_history.py (7). Full suite 130 pass; no migration; FE builds.
+- Bugs: none.

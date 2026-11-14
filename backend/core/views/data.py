@@ -1146,3 +1146,77 @@ def break_even_projection(request):
         },
         'flocks': rows,
     })
+
+
+@api_view(['GET'])
+def farm_performance_history(request, farm_id):
+    """Multi-cycle performance history for one farm: each closed flock's key
+    metrics in placement order, plus averages and a trend direction."""
+    from ..models import Farm, Flock
+
+    try:
+        farm = Farm.objects.get(id=farm_id)
+    except Farm.DoesNotExist:
+        return Response({'error': 'Farm not found'}, status=404)
+
+    flocks = Flock.objects.filter(farm=farm, status='closed').order_by('placement_date')
+
+    cycles = []
+    for f in flocks:
+        bill = f.bill if hasattr(f, 'bill') else None
+        cycles.append({
+            'flock_id': f.id,
+            'placement_date': str(f.placement_date),
+            'chicks_placed': f.chick_count,
+            'age_days': f.age_days,
+            'fcr': f.fcr,
+            'epef': f.epef,
+            'livability_pct': float(f.livability_percentage),
+            'mortality_pct': float(f.mortality_percentage),
+            'cost_per_kg': float(bill.production_cost_per_kg) if bill else None,
+            'grade': bill.farmer_grade if bill else None,
+            'settlement_paid': float(bill.amount_paid) if bill else None,
+        })
+
+    def _avg(key):
+        vals = [c[key] for c in cycles if c[key] is not None]
+        return round(sum(vals) / len(vals), 3) if vals else None
+
+    def _trend(key, higher_is_better):
+        """Compare the first vs the last non-null value; returns
+        'improving' / 'declining' / 'flat' / None."""
+        vals = [c[key] for c in cycles if c[key] is not None]
+        if len(vals) < 2:
+            return None
+        first, last = vals[0], vals[-1]
+        if first == last:
+            return 'flat'
+        better = last > first if higher_is_better else last < first
+        return 'improving' if better else 'declining'
+
+    averages = {
+        'fcr': _avg('fcr'),
+        'epef': _avg('epef'),
+        'livability_pct': _avg('livability_pct'),
+        'mortality_pct': _avg('mortality_pct'),
+        'cost_per_kg': _avg('cost_per_kg'),
+        'settlement_paid': _avg('settlement_paid'),
+    }
+    trends = {
+        'fcr': _trend('fcr', higher_is_better=False),         # lower FCR better
+        'epef': _trend('epef', higher_is_better=True),        # higher EPEF better
+        'livability_pct': _trend('livability_pct', higher_is_better=True),
+        'mortality_pct': _trend('mortality_pct', higher_is_better=False),
+        'cost_per_kg': _trend('cost_per_kg', higher_is_better=False),
+    }
+
+    return Response({
+        'farm_id': farm.id,
+        'farm_code': farm.farm_code,
+        'farm_name': farm.name,
+        'region': farm.region,
+        'cycle_count': len(cycles),
+        'cycles': cycles,
+        'averages': averages,
+        'trends': trends,
+    })

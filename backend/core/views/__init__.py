@@ -8,7 +8,7 @@ from .data import (
     dashboard, flock_cumulative, farm_cumulative,
     monthly_report, export_monthly_report, export_flock_report,
     region_performance, till_date_report, feed_forecast, owner_dashboard,
-    break_even_projection,
+    break_even_projection, farm_performance_history,
 )
 from .feed import (
     FeedOrderViewSet, FeedTransferViewSet,
