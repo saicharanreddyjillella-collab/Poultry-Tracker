@@ -40,15 +40,24 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt -r requirements-dev.txt
+      - name: PostgreSQL 16 client tools (match the server for backup-script tests)
+        # ubuntu-latest ships a newer pg client; dumps from pg_dump 17+ don't
+        # restore into a 16 server. Production uses the db container's own tools.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-16
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
       - name: Django system check
         run: python manage.py check
       - name: Migrations are in sync with models
         run: python manage.py makemigrations --check --dry-run
       - name: Run tests
-        run: pytest -q
+        run: pytest -q -rfE
 
   frontend:
-    name: Frontend build (vite)
+    name: Frontend tests + build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,5 +71,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Tests (vitest)
+        run: npm test
       - name: Build
         run: npm run build

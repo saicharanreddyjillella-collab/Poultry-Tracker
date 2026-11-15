@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AlertBell from './components/AlertBell';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
 import Dashboard from './pages/Dashboard';
@@ -105,6 +106,7 @@ function AppRoutes() {
     <>
       {showNav && <NavBar />}
       <main className="main-content">
+        <ErrorBoundary resetKey={location.pathname}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/setup" element={<Setup />} />
@@ -129,6 +131,7 @@ function AppRoutes() {
           <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         </Routes>
+        </ErrorBoundary>
       </main>
     </>
   );

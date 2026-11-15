@@ -58,9 +58,15 @@ pytestmark = pytest.mark.skipif(
 def pg():
     """Create scratch databases on the server; drop them afterwards."""
     try:
-        _psql(PG_URL, "select 1")
+        server_major = int(_psql(PG_URL, "show server_version_num")) // 10000
     except Exception:
         pytest.skip("PostgreSQL not reachable")
+    client = subprocess.run(["pg_dump", "--version"], capture_output=True, text=True).stdout
+    client_major = int(client.split()[-1].split(".")[0])
+    if client_major != server_major:
+        # Production always dumps/restores with the db container's own tools;
+        # mixing majors (e.g. pg_dump 18 → server 16) isn't a supported restore.
+        pytest.skip(f"pg_dump {client_major} vs server {server_major}: install matching client tools")
     made = []
 
     def make(prefix, schema=SCHEMA):
