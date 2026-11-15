@@ -6,6 +6,7 @@ the view, which is before the save signals fire) and a field-level diff.
 """
 from decimal import Decimal
 import datetime
+import uuid
 
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
@@ -29,6 +30,8 @@ def _jsonable(v):
         return str(v)
     if isinstance(v, (datetime.date, datetime.datetime)):
         return v.isoformat()
+    if isinstance(v, uuid.UUID):
+        return str(v)
     if hasattr(v, 'pk'):          # FK instance
         return v.pk
     if hasattr(v, 'name') and hasattr(v, 'url'):  # FileField
@@ -77,7 +80,7 @@ def _capture_before(sender, instance, **kwargs):
     if not _is_audited(sender) or not instance.pk:
         return
     try:
-        before = sender.objects.get(pk=instance.pk)
+        before = sender._base_manager.get(pk=instance.pk)   # sees soft-deleted rows too
         instance._audit_before = snapshot(before)
     except sender.DoesNotExist:
         instance._audit_before = None
@@ -95,8 +98,15 @@ def _on_save(sender, instance, created, **kwargs):
     if before is None:
         return
     diff = {k: [before.get(k), after.get(k)] for k in after if before.get(k) != after.get(k)}
-    if diff:
-        _record('update', instance, diff)
+    if not diff:
+        return
+    if 'deleted_at' in diff:                       # E14 soft delete / restore
+        if after.get('deleted_at'):
+            _record('delete', instance, {**after, '_soft': True})
+        else:
+            _record('restore', instance, diff)
+        return
+    _record('update', instance, diff)
 
 
 @receiver(post_delete)

@@ -652,7 +652,7 @@ export default function FlockDetail() {
                           <button className="btn-action btn-action-cancel" onClick={() => setConfirm({
                             open: true, danger: true,
                             title: 'Delete Entry',
-                            message: `Delete daily entry for ${e.date}? This will remove mortality, feed, and weight data for this day.`,
+                            message: `Delete daily entry for ${e.date}? Its mortality, feed and weight data will be removed from this flock. An admin can restore it from the Recycle Bin.`,
                             onConfirm: async () => {
                               setConfirm({ ...confirm, open: false });
                               await dailyEntryAPI.delete(e.id);

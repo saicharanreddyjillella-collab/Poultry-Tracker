@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from decimal import Decimal
 
+from .softdelete import SoftDeleteModel
+
 
 FEED_TYPES = [
     ('BPSC', 'BPSC (Pre-Starter Crumble)'),
@@ -55,13 +57,13 @@ class UserProfile(models.Model):
                 self.assigned_farms.add(farm)
 
 
-class Farm(models.Model):
+class Farm(SoftDeleteModel):
     SHED_TYPE_CHOICES = [
         ('EC', 'EC (Environmentally Controlled)'),
         ('OPEN', 'Open Shed'),
     ]
 
-    farm_code = models.CharField(max_length=50, unique=True, default='', help_text="Unique farm code given by user")
+    farm_code = models.CharField(max_length=50, default='', help_text="Unique farm code given by user (unique among live farms)")
     name = models.CharField(max_length=200)
     owner_name = models.CharField(max_length=200)
     shed_type = models.CharField(max_length=10, choices=SHED_TYPE_CHOICES, default='OPEN')
@@ -95,6 +97,25 @@ class Farm(models.Model):
     entity_type = models.CharField(max_length=20, choices=ENTITY_TYPE_CHOICES, default='individual', help_text="Grower entity type — drives the TDS rate (1% for Individual/HUF, 2% otherwise)")
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # E14
+    SOFT_DELETE_CHILDREN = ('flocks', 'feed_orders', 'documents')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['farm_code'], condition=models.Q(deleted_at__isnull=True),
+                                               name='uniq_live_farm_code')]
+
+    def check_can_delete(self):
+        from .billlock import BillLocked
+        if Flock.all_objects.filter(farm=self).filter(
+                models.Q(bill__isnull=False) | models.Q(bill_versions__isnull=False)).exists():
+            raise BillLocked(f'Farm {self.farm_code} has settled (billed) flocks, so it can\'t be deleted — '
+                             'its settlement history must stay on record.')
+
+    def restore_conflict(self):
+        if Farm.objects.filter(farm_code=self.farm_code).exclude(pk=self.pk).exists():
+            return (f'A farm with code {self.farm_code} already exists. Change that farm\'s code '
+                    'before restoring this one.')
 
     def __str__(self):
         return f"{self.farm_code} - {self.name}"
@@ -132,7 +153,7 @@ class Farm(models.Model):
         return Decimal('1') if self.is_individual_huf else Decimal('2')
 
 
-class Flock(models.Model):
+class Flock(SoftDeleteModel):
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('closed', 'Closed'),
@@ -165,6 +186,18 @@ class Flock(models.Model):
                         'chick_count': f'Farm capacity is {farm.capacity}. Active flocks already have {existing_active_chicks} chicks. '
                                        f'Maximum for this flock: {remaining}.'
                     })
+
+    # E14
+    SOFT_DELETE_CHILDREN = ('daily_entries', 'sales', 'medications', 'documents')
+
+    def check_can_delete(self):
+        from .billlock import BillLocked
+        if Bill.objects.filter(flock_id=self.pk).exists() or BillVersion.objects.filter(flock_id=self.pk).exists():
+            raise BillLocked(f'Flock #{self.pk} has a bill (or bill history), so it can\'t be deleted — '
+                             'its settlement must stay on record.')
+
+    def restore_parents(self):
+        return [Farm.all_objects.get(pk=self.farm_id)]
 
     def __str__(self):
         return f"{self.farm.name} - {self.placement_date}"
@@ -546,7 +579,7 @@ class Flock(models.Model):
         }
 
 
-class DailyEntry(models.Model):
+class DailyEntry(SoftDeleteModel):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='daily_entries')
     date = models.DateField()
     mortality_count = models.PositiveIntegerField(default=0)
@@ -565,8 +598,17 @@ class DailyEntry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ['flock', 'date']
         ordering = ['-date']
+        # E14: one live entry per flock per day (deleted entries don't block re-entry)
+        constraints = [models.UniqueConstraint(fields=['flock', 'date'], condition=models.Q(deleted_at__isnull=True),
+                                               name='uniq_live_entry_per_flock_day')]
+
+    def restore_parents(self):
+        return [Flock.all_objects.get(pk=self.flock_id)]
+
+    def restore_conflict(self):
+        if DailyEntry.objects.filter(flock_id=self.flock_id, date=self.date).exclude(pk=self.pk).exists():
+            return f'A newer entry for {self.date} already exists on this flock. Delete it before restoring this one.'
 
     def __str__(self):
         return f"{self.flock} - {self.date}"
@@ -633,7 +675,7 @@ class DailyEntry(models.Model):
         return 'normal'
 
 
-class Sale(models.Model):
+class Sale(SoftDeleteModel):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='sales')
     date = models.DateField()
     bird_count = models.PositiveIntegerField()
@@ -645,6 +687,9 @@ class Sale(models.Model):
 
     class Meta:
         ordering = ['-date']
+
+    def restore_parents(self):
+        return [Flock.all_objects.get(pk=self.flock_id)]
 
     def __str__(self):
         return f"{self.flock} - {self.date} - {self.bird_count} birds"
@@ -678,7 +723,7 @@ class FeedRate(models.Model):
         return f"{self.feed_type} ₹{self.rate_per_kg}/kg from {self.week_start_date}"
 
 
-class Medication(models.Model):
+class Medication(SoftDeleteModel):
     ROUTE_CHOICES = [
         ('water', 'Drinking Water'),
         ('feed', 'Feed'),
@@ -698,11 +743,14 @@ class Medication(models.Model):
     class Meta:
         ordering = ['-date']
 
+    def restore_parents(self):
+        return [Flock.all_objects.get(pk=self.flock_id)]
+
     def __str__(self):
         return f"{self.name} - {self.date}"
 
 
-class FeedOrder(models.Model):
+class FeedOrder(SoftDeleteModel):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('sent', 'Sent'),
@@ -723,11 +771,17 @@ class FeedOrder(models.Model):
     class Meta:
         ordering = ['-order_date']
 
+    def restore_parents(self):
+        parents = [Farm.all_objects.get(pk=self.farm_id)]
+        if self.flock_id:
+            parents.append(Flock.all_objects.get(pk=self.flock_id))
+        return parents
+
     def __str__(self):
         return f"{self.farm.farm_code} - {self.feed_type} x{self.quantity_bags} bags ({self.status})"
 
 
-class FeedTransfer(models.Model):
+class FeedTransfer(SoftDeleteModel):
     from_farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_transfers_out')
     to_farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_transfers_in')
     from_flock = models.ForeignKey('Flock', on_delete=models.SET_NULL, null=True, blank=True, related_name='feed_transfers_out')
@@ -741,6 +795,13 @@ class FeedTransfer(models.Model):
 
     class Meta:
         ordering = ['-date']
+
+    def restore_parents(self):
+        parents = [Farm.all_objects.get(pk=self.from_farm_id), Farm.all_objects.get(pk=self.to_farm_id)]
+        for fid in (self.from_flock_id, self.to_flock_id):
+            if fid:
+                parents.append(Flock.all_objects.get(pk=fid))
+        return parents
 
     def __str__(self):
         return f"{self.from_farm.farm_code} → {self.to_farm.farm_code}: {self.feed_type} x{self.quantity_bags}"
@@ -918,7 +979,7 @@ def document_upload_path(instance, filename):
     return f"documents/misc/{filename}"
 
 
-class Document(models.Model):
+class Document(SoftDeleteModel):
     """A file attached to a farm or a flock (agreement, KYC, vet certificate, etc.)."""
     DOC_TYPE_CHOICES = [
         ('agreement', 'Farmer Agreement'),
@@ -942,6 +1003,13 @@ class Document(models.Model):
     class Meta:
         ordering = ['-uploaded_at']
 
+    def restore_parents(self):
+        if self.farm_id:
+            return [Farm.all_objects.get(pk=self.farm_id)]
+        if self.flock_id:
+            return [Flock.all_objects.get(pk=self.flock_id)]
+        return []
+
     def __str__(self):
         target = f"farm {self.farm_id}" if self.farm_id else f"flock {self.flock_id}"
         return f"{self.get_doc_type_display()} ({target})"
@@ -959,7 +1027,7 @@ class Document(models.Model):
 class AuditLog(models.Model):
     """Who changed what, when — recorded automatically for money-affecting
     records (see core/audit.py). Rows are append-only; never edited."""
-    ACTION_CHOICES = [('create', 'Create'), ('update', 'Update'), ('delete', 'Delete')]
+    ACTION_CHOICES = [('create', 'Create'), ('update', 'Update'), ('delete', 'Delete'), ('restore', 'Restore')]
 
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
     actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,

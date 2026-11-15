@@ -69,7 +69,7 @@ export default function DocumentsSection({ farmId, flockId, canEdit = true }) {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this document?')) return;
+    if (!window.confirm('Delete this document? An admin can restore it from the Recycle Bin.')) return;
     try { await documentAPI.delete(id); load(); } catch { /* ignore */ }
   };
 

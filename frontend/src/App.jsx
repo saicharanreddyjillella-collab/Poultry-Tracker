@@ -18,6 +18,7 @@ import FeedForecast from './pages/FeedForecast';
 import OwnerDashboard from './pages/OwnerDashboard';
 import BreakEven from './pages/BreakEven';
 import BillView from './pages/BillView';
+import RecycleBin from './pages/RecycleBin';
 import './App.css';
 import './styles/print.css';
 import './styles/bill.css';
@@ -72,6 +73,7 @@ function NavBar() {
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
+        {isAdmin && <Link to="/trash" onClick={closeMenu}>Recycle Bin</Link>}
         {!isPlant && <AlertBell />}
         <div className="nav-mobile-user">
           <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
@@ -129,6 +131,7 @@ function AppRoutes() {
           <Route path="/reports/region" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/till-date" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+          <Route path="/trash" element={<ProtectedRoute><RecycleBin /></ProtectedRoute>} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         </Routes>
         </ErrorBoundary>

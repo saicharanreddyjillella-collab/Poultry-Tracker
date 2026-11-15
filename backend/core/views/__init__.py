@@ -27,3 +27,4 @@ from .documents import DocumentViewSet
 from .audit import AuditLogViewSet
 from .health import health
 from .client_errors import client_error
+from .trash import trash_list, trash_restore
