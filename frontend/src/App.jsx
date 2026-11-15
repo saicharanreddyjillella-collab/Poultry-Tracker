@@ -38,6 +38,13 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+// Business-sensitive pages (owner P&L, break-even, feed forecast): admin only.
+function AdminRoute({ children }) {
+  const { user, isAdmin } = useAuth();
+  if (user && !isAdmin) return <Navigate to={user.role === 'plant' ? '/feed' : '/feeds'} replace />;
+  return <ProtectedRoute>{children}</ProtectedRoute>;
+}
+
 function NavBar() {
   const { user, logout, isAdmin, isPlant } = useAuth();
   const navigate = useNavigate();
@@ -72,6 +79,10 @@ function NavBar() {
         {!isPlant && (
           <>
             <Link to="/reports" onClick={closeMenu}>Reports</Link>
+          </>
+        )}
+        {isAdmin && (
+          <>
             <Link to="/feed-forecast" onClick={closeMenu}>Feed Forecast</Link>
             <Link to="/owner-dashboard" onClick={closeMenu}>Owner View</Link>
             <Link to="/break-even" onClick={closeMenu}>Break-even</Link>
@@ -129,9 +140,9 @@ function AppRoutes() {
           <Route path="/flocks/:id" element={<ProtectedRoute><FlockDetail /></ProtectedRoute>} />
           <Route path="/flocks/:flockId/bill" element={<ProtectedRoute><BillView /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-          <Route path="/feed-forecast" element={<ProtectedRoute><FeedForecast /></ProtectedRoute>} />
-          <Route path="/owner-dashboard" element={<ProtectedRoute><OwnerDashboard /></ProtectedRoute>} />
-          <Route path="/break-even" element={<ProtectedRoute><BreakEven /></ProtectedRoute>} />
+          <Route path="/feed-forecast" element={<AdminRoute><FeedForecast /></AdminRoute>} />
+          <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />
+          <Route path="/break-even" element={<AdminRoute><BreakEven /></AdminRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/region" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/till-date" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
