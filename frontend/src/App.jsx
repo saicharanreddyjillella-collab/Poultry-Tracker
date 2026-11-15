@@ -28,8 +28,13 @@ import brand from './config/brand';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="loading">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  // Password set by an admin → must choose their own before anything else.
+  if (user.must_change_password && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
   return children;
 }
 

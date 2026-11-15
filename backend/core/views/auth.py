@@ -110,6 +110,8 @@ def change_password(request):
     new = request.data.get('new_password')
     if not user.check_password(current):
         return Response({'error': 'Current password is incorrect'}, status=400)
+    if new == current:
+        return Response({'error': 'Choose a new password different from the current one'}, status=400)
     pw_err = _password_error(new, user=user)
     if pw_err:
         return Response({'error': pw_err}, status=400)
@@ -117,7 +119,10 @@ def change_password(request):
     user.save()
     # Sign out every other session, keep this one with fresh tokens.
     revoke_all_tokens(user)
-    return Response({'message': 'Password changed', **_issue_tokens(user)})
+    if hasattr(user, 'profile') and user.profile.must_change_password:
+        user.profile.must_change_password = False
+        user.profile.save(update_fields=['must_change_password'])
+    return Response({'message': 'Password changed', **_issue_tokens(user), 'user': _user_data(user)})
 
 
 @api_view(['GET', 'POST'])
@@ -136,6 +141,7 @@ def manage_users(request):
             'phone': u.profile.phone if hasattr(u, 'profile') else '',
             'assigned_farm_ids': list(u.profile.assigned_farms.values_list('id', flat=True)) if hasattr(u, 'profile') else [],
             'assigned_regions': u.profile.assigned_regions if hasattr(u, 'profile') else [],
+            'must_change_password': u.profile.must_change_password if hasattr(u, 'profile') else False,
         } for u in users])
 
     # POST — create user
@@ -156,12 +162,14 @@ def manage_users(request):
 
     user = User.objects.create_user(username=username, password=password,
                                      first_name=first_name, last_name=last_name)
-    profile = UserProfile.objects.create(user=user, role=role, phone=phone, assigned_regions=assigned_regions)
+    # Admin chose this password → it's temporary until the user sets their own.
+    profile = UserProfile.objects.create(user=user, role=role, phone=phone, assigned_regions=assigned_regions,
+                                         must_change_password=True)
     if assigned_farm_ids:
         profile.assigned_farms.set(assigned_farm_ids)
     profile.sync_farms_from_regions()
 
-    return Response({'message': f'User {username} created'}, status=201)
+    return Response({'message': f'User {username} created', 'id': user.id}, status=201)
 
 
 @api_view(['PUT', 'DELETE'])
@@ -186,6 +194,9 @@ def manage_user_detail(request, user_id):
             return Response({'error': pw_err}, status=400)
         user.set_password(request.data['password'])
         revoke_all_tokens(user)   # admin reset → that user is signed out everywhere
+        if hasattr(user, 'profile') and user != request.user:
+            user.profile.must_change_password = True   # temporary password
+            user.profile.save(update_fields=['must_change_password'])
     user.save()
 
     if hasattr(user, 'profile'):
@@ -218,6 +229,7 @@ def _user_data(user):
         'phone': profile.phone if profile else '',
         'assigned_farm_ids': list(profile.assigned_farms.values_list('id', flat=True)) if profile else [],
         'assigned_regions': profile.assigned_regions if profile else [],
+        'must_change_password': bool(profile and profile.must_change_password),
     }
 
 

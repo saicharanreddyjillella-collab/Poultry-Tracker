@@ -24,6 +24,9 @@ class UserProfile(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     assigned_farms = models.ManyToManyField('Farm', blank=True, related_name='assigned_supervisors')
     assigned_regions = models.JSONField(default=list, blank=True, help_text="List of region names assigned to this supervisor")
+    # Set when an admin creates the account or resets its password: the
+    # password was chosen by someone else, so the user must pick their own.
+    must_change_password = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.username} ({self.role})"
