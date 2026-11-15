@@ -25,6 +25,11 @@ services:
       - DEBUG=False
       - ALLOWED_HOSTS=${DOMAIN},${SERVER_IP},localhost
       - CORS_ALLOWED_ORIGINS=https://${DOMAIN},http://${DOMAIN}
+      # E7 error monitoring — leave SENTRY_DSN unset to disable
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0}
     depends_on:
       db:
         condition: service_healthy

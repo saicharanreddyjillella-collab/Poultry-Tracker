@@ -211,3 +211,7 @@ LOGGING = {
         'django.db.backends': {'handlers': _handlers, 'level': os.environ.get('SQL_LOG_LEVEL', 'WARNING'), 'propagate': False},
     },
 }
+
+# ── E7: error monitoring (Sentry) — off unless SENTRY_DSN is set ──
+from config.monitoring import init_sentry  # noqa: E402
+SENTRY_ENABLED = init_sentry(DEBUG, os.environ)
