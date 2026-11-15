@@ -84,6 +84,10 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
         flock = data.get('flock') or (instance.flock if instance else None)
         if not flock:
             return
+        from ..billlock import assert_flock_unlocked
+        assert_flock_unlocked(flock)
+        if instance and instance.flock_id != flock.pk:
+            assert_flock_unlocked(instance.flock_id)
 
         entry_date = data.get('date') or (instance.date if instance else None)
 
@@ -173,6 +177,8 @@ class SaleViewSet(viewsets.ModelViewSet):
         flock = serializer.validated_data.get('flock')
         bird_count = serializer.validated_data.get('bird_count', 0)
         sale_date = serializer.validated_data.get('date')
+        from ..billlock import assert_flock_unlocked
+        assert_flock_unlocked(flock)
 
         if sale_date and sale_date < flock.placement_date:
             raise ValidationError({'date': f'Sale date cannot be before placement ({flock.placement_date}).'})

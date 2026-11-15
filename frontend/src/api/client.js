@@ -143,6 +143,8 @@ export const billAPI = {
   closeAndBill: (flockId, flags) => API.post(`/flocks/${flockId}/close-and-bill/`, flags || {}),
   get: (flockId) => API.get(`/flocks/${flockId}/bill/`),
   list: () => API.get('/bills/'),
+  reopen: (flockId, reason) => API.post(`/flocks/${flockId}/reopen-bill/`, { reason }),
+  history: (flockId) => API.get(`/flocks/${flockId}/bill-history/`),
 };
 
 // Authenticated file download (blob) — reused by report export buttons.

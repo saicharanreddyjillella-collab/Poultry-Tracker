@@ -20,6 +20,7 @@ from .feed import (
 )
 from .billing import (
     bill_config_view, close_flock_and_generate_bill, get_bill, list_bills,
+    reopen_bill, bill_history,
 )
 from .documents import DocumentViewSet
 from .audit import AuditLogViewSet
