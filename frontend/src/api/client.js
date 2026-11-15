@@ -129,6 +129,12 @@ export const farmAPI = {
   performanceHistory: (id) => API.get(`/farms/${id}/performance-history/`),
 };
 
+// E14 — admin Recycle Bin
+export const trashAPI = {
+  list: () => API.get('/trash/'),
+  restore: (batch) => API.post(`/trash/${batch}/restore/`),
+};
+
 export const documentAPI = {
   list: (params) => API.get('/documents/', { params }),
   upload: (formData) => API.post('/documents/', formData, {

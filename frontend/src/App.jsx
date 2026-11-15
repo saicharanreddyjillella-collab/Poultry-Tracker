@@ -21,6 +21,7 @@ import FeedForecast from './pages/FeedForecast';
 import OwnerDashboard from './pages/OwnerDashboard';
 import BreakEven from './pages/BreakEven';
 import BillView from './pages/BillView';
+import RecycleBin from './pages/RecycleBin';
 import Landing from './pages/Landing';
 import ChickenDashboard from './pages/ChickenDashboard';
 import LayerDashboard from './pages/LayerDashboard';
@@ -100,6 +101,7 @@ function NavBar() {
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
+        {isAdmin && <Link to="/trash" onClick={closeMenu}>Recycle Bin</Link>}
         {!isPlant && <Link to="/" onClick={closeMenu}>Switch Business</Link>}
         {!isPlant && <AlertBell />}
         <div className="nav-mobile-user">
@@ -262,6 +264,7 @@ function AppRoutes() {
           <Route path="/reports/region" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/till-date" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+          <Route path="/trash" element={<ProtectedRoute><RecycleBin /></ProtectedRoute>} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
           {/* Sai Charan Chicken Center */}

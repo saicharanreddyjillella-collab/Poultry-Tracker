@@ -4,6 +4,18 @@ from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrd
 
 class DailyEntrySerializer(serializers.ModelSerializer):
     total_feed_bags = serializers.ReadOnlyField()
+
+    def validate(self, attrs):
+        # E14: one live entry per flock per day (deleted entries don't count).
+        flock = attrs.get('flock', getattr(self.instance, 'flock', None))
+        day = attrs.get('date', getattr(self.instance, 'date', None))
+        if flock is not None and day is not None:
+            qs = DailyEntry.objects.filter(flock=flock, date=day)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({'date': f'An entry for {day} already exists for this flock.'})
+        return super().validate(attrs)
     total_feed_kg = serializers.ReadOnlyField()
     feed_bpsc_kg = serializers.ReadOnlyField()
     feed_bsc_kg = serializers.ReadOnlyField()
@@ -105,6 +117,15 @@ class FlockListSerializer(serializers.ModelSerializer):
 
 class FarmSerializer(serializers.ModelSerializer):
     active_flocks = serializers.SerializerMethodField()
+
+    def validate_farm_code(self, value):
+        # E14: unique among live farms (a deleted farm's code may be reused).
+        qs = Farm.objects.filter(farm_code=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(f'Farm code {value} is already in use.')
+        return value
     closed_flocks = serializers.SerializerMethodField()
     supervisor_names = serializers.SerializerMethodField()
     has_valid_pan = serializers.ReadOnlyField()

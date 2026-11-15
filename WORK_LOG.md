@@ -527,3 +527,37 @@ fail-fast in prod.
   endpoint, paging correctness (no gaps/dupes), cap, guard, per-user isolation,
   anon limit, health exempt. One older test updated to use ?farm= (it relied
   on the unfiltered flocks list). Suite 259.
+
+### E14 — Soft delete + Recycle Bin  ✅ DONE
+- core/softdelete.py: Farm, Flock, DailyEntry, Sale, Medication, FeedOrder,
+  FeedTransfer, Document are never destroyed by a delete — stamped
+  deleted_at / deleted_by / deletion_batch and hidden by the default manager
+  and every reverse relation (so totals, bills, dashboards and reports ignore
+  them automatically); `all_objects` sees everything. QuerySet.delete() (incl.
+  Django admin bulk delete) is soft too; hard_delete() exists for future purge.
+  Actor comes from the request (E4 middleware).
+- Soft cascades: farm → flocks, feed orders, documents; flock → entries,
+  sales, medications, documents. One delete action = one batch; restore brings
+  back exactly that batch (items deleted separately earlier stay deleted).
+- Money trail (E5): a flock with a bill or bill history, or a farm owning one,
+  can't be deleted (409 with a clear reason); records under a billed flock stay
+  locked (delete and restore).
+- Uniqueness is now among LIVE rows: farm_code and (flock, date) daily entry
+  are partial unique constraints, so a deleted farm's code / a deleted day can
+  be re-entered. Restore refuses with a clear message if it would clash, or if
+  the parent is still deleted ("restore that first").
+- Admin Recycle Bin: GET /api/trash/ (one row per delete action, with what was
+  removed alongside it and who did it), POST /api/trash/<batch>/restore/
+  (all-or-nothing). New Recycle Bin page + nav link (admin); delete prompts
+  now say an admin can restore. Audit log records soft delete as `delete` and
+  restores as a new `restore` action. Uploaded files are kept on delete.
+- Migration 0027 verified on a database with existing data (rows kept, live
+  duplicates still blocked by the DB, deleted code reusable).
+- BUG-007 (caught by the new tests, fixed before commit): after moving
+  farm_code to a live-only constraint, DRF no longer validated it, so a
+  duplicate live code returned 500 → explicit serializer validation (400);
+  same for duplicate daily entries. Also: the Recycle Bin fired a forbidden
+  request for non-admins before redirecting; "4 daily entrys" pluralisation.
+- Tests: backend 20 (test_soft_delete.py), frontend 5 (RecycleBin.test.jsx);
+  browser E2E delete → bin → restore. Suites: backend 279 (Postgres + SQLite),
+  frontend 27.

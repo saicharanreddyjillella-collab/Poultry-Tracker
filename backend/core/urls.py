@@ -18,6 +18,8 @@ urlpatterns = [
     path('', include(router.urls)),
     path('health/', views.health),
     path('client-errors/', views.client_error),
+    path('trash/', views.trash_list),
+    path('trash/<uuid:batch>/restore/', views.trash_restore),
     path('auth/check-setup/', views.check_setup),
     path('auth/setup/', views.initial_setup),
     path('auth/login/', views.login_view),
