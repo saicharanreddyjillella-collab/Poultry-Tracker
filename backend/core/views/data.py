@@ -1,5 +1,7 @@
 from rest_framework import viewsets
 from ..pagination import GuardedListMixin
+from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
+                      get_visible_farm, get_visible_flock)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -22,17 +24,39 @@ class FarmViewSet(viewsets.ModelViewSet):
     serializer_class = FarmSerializer
     permission_classes = [IsAuthenticated, CanEditFarm]
 
+    def get_queryset(self):
+        return visible_farms(self.request.user)
+
+    def get_serializer_class(self):
+        # Feed mill only needs farm names for orders/stock (no PAN, grower data).
+        if is_plant(self.request.user):
+            from ..serializers import FarmNameSerializer
+            return FarmNameSerializer
+        return FarmSerializer
+
+    def perform_update(self, serializer):
+        deny_plant(self.request.user)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        deny_plant(self.request.user)
+        instance.delete()
+
     def perform_create(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+        deny_plant(self.request.user)
         profile = self.request.user.profile
         if not profile.is_admin:
-            assigned_regions = set(
+            assigned_regions = set(profile.assigned_regions or []) | set(
                 profile.assigned_farms.exclude(region='').values_list('region', flat=True).distinct()
             )
+            if not assigned_regions:
+                raise PermissionDenied('You have no regions assigned — ask an admin to assign one first.')
             new_region = serializer.validated_data.get('region', '')
             if not new_region:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'region': 'Region is required.'})
-            if assigned_regions and new_region not in assigned_regions:
+            if new_region not in assigned_regions:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'region': f'You can only create farms in your assigned regions: {", ".join(sorted(assigned_regions))}'})
             farm = serializer.save()
@@ -43,11 +67,11 @@ class FarmViewSet(viewsets.ModelViewSet):
 
 class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Flock.objects.select_related('farm').all()
-    permission_classes = [IsAuthenticated, CanEditFlock]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlock]
     list_filters = ('farm', 'status')
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(farm_id__in=visible_farm_ids(self.request.user))
         if self.action == 'list':
             farm = self.request.query_params.get('farm')
             status = self.request.query_params.get('status')
@@ -66,6 +90,9 @@ class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
         from rest_framework.exceptions import ValidationError
         farm = serializer.validated_data.get('farm')
         chick_count = serializer.validated_data.get('chick_count', 0)
+        if not is_admin(self.request.user) and not self.request.user.profile.can_edit_farm(farm):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You can only add flocks to farms in your regions.')
 
         # Check total active chicks + new flock <= farm capacity
         existing_active_chicks = sum(
@@ -86,10 +113,10 @@ class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
 class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = DailyEntry.objects.select_related('flock', 'flock__farm').all()
     serializer_class = DailyEntrySerializer
-    permission_classes = [IsAuthenticated, CanEditFlockData]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))
         flock_id = self.request.query_params.get('flock')
         if flock_id:
             qs = qs.filter(flock_id=flock_id)
@@ -179,10 +206,10 @@ class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
 class SaleViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Sale.objects.select_related('flock', 'flock__farm').all()
     serializer_class = SaleSerializer
-    permission_classes = [IsAuthenticated, CanEditFlockData]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))
         flock_id = self.request.query_params.get('flock')
         if flock_id:
             qs = qs.filter(flock_id=flock_id)
@@ -219,10 +246,10 @@ class FeedRateViewSet(viewsets.ModelViewSet):
 class MedicationViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Medication.objects.select_related('flock', 'flock__farm').all()
     serializer_class = MedicationSerializer
-    permission_classes = [IsAuthenticated, CanEditFlockData]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))
         flock_id = self.request.query_params.get('flock')
         if flock_id:
             qs = qs.filter(flock_id=flock_id)
@@ -232,10 +259,11 @@ class MedicationViewSet(GuardedListMixin, viewsets.ModelViewSet):
 # ─── DASHBOARD ───
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def dashboard(request):
     today = date.today()
-    farms = Farm.objects.all()
-    active_flocks = Flock.objects.filter(status='active').select_related('farm')
+    farms = visible_farms(request.user)
+    active_flocks = Flock.objects.filter(status='active', farm__in=farms).select_related('farm')
 
     total_live_birds = 0
     mortality_today = 0
@@ -246,7 +274,7 @@ def dashboard(request):
         if today_entry:
             mortality_today += today_entry.mortality_count
 
-    today_feed = DailyEntry.objects.filter(date=today).aggregate(
+    today_feed = DailyEntry.objects.filter(date=today, flock__farm__in=farms).aggregate(
         bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
     )
 
@@ -343,11 +371,12 @@ def dashboard(request):
 # ─── FLOCK CUMULATIVE ───
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def flock_cumulative(request, flock_id):
     from ..standards import get_standard_weight
 
+    flock = get_visible_flock(request.user, flock_id)          # 404 if missing / other region
     entries = DailyEntry.objects.filter(flock_id=flock_id).order_by('date')
-    flock = Flock.objects.get(id=flock_id)
     sales = Sale.objects.filter(flock_id=flock_id).order_by('date')
 
     BAG_KG = 50
@@ -459,8 +488,9 @@ def flock_cumulative(request, flock_id):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def farm_cumulative(request, farm_id):
-    farm = Farm.objects.get(id=farm_id)
+    farm = get_visible_farm(request.user, farm_id)
     closed_flocks = Flock.objects.filter(farm=farm, status='closed')
 
     BAG_KG = 50
@@ -502,11 +532,14 @@ def farm_cumulative(request, farm_id):
 
 # ─── REPORTS ───
 
-def _compute_monthly_report(year, month):
-    """Core monthly report logic — returns dict. Callable without a request."""
+def _compute_monthly_report(year, month, farm_ids=None):
+    """Core monthly report logic — returns dict. Callable without a request.
+    farm_ids limits it to those farms (a supervisor's regions); None = all."""
     import calendar
     BAG_KG = 50
     flocks = Flock.objects.filter(status='closed').select_related('farm')
+    if farm_ids is not None:
+        flocks = flocks.filter(farm_id__in=farm_ids)
     batches = []
 
     for flock in flocks:
@@ -566,14 +599,20 @@ def _compute_monthly_report(year, month):
     }
 
 
+def _report_scope(user):
+    return None if is_admin(user) else visible_farm_ids(user)
+
+
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def monthly_report(request):
     year = int(request.query_params.get('year', date.today().year))
     month = int(request.query_params.get('month', date.today().month))
-    return Response(_compute_monthly_report(year, month))
+    return Response(_compute_monthly_report(year, month, _report_scope(request.user)))
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def export_monthly_report(request):
     import openpyxl
     from io import BytesIO
@@ -582,7 +621,7 @@ def export_monthly_report(request):
     year = int(request.query_params.get('year', date.today().year))
     month = int(request.query_params.get('month', date.today().month))
 
-    report = _compute_monthly_report(year, month)
+    report = _compute_monthly_report(year, month, _report_scope(request.user))
     batches = report['flocks']
 
     wb = openpyxl.Workbook()
@@ -613,13 +652,14 @@ def export_monthly_report(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def export_flock_report(request, flock_id):
     import openpyxl
     from io import BytesIO
     from django.http import HttpResponse
     from ..standards import get_standard_weight
 
-    flock = Flock.objects.select_related('farm').get(id=flock_id)
+    flock = get_visible_flock(request.user, flock_id)
     entries = DailyEntry.objects.filter(flock=flock).order_by('date')
     sales = Sale.objects.filter(flock=flock).order_by('date')
     meds = Medication.objects.filter(flock=flock).order_by('date')
@@ -688,10 +728,11 @@ def export_flock_report(request, flock_id):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def region_performance(request):
     BAG_KG = 50
     region_filter = request.query_params.get('region')
-    farms = Farm.objects.all()
+    farms = visible_farms(request.user)
     if region_filter:
         farms = farms.filter(region=region_filter)
 
@@ -738,7 +779,7 @@ def region_performance(request):
         })
 
     return Response({
-        'regions': sorted(list(Farm.objects.exclude(region='').values_list('region', flat=True).distinct())),
+        'regions': sorted(set(visible_farms(request.user).exclude(region='').values_list('region', flat=True))),
         'data': result,
     })
 
@@ -746,9 +787,10 @@ def region_performance(request):
 # ─── TILL DATE REPORT ───
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def till_date_report(request):
     BAG_KG = 50
-    all_flocks = Flock.objects.select_related('farm').all()
+    all_flocks = Flock.objects.select_related('farm').filter(farm__in=visible_farms(request.user))
     active_flocks = all_flocks.filter(status='active')
 
     total_placed = 0
@@ -1171,14 +1213,14 @@ def break_even_projection(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def farm_performance_history(request, farm_id):
     """Multi-cycle performance history for one farm: each closed flock's key
     metrics in placement order, plus averages and a trend direction."""
     from ..models import Farm, Flock
 
-    try:
-        farm = Farm.objects.get(id=farm_id)
-    except Farm.DoesNotExist:
+    farm = visible_farms(request.user).filter(id=farm_id).first()
+    if farm is None:
         return Response({'error': 'Farm not found'}, status=404)
 
     flocks = Flock.objects.filter(farm=farm, status='closed').order_by('placement_date')

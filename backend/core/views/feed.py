@@ -6,6 +6,17 @@ from django.db.models import Sum, Q
 
 from ..models import Farm, DailyEntry, FeedOrder, FeedTransfer
 from ..serializers import FeedOrderSerializer, FeedTransferSerializer
+from ..access import is_admin, is_plant, visible_farm_ids
+from rest_framework.exceptions import PermissionDenied, ValidationError
+
+
+def _can_manage_farm(user, farm):
+    """Admin, or the supervisor responsible for this farm. Never the feed mill."""
+    if is_admin(user):
+        return True
+    if is_plant(user):
+        return False
+    return user.profile.can_edit_farm(farm)
 
 
 class FeedOrderViewSet(viewsets.ModelViewSet):
@@ -14,7 +25,7 @@ class FeedOrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(farm_id__in=visible_farm_ids(self.request.user))
         farm_id = self.request.query_params.get('farm')
         status_filter = self.request.query_params.get('status')
         if farm_id:
@@ -24,7 +35,32 @@ class FeedOrderViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        farm = serializer.validated_data['farm']
+        flock = serializer.validated_data.get('flock')
+        if not _can_manage_farm(self.request.user, farm):
+            raise PermissionDenied('You can only order feed for farms in your regions.')
+        if flock is not None and flock.farm_id != farm.id:
+            raise ValidationError({'flock': 'That flock is not on this farm.'})
         serializer.save(ordered_by=self.request.user)
+
+    def _check_editable(self, order):
+        # The mill moves orders along with mark-sent; editing/deleting an order is
+        # for its farm's supervisor (or admin), and only before it's dispatched.
+        if not _can_manage_farm(self.request.user, order.farm):
+            raise PermissionDenied('You can only change feed orders for farms in your regions.')
+        if order.status != 'pending' and not is_admin(self.request.user):
+            raise PermissionDenied(f'This order is already {order.status} and can no longer be changed.')
+
+    def perform_update(self, serializer):
+        self._check_editable(serializer.instance)
+        farm = serializer.validated_data.get('farm', serializer.instance.farm)
+        if not _can_manage_farm(self.request.user, farm):
+            raise PermissionDenied('You can only order feed for farms in your regions.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._check_editable(instance)
+        instance.delete()
 
 
 @api_view(['POST'])
@@ -80,7 +116,7 @@ def cancel_order(request, order_id):
 @api_view(['GET'])
 def feed_stock(request):
     farm_id = request.query_params.get('farm')
-    farms_qs = Farm.objects.all()
+    farms_qs = Farm.objects.filter(id__in=visible_farm_ids(request.user))
     if farm_id:
         farms_qs = farms_qs.filter(id=farm_id)
 
@@ -129,16 +165,38 @@ class FeedTransferViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        ids = visible_farm_ids(self.request.user)
+        qs = super().get_queryset().filter(Q(from_farm_id__in=ids) | Q(to_farm_id__in=ids))
         farm_id = self.request.query_params.get('farm')
         if farm_id:
             qs = qs.filter(Q(from_farm_id=farm_id) | Q(to_farm_id=farm_id))
         return qs
 
+    def _check_both_farms(self, from_farm, to_farm):
+        user = self.request.user
+        if not (_can_manage_farm(user, from_farm) and _can_manage_farm(user, to_farm)):
+            raise PermissionDenied('You can only transfer feed between farms in your regions.')
+
+    def perform_update(self, serializer):
+        inst = serializer.instance
+        self._check_both_farms(inst.from_farm, inst.to_farm)
+        self._check_both_farms(serializer.validated_data.get('from_farm', inst.from_farm),
+                               serializer.validated_data.get('to_farm', inst.to_farm))
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._check_both_farms(instance.from_farm, instance.to_farm)
+        instance.delete()
+
     def perform_create(self, serializer):
         from rest_framework.exceptions import ValidationError
         from_farm = serializer.validated_data['from_farm']
         to_farm = serializer.validated_data['to_farm']
+        self._check_both_farms(from_farm, to_farm)
+        for side, farm, flock in (('from_flock', from_farm, serializer.validated_data.get('from_flock')),
+                                  ('to_flock', to_farm, serializer.validated_data.get('to_flock'))):
+            if flock is not None and flock.farm_id != farm.id:
+                raise ValidationError({side: 'That flock is not on the chosen farm.'})
         if from_farm.id == to_farm.id:
             raise ValidationError({'to_farm': 'Cannot transfer to the same farm.'})
         serializer.save(transferred_by=self.request.user)

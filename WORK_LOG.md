@@ -624,3 +624,41 @@ fail-fast in prod.
   opens the URL to their dashboard. Supervisors keep Today, Farms, Feed, Reports.
 - Tests: backend 13 (test_admin_only_reports.py), frontend 5. Suites: backend
   302, frontend 43.
+
+### Access audit + fixes (BUG-010 … BUG-016)  ✅ DONE
+Requested by Sai after BUG-009 / Owner View: "check for other similar bugs".
+Method: an access matrix — every API endpoint called as admin, as a Zone-A
+supervisor against Zone-A and Zone-B records, as the feed-mill (plant) user
+and anonymously; plus reading the views. Policy agreed with Sai: supervisors
+see and edit only their regions (incl. their own farms' bills); billing
+settings admin-only; plant user = feed only.
+- BUG-010 (write): anyone logged in could create a FLOCK on ANY farm —
+  supervisors in other regions and the feed-mill user (CanEditFlock skipped
+  the farm check on create).
+- BUG-011 (write): the plant user could create FARMS (any region); a
+  supervisor with no regions could create farms anywhere.
+- BUG-012 (write): FEED ORDERS — anyone could create orders for any farm, and
+  supervisors / the mill could edit or delete any order, incl. other regions'
+  and already-dispatched ones. Now: farm's supervisor or admin; edits/deletes
+  only while pending (admin any time); the mill only marks sent; an order's
+  flock must belong to its farm.
+- BUG-013 (write): FEED TRANSFERS — anyone could move feed out of another
+  region's farm/flock. Now both farms must be the user's (admin: any); flocks
+  must belong to the chosen farms.
+- BUG-014 (read): every logged-in user could read every region's farms,
+  flocks, daily data, feed, dashboard, cumulative/performance history,
+  monthly/region/till-date reports, exports and BILLS. Now one rule
+  (core/access.py visible_farms) scopes all of them; other-region records
+  return 404. Billing settings (GET too) admin-only.
+- BUG-015 (read): the plant user (Feed screen only) could read everything via
+  the API. Now NotPlant blocks flocks, daily data, dashboard, reports, bills;
+  their farm list is names only (no PAN/grower data); frontend sends them to
+  /feed from any other URL.
+- BUG-016: flock/farm cumulative and flock export crashed with 500 on an
+  unknown id (bare .get) → 404. close-and-bill returned an existing bill
+  before checking permission → now checked first.
+- Also: the farm form derived a supervisor's regions only from farms already
+  assigned, so a newly assigned (empty) region couldn't be chosen → uses
+  assigned_regions too.
+- Tests: test_access_matrix.py (71: 37 read checks × 4 roles, 19 write checks
+  × 3 roles, list-content checks, own-region work still allowed). Suite 373.
