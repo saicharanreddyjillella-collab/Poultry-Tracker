@@ -1,0 +1,9 @@
+[Unit]
+Description=PoultryTrack restore test (restores latest backup into a throw-away database)
+Wants=docker.service
+After=docker.service poultrytrack-backup.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash @APP_DIR@/deploy/verify-backup.sh latest
+Nice=10

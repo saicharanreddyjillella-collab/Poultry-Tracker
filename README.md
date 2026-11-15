@@ -137,3 +137,12 @@ Every push and pull request to `main` or `release/feeds-only` runs
 `.github/workflows/ci.yml`: Django system check, migration-sync check, and the
 full pytest suite against **PostgreSQL 16** (matching production), plus the
 Vite frontend build. Keep CI green before merging or building an image.
+
+## Backups & Restore
+
+Daily automated backups of the database **and** uploaded documents (02:30 IST),
+verified on creation and restore-tested weekly into a throw-away database.
+Install on the server with `bash deploy/install-backups.sh` (done automatically by
+`deploy/setup.sh`), then add an off-box rclone destination and a healthchecks.io
+alert URL in `/etc/poultrytrack/backup.env`. Restore with
+`bash deploy/restore.sh latest`. Full runbook: [docs/BACKUPS.md](docs/BACKUPS.md).
