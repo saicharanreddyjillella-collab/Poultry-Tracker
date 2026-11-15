@@ -417,3 +417,37 @@ fail-fast in prod.
 - Bugs: none in code (test fixes only: scrubbed values are AnnotatedValue
   placeholders until serialisation; event carries `transaction`, not url).
 - Frontend error capture deferred to E12 (error boundary).
+
+### E9 — Automated, verified backups  ✅ DONE
+- Findings in the old setup: backup.sh was never scheduled (setup.sh installed
+  no cron/timer); uploaded documents (media volume) were not backed up at all;
+  restore.sh piped a plain dump into the live DB without dropping first
+  (restore over existing data would error/duplicate); paths hard-coded; no
+  integrity check.
+- deploy/backup.sh (rewrite): pg_dump --clean --if-exists → gzip, verified
+  (gzip -t + pg_dump completion marker) before it counts, .partial→rename,
+  sha256 per file; documents archived from the backend media volume; flock so
+  runs never overlap; retention RETENTION_DAYS (30) but always keeps newest
+  MIN_KEEP (7); off-box copy via rclone BACKUP_REMOTE (+ remote pruning; old
+  onedrive: remote still auto-used); last_backup.json status; healthchecks.io
+  style ping (…/fail on failure) so a backup that fails OR never runs alerts.
+- deploy/restore.sh (rewrite): `latest` or a file; refuses a checksum
+  mismatch before touching anything; pre-restore safety dump; stops backend;
+  restores in ONE transaction (error → rolled back); restarts backend; then
+  restores documents from the same run. --no-media, --yes.
+- deploy/verify-backup.sh: weekly restore test into a throw-away postgres:16
+  container; checks django_migrations/users and reports core table counts;
+  last_verify.json + its own ping URL.
+- systemd timers (daily 02:30 IST, weekly Sun 04:00 IST, Persistent=true so a
+  missed run happens at next boot); deploy/install-backups.sh (idempotent,
+  creates /etc/poultrytrack/backup.env from backup.env.example, retires any
+  old cron entry); setup.sh runs it. Runbook docs/BACKUPS.md; README section.
+- Tests: test_backup_scripts.py (18) run the real scripts against real
+  PostgreSQL DBs (skip when no Postgres/pg tools; run in CI's postgres job).
+  Also round-tripped the full migrated app schema (113 FKs) incl. restoring
+  over a damaged live DB; shellcheck clean at warning level.
+- BUG-005 (found while wiring setup.sh, fixed): setup.sh still called
+  create_admin with no password and printed "admin / admin123". Since E2
+  create_admin requires a password, so a fresh server got NO admin and a
+  login that didn't exist (failure masked as "Admin already exists"). Now a
+  random strong password is generated, passed via ADMIN_PASSWORD and shown once.

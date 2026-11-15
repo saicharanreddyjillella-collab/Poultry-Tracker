@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily PoultryTrack backup (02:30 IST)
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Asia/Kolkata
+# Run a missed backup at next boot if the server was off at 02:30.
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

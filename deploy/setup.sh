@@ -65,20 +65,31 @@ docker compose up -d --build
 echo "→ Waiting for database..."
 sleep 10
 
-# 9. Create admin user
+# 9. Create admin user (random strong password, shown once)
 echo "→ Creating admin user..."
-docker compose exec -T backend python manage.py create_admin 2>/dev/null || echo "Admin already exists"
+ADMIN_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(12))")
+if docker compose exec -T -e ADMIN_PASSWORD="$ADMIN_PASSWORD" backend python manage.py create_admin \
+        | tee /dev/stderr | grep -q "created"; then
+    ADMIN_LOGIN="admin / $ADMIN_PASSWORD   (shown once — save it, then change it)"
+else
+    ADMIN_LOGIN="admin user already existed — use your existing password"
+fi
 
-# 10. Show status
+# 10. Automated, verified backups (daily 02:30 IST + weekly restore test)
+echo "→ Installing automated backups..."
+bash deploy/install-backups.sh || echo "⚠️  Backup install failed — run: bash deploy/install-backups.sh"
+
+# 11. Show status
 echo ""
 echo "═══════════════════════════════════════"
 echo "  ✅ PoultryTrack is LIVE!"
 echo "═══════════════════════════════════════"
 echo ""
 echo "  URL: http://$(curl -s ifconfig.me)"
-echo "  Login: admin / admin123"
+echo "  Login: $ADMIN_LOGIN"
 echo ""
-echo "  Change the admin password immediately!"
+echo "  Backups: daily to /root/backups — add an off-box copy + alerts in"
+echo "           /etc/poultrytrack/backup.env (see docs/BACKUPS.md)"
 echo ""
 echo "═══════════════════════════════════════"
 echo ""
