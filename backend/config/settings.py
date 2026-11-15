@@ -100,10 +100,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # E13: opt-in pagination (?page=/&page_size=) — plain lists otherwise.
+    'DEFAULT_PAGINATION_CLASS': 'core.pagination.OptionalPageNumberPagination',
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.ScopedRateThrottle',
+        # E13: general abuse / runaway-client protection. Generous: a busy
+        # dashboard makes ~10 calls per page view.
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
+        'user': os.environ.get('THROTTLE_USER_RATE', '600/min'),
+        'anon': os.environ.get('THROTTLE_ANON_RATE', '60/min'),
         # Brute-force protection on the login endpoint (per client IP).
         'login': '10/min',
         # E12: frontend crash reports (per client IP).
