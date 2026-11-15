@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, Document, AuditLog
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, BillVersion, Document, AuditLog
 
 
 class DailyEntrySerializer(serializers.ModelSerializer):
@@ -182,6 +182,16 @@ class BillConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = BillConfig
         fields = '__all__'
+
+
+class BillVersionSerializer(serializers.ModelSerializer):
+    reopened_by_username = serializers.CharField(source='reopened_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = BillVersion
+        fields = ['id', 'flock', 'version', 'net_payable', 'amount_paid', 'generated_at',
+                  'reopened_at', 'reopened_by', 'reopened_by_username', 'reason', 'data']
+        read_only_fields = fields
 
 
 class BillSerializer(serializers.ModelSerializer):

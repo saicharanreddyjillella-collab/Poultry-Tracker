@@ -1,8 +1,15 @@
+import logging
+
+from django.db import transaction
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from ..models import Flock, BillConfig, Bill
-from ..serializers import BillConfigSerializer, BillSerializer
+from ..models import Flock, BillConfig, Bill, BillVersion
+from ..serializers import BillConfigSerializer, BillSerializer, BillVersionSerializer
+
+logger = logging.getLogger(__name__)
+
+REOPEN_REASON_MIN_CHARS = 10
 
 
 @api_view(['GET', 'PUT'])
@@ -70,3 +77,60 @@ def get_bill(request, flock_id):
 def list_bills(request):
     bills = Bill.objects.select_related('flock', 'flock__farm').all()
     return Response(BillSerializer(bills, many=True).data)
+
+
+@api_view(['POST'])
+def reopen_bill(request, flock_id):
+    """E5: admin-only. Archive the current bill as a BillVersion, delete the
+    live bill and set the flock back to active so its data can be corrected.
+    Closing the flock again generates the next bill version."""
+    from ..audit import snapshot
+    from ..billlock import unlocked
+
+    if not request.user.profile.is_admin:
+        return Response({'error': 'Only an admin can reopen a bill.'}, status=403)
+    reason = (request.data.get('reason') or '').strip()
+    if len(reason) < REOPEN_REASON_MIN_CHARS:
+        return Response(
+            {'error': f'A reason of at least {REOPEN_REASON_MIN_CHARS} characters is required to reopen a bill.'},
+            status=400)
+
+    with transaction.atomic():
+        try:
+            bill = Bill.objects.select_for_update().select_related('flock').get(flock_id=flock_id)
+        except Bill.DoesNotExist:
+            return Response({'error': 'This flock has no generated bill to reopen.'}, status=404)
+        flock = bill.flock
+        with unlocked():
+            archived = BillVersion.objects.create(
+                flock=flock, version=bill.version, data=snapshot(bill),
+                net_payable=bill.net_payable, amount_paid=bill.amount_paid,
+                generated_at=bill.generated_at, reopened_by=request.user, reason=reason,
+            )
+            bill.delete()
+            flock.status = 'active'
+            flock.save()
+
+    logger.warning('Bill reopened: flock=%s version=%s by=%s reason=%r',
+                   flock.id, archived.version, request.user.username, reason)
+    return Response({
+        'flock_id': flock.id,
+        'status': flock.status,
+        'archived': BillVersionSerializer(archived).data,
+        'next_version': archived.version + 1,
+    })
+
+
+@api_view(['GET'])
+def bill_history(request, flock_id):
+    """E5: every archived (superseded) version of a flock's bill, oldest first,
+    plus the live bill's version if one exists."""
+    if not Flock.objects.filter(id=flock_id).exists():
+        return Response({'error': 'Flock not found'}, status=404)
+    versions = BillVersion.objects.filter(flock_id=flock_id).select_related('reopened_by')
+    current = Bill.objects.filter(flock_id=flock_id).values('version', 'net_payable', 'generated_at').first()
+    return Response({
+        'flock_id': flock_id,
+        'current': current,
+        'versions': BillVersionSerializer(versions, many=True).data,
+    })

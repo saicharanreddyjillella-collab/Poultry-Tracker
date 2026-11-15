@@ -881,11 +881,36 @@ class Bill(models.Model):
     config_snapshot = models.JSONField(default=dict)
     notes = models.TextField(blank=True)
 
+    # E5: 1 for the first settlement; +1 each time the flock is reopened and re-billed
+    version = models.PositiveIntegerField(default=1)
+
     class Meta:
         ordering = ['-generated_at']
 
     def __str__(self):
         return f"Bill: {self.flock.farm.farm_code} - {self.flock.placement_date} - ₹{self.net_payable}"
+
+
+class BillVersion(models.Model):
+    """A superseded bill, archived when an admin reopens a settled flock (E5).
+
+    Append-only: never edited or deleted (enforced in core.billlock)."""
+    flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='bill_versions')
+    version = models.PositiveIntegerField()
+    data = models.JSONField(help_text="Full snapshot of the bill as it was before reopening")
+    net_payable = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    generated_at = models.DateTimeField(null=True, blank=True)
+    reopened_at = models.DateTimeField(auto_now_add=True)
+    reopened_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='bill_reopens')
+    reason = models.TextField()
+
+    class Meta:
+        ordering = ['flock', 'version']
+        constraints = [models.UniqueConstraint(fields=['flock', 'version'], name='uniq_bill_version_per_flock')]
+
+    def __str__(self):
+        return f"BillVersion v{self.version}: flock {self.flock_id} - ₹{self.net_payable}"
 
 
 def document_upload_path(instance, filename):

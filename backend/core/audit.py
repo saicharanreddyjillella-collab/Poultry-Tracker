@@ -17,6 +17,7 @@ from .middleware import get_current_request
 AUDITED_MODELS = (
     'Farm', 'Flock', 'Sale', 'DailyEntry', 'Medication',
     'FeedOrder', 'FeedTransfer', 'Bill', 'BillConfig', 'Document',
+    'BillVersion',
 )
 
 # Fields never worth diffing.

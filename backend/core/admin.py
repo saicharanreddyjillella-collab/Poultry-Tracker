@@ -40,7 +40,35 @@ class BillConfigAdmin(admin.ModelAdmin):
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ('flock', 'farmer_grade', 'production_cost_per_kg', 'net_payable', 'generated_at')
+    """Read-only: settled bills are locked (E5). Reopen via the API/UI with a reason."""
+    list_display = ('flock', 'version', 'farmer_grade', 'production_cost_per_kg', 'net_payable', 'generated_at')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+from .models import BillVersion  # noqa: E402
+
+
+@admin.register(BillVersion)
+class BillVersionAdmin(admin.ModelAdmin):
+    list_display = ('flock', 'version', 'net_payable', 'reopened_by', 'reopened_at')
+    readonly_fields = [f.name for f in BillVersion._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 from .models import AuditLog  # noqa: E402

@@ -374,3 +374,27 @@ fail-fast in prod.
 - Verified: fresh venv from the pinned files; main 156 pass, release 186 pass,
   manage.py check clean; also green with DeprecationWarning-as-error.
 - Bugs: none.
+
+### E5 — Bill immutability + reopen trail  ✅ DONE
+- core/billlock.py: once a flock has a Bill, the Bill, the Flock and every
+  settlement input (DailyEntry, Sale, Medication, FeedOrder, FeedTransfer —
+  incl. rows being moved OFF a billed flock) are locked via pre_save/pre_delete
+  signals → BillLocked (HTTP 409). Holds for API, admin and shell. Deleting a
+  farm/flock with a bill or bill history is blocked (money trail).
+  QuerySet.update() bypasses signals by design (documented).
+- Reopen: POST /api/flocks/<id>/reopen-bill/ — admin only, reason ≥10 chars.
+  Archives the bill as BillVersion (full JSON snapshot, net/amount paid,
+  reopened_by/at, reason), deletes the live bill and sets the flock active.
+  Re-closing generates the next version (Bill.version). BillVersion rows are
+  permanent. GET /api/flocks/<id>/bill-history/ lists versions + current.
+  Reopen is logged (WARNING) and audited (Bill delete + BillVersion create).
+- Bill admin is read-only. Migration 0026_bill_lock_versions.
+- UI (BillView): 🔒 Locked · Revision N badge, "Revision N" on the printed
+  bill, admin Reopen panel with reason, bill-history table.
+- Tests: test_bill_lock.py (24). Full suite 180 pass (SQLite + Postgres 16).
+  Frontend build clean; bill page checked in a browser.
+- Bugs (caught by tests, fixed): API posting an entry to a billed flock showed
+  the unrelated "mortality exceeds live birds" error instead of "locked" →
+  views now check the lock first (assert_flock_unlocked). Test-only: deletes
+  raise inside Django's atomic(savepoint=False), poisoning the test
+  transaction → assertions run under a savepoint (prod is autocommit).

@@ -44,5 +44,7 @@ urlpatterns = [
     path('bill-config/', views.bill_config_view),
     path('flocks/<int:flock_id>/close-and-bill/', views.close_flock_and_generate_bill),
     path('flocks/<int:flock_id>/bill/', views.get_bill),
+    path('flocks/<int:flock_id>/reopen-bill/', views.reopen_bill),
+    path('flocks/<int:flock_id>/bill-history/', views.bill_history),
     path('bills/', views.list_bills),
 ]

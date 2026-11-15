@@ -1,7 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Sum, Avg
 from .models import (
-    Flock, DailyEntry, Sale, FeedOrder, BillConfig, Bill, Farm
+    Flock, DailyEntry, Sale, FeedOrder, BillConfig, Bill, Farm, BillVersion
 )
 
 
@@ -244,8 +244,12 @@ def generate_bill(flock, user=None):
     amount_paid = (net_payable - tds_amount).quantize(Decimal('0.01'))
 
     # ─── SAVE ───
+    # E5: a re-bill after reopen is the next version of this flock's settlement.
+    from django.db.models import Max
+    prev_version = BillVersion.objects.filter(flock=flock).aggregate(v=Max('version'))['v'] or 0
     bill = Bill.objects.create(
         flock=flock,
+        version=prev_version + 1,
         generated_by=user,
         chicks_placed=chicks_placed,
         total_mortality=total_mortality,

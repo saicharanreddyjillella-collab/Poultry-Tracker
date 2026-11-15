@@ -1,20 +1,43 @@
 import { useState, useEffect } from 'react';
 import { BillSkeleton } from '../components/Skeletons';
-import { useParams, Link } from 'react-router-dom';
-import { billAPI } from '../api/client';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { billAPI, getErrorMessage } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import brand from '../config/brand';
+
+const REOPEN_MIN_CHARS = 10;
 
 export default function BillView() {
   const { flockId } = useParams();
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState([]);
+  const [showReopen, setShowReopen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [reopening, setReopening] = useState(false);
+  const [reopenError, setReopenError] = useState('');
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     billAPI.get(flockId).then(res => {
       setBill(res.data);
       setLoading(false);
     }).catch(() => setLoading(false));
+    billAPI.history(flockId).then(res => setHistory(res.data.versions || [])).catch(() => {});
   }, [flockId]);
+
+  const submitReopen = async () => {
+    setReopenError('');
+    setReopening(true);
+    try {
+      await billAPI.reopen(flockId, reason.trim());
+      navigate(`/flocks/${flockId}`);
+    } catch (err) {
+      setReopenError(getErrorMessage(err));
+      setReopening(false);
+    }
+  };
 
   if (loading) return <BillSkeleton />;
   if (!bill) return <div className="empty-state"><p>Bill not found.</p><Link to="/" className="btn btn-primary">Back</Link></div>;
@@ -28,7 +51,42 @@ export default function BillView() {
       <div className="bill-no-print">
         <Link to={`/flocks/${flockId}`} className="back-link">&larr; Back to Flock</Link>
         <button className="btn btn-secondary" onClick={() => window.print()} style={{ float: 'right' }}>Print Bill</button>
+        {isAdmin && !showReopen && (
+          <button className="btn btn-danger" onClick={() => setShowReopen(true)} style={{ float: 'right', marginRight: '0.5rem' }}>Reopen Bill</button>
+        )}
+        <span style={{ float: 'right', marginRight: '0.75rem', lineHeight: '2.2rem', fontSize: '0.85rem', color: '#555' }}>
+          🔒 Locked{bill.version > 1 ? ` · Revision ${bill.version}` : ''}
+        </span>
       </div>
+
+      {showReopen && (
+        <div className="card bill-no-print" style={{ margin: '1rem 0', padding: '1rem', borderLeft: '4px solid #c0392b' }}>
+          <h3 style={{ marginTop: 0 }}>Reopen this bill?</h3>
+          <p style={{ fontSize: '0.9rem' }}>
+            This archives version {bill.version} (₹{fmt(bill.net_payable)}) permanently and sets the flock back to active so its
+            entries and sales can be corrected. Closing the flock again generates version {bill.version + 1}. The reason is recorded
+            in the bill history and audit log.
+          </p>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Reason for reopening (e.g. weighbridge slip corrected, missed sale entry)"
+              rows={3}
+            />
+          </div>
+          {reopenError && <div className="error-msg" style={{ marginTop: '0.5rem' }}>{reopenError}</div>}
+          <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-danger" disabled={reopening || reason.trim().length < REOPEN_MIN_CHARS} onClick={submitReopen}>
+              {reopening ? 'Reopening…' : 'Confirm Reopen'}
+            </button>
+            <button className="btn btn-secondary" disabled={reopening} onClick={() => { setShowReopen(false); setReason(''); setReopenError(''); }}>Cancel</button>
+            {reason.trim().length < REOPEN_MIN_CHARS && (
+              <span style={{ fontSize: '0.8rem', color: '#777', alignSelf: 'center' }}>At least {REOPEN_MIN_CHARS} characters</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bill-a4">
         {/* HEADER */}
@@ -40,6 +98,7 @@ export default function BillView() {
           <div className="bill-top-right">
             <span className={`bill-grade bill-grade-${bill.farmer_grade.toLowerCase().replace('+', 'plus')}`}>{bill.farmer_grade}</span>
             <span className="bill-date">{new Date(bill.generated_at).toLocaleDateString('en-IN')}</span>
+            {bill.version > 1 && <span className="bill-date">Revision {bill.version}</span>}
           </div>
         </div>
 
@@ -157,6 +216,35 @@ export default function BillView() {
           )}
         </div>
       </div>
+
+      {history.length > 0 && (
+        <div className="card bill-no-print" style={{ margin: '1rem 0', padding: '1rem' }}>
+          <h3 style={{ marginTop: 0 }}>Bill history</h3>
+          <table className="report-table" style={{ width: '100%' }}>
+            <thead>
+              <tr><th>Version</th><th>Net payable</th><th>Generated</th><th>Reopened</th><th>By</th><th>Reason</th></tr>
+            </thead>
+            <tbody>
+              {history.map(v => (
+                <tr key={v.id}>
+                  <td>v{v.version}</td>
+                  <td>₹{fmt(v.net_payable)}</td>
+                  <td>{v.generated_at ? new Date(v.generated_at).toLocaleDateString('en-IN') : '—'}</td>
+                  <td>{new Date(v.reopened_at).toLocaleString('en-IN')}</td>
+                  <td>{v.reopened_by_username || '—'}</td>
+                  <td>{v.reason}</td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 600 }}>
+                <td>v{bill.version} (current)</td>
+                <td>₹{fmt(bill.net_payable)}</td>
+                <td>{new Date(bill.generated_at).toLocaleDateString('en-IN')}</td>
+                <td colSpan={3}>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
