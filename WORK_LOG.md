@@ -505,3 +505,25 @@ fail-fast in prod.
   real interceptors over a fake adapter). Browser E2E: stale access → 4
   concurrent 401s → exactly one refresh → page loads; revoked session →
   /login?expired=1 with notice. Suite: backend 241, frontend 22.
+
+### E13 — API pagination + throttling  ✅ DONE
+- Constraint: every screen (Feeds, Chicken, Layer) expects plain JSON arrays;
+  turning DRF pagination on globally would break them all.
+- core/pagination.py OptionalPageNumberPagination (project default): plain
+  list unless ?page= / ?page_size= is given → {count,next,previous,results};
+  page_size 50, capped at 500; unordered querysets ordered by pk for stable
+  pages. Verified no existing frontend/backend code sends page params.
+- GuardedListMixin on the high-volume lists (daily-entries, sales,
+  medications, flocks): a list with no ?flock= (flocks: ?farm=/?status=) is
+  always paged, so an unfiltered "everything ever" request can't run away.
+  Screens always filter, so they're unaffected. Flocks list gained ?farm= and
+  ?status= filters and a stable order. (Unfiltered /api/flocks/ previously
+  returned every flock; nothing in the UI calls it.)
+- Throttling: UserRateThrottle 600/min per user + AnonRateThrottle 60/min per
+  IP on top of the scoped ones (login, client errors, token refresh);
+  env-configurable (THROTTLE_USER_RATE / THROTTLE_ANON_RATE). Health check stays
+  exempt.
+- Tests: test_pagination_throttle.py (18) — shapes unchanged for every screen
+  endpoint, paging correctness (no gaps/dupes), cap, guard, per-user isolation,
+  anon limit, health exempt. One older test updated to use ?farm= (it relied
+  on the unfiltered flocks list). Suite 259.

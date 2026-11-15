@@ -83,7 +83,7 @@ class TestEPEFApi:
 
     def test_epef_null_for_active_in_list(self, auth_admin, farm, make_flock):
         f = make_flock(farm, status="active", placed_days_ago=10)
-        resp = auth_admin.get("/api/flocks/")
+        resp = auth_admin.get(f"/api/flocks/?farm={farm.id}")   # unfiltered lists are paged (E13)
         assert resp.status_code == 200
         row = next(r for r in resp.data if r["id"] == f.id)
         assert row["epef"] is None

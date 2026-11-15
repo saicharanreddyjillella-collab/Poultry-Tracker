@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from ..pagination import GuardedListMixin
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -40,9 +41,21 @@ class FarmViewSet(viewsets.ModelViewSet):
             serializer.save()
 
 
-class FlockViewSet(viewsets.ModelViewSet):
+class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Flock.objects.select_related('farm').all()
     permission_classes = [IsAuthenticated, CanEditFlock]
+    list_filters = ('farm', 'status')
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action == 'list':
+            farm = self.request.query_params.get('farm')
+            status = self.request.query_params.get('status')
+            if farm:
+                qs = qs.filter(farm_id=farm)
+            if status:
+                qs = qs.filter(status=status)
+        return qs.order_by('-placement_date', '-id')
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -70,7 +83,7 @@ class FlockViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
-class DailyEntryViewSet(viewsets.ModelViewSet):
+class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = DailyEntry.objects.select_related('flock', 'flock__farm').all()
     serializer_class = DailyEntrySerializer
     permission_classes = [IsAuthenticated, CanEditFlockData]
@@ -163,7 +176,7 @@ class DailyEntryViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
-class SaleViewSet(viewsets.ModelViewSet):
+class SaleViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Sale.objects.select_related('flock', 'flock__farm').all()
     serializer_class = SaleSerializer
     permission_classes = [IsAuthenticated, CanEditFlockData]
@@ -203,7 +216,7 @@ class FeedRateViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
 
 
-class MedicationViewSet(viewsets.ModelViewSet):
+class MedicationViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Medication.objects.select_related('flock', 'flock__farm').all()
     serializer_class = MedicationSerializer
     permission_classes = [IsAuthenticated, CanEditFlockData]
