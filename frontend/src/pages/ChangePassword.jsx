@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { authAPI } from '../api/client';
+import { useNavigate } from 'react-router-dom';
+import { authAPI, getErrorMessage } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { PASSWORD_HINT } from '../utils/password';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 
 export default function ChangePassword() {
@@ -9,6 +12,9 @@ export default function ChangePassword() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
+  const firstLogin = !!user?.must_change_password;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +29,10 @@ export default function ChangePassword() {
       setError('New password must be at least 8 characters');
       return;
     }
+    if (form.new_password === form.current_password) {
+      setError('Choose a new password different from the current one');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -30,11 +40,16 @@ export default function ChangePassword() {
       // Server signs out other sessions and returns fresh tokens for this one.
       if (res.data.access) localStorage.setItem('access_token', res.data.access);
       if (res.data.refresh) localStorage.setItem('refresh_token', res.data.refresh);
-      setSuccess('Password changed. You have been signed out on other devices.');
       setDirty(false);
       setForm({ current_password: '', new_password: '', confirm_password: '' });
+      if (res.data.user) updateUser(res.data.user);
+      if (firstLogin) {
+        navigate(res.data.user?.role === 'plant' ? '/feed' : '/', { replace: true });
+        return;
+      }
+      setSuccess('Password changed. You have been signed out on other devices.');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to change password');
+      setError(getErrorMessage(err));
     }
     setLoading(false);
   };
@@ -42,17 +57,24 @@ export default function ChangePassword() {
   return (
     <div className="page">
       <UnsavedPrompt when={dirty} message="You have unsaved password changes. Discard?" />
-      <h1>Change Password</h1>
+      <h1>{firstLogin ? 'Set your password' : 'Change Password'}</h1>
+      {firstLogin && (
+        <div className="alert-banner alert-banner-warning" role="status" style={{ maxWidth: 400 }}>
+          Welcome{user?.first_name ? `, ${user.first_name}` : ''}! Your password was set by an administrator.
+          Please choose your own password to continue.
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="form-card" style={{ maxWidth: 400 }}>
         {error && <div className="error-msg">{error}</div>}
         {success && <div className="success-msg">{success}</div>}
         <div className="form-group">
-          <label>Current Password *</label>
+          <label>{firstLogin ? 'Password you were given *' : 'Current Password *'}</label>
           <input type="password" value={form.current_password} onChange={e => setForm({ ...form, current_password: e.target.value })} required />
         </div>
         <div className="form-group">
           <label>New Password *</label>
-          <input type="password" value={form.new_password} onChange={e => setForm({ ...form, new_password: e.target.value })} required placeholder="At least 6 characters" />
+          <input type="password" value={form.new_password} onChange={e => setForm({ ...form, new_password: e.target.value })} required autoComplete="new-password" />
+          <small className="farm-meta">{PASSWORD_HINT}</small>
         </div>
         <div className="form-group">
           <label>Confirm New Password *</label>

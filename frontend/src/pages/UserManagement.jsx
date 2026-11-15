@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { authAPI, farmAPI } from '../api/client';
+import { authAPI, farmAPI, getErrorMessage } from '../api/client';
+import { generatePassword, PASSWORD_HINT } from '../utils/password';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -10,7 +11,11 @@ export default function UserManagement() {
   const [regions, setRegions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Delete', danger: true });
+  // Login details to hand to the user — shown once after create / reset.
+  const [credentials, setCredentials] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({
     username: '', password: '', first_name: '', last_name: '',
     role: 'supervisor', phone: '', assigned_regions: [],
@@ -37,6 +42,7 @@ export default function UserManagement() {
     setShowForm(false);
     setError('');
     setNewRegion('');
+    setShowPassword(false);
   };
 
   const startEdit = (u) => {
@@ -56,20 +62,47 @@ export default function UserManagement() {
         const data = { ...form };
         if (!data.password) delete data.password;
         await authAPI.updateUser(editingUser.id, data);
+        if (form.password) setCredentials({ username: editingUser.username, password: form.password, reset: true });
       } else {
-        if (!form.password) { setError('Password is required'); return; }
+        if (!form.password) { setError('Set a password (or click Generate) — the user needs it to log in.'); return; }
         await authAPI.createUser(form);
+        setCredentials({ username: form.username, password: form.password, reset: false });
       }
+      setCopied(false);
       resetForm();
       load();
     } catch (err) {
-      setError(err.response?.data?.error || JSON.stringify(err.response?.data) || 'Failed');
+      setError(getErrorMessage(err));
     }
+  };
+
+  const resetPassword = (u) => {
+    setConfirm({
+      open: true, title: 'Reset password', danger: false, confirmText: 'Reset password',
+      message: `Give "${u.username}" a new temporary password? They will be signed out and asked to choose their own password at next login.`,
+      onConfirm: async () => {
+        setConfirm(c => ({ ...c, open: false }));
+        const password = generatePassword();
+        try {
+          await authAPI.updateUser(u.id, { password });
+          setCredentials({ username: u.username, password, reset: true });
+          setCopied(false);
+          load();
+        } catch (err) {
+          setError(getErrorMessage(err));
+        }
+      },
+    });
+  };
+
+  const copyCredentials = async () => {
+    const text = `Poultry app login\nUsername: ${credentials.username}\nPassword: ${credentials.password}\n(You'll be asked to set your own password after logging in.)`;
+    try { await navigator.clipboard.writeText(text); setCopied(true); } catch { setCopied(false); }
   };
 
   const handleDelete = (u) => {
     setConfirm({
-      open: true, title: 'Delete User',
+      open: true, title: 'Delete User', danger: true, confirmText: 'Delete',
       message: `Are you sure you want to delete "${u.username}"? This cannot be undone.`,
       onConfirm: async () => {
         setConfirm({ ...confirm, open: false });
@@ -113,17 +146,33 @@ export default function UserManagement() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="form-card" style={{ marginBottom: '1.5rem' }}>
+        <form onSubmit={handleSubmit} className="form-card" style={{ marginBottom: '1.5rem' }} autoComplete="off">
           <h3>{editingUser ? `Edit: ${editingUser.username}` : 'New User'}</h3>
           {error && <div className="error-msg">{error}</div>}
           <div className="form-row">
             <div className="form-group">
               <label>Username *</label>
-              <input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} required disabled={!!editingUser} />
+              {/* autoComplete off: stop the browser filling in the ADMIN's own saved login here */}
+              <input name="new-user-username" autoComplete="off" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} required disabled={!!editingUser} />
             </div>
             <div className="form-group">
-              <label>{editingUser ? 'New Password (leave blank to keep)' : 'Password *'}</label>
-              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
+              <label>{editingUser ? 'Reset password (leave blank to keep)' : 'Password *'}</label>
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                <input
+                  name="new-user-password" autoComplete="new-password" type={showPassword ? 'text' : 'password'}
+                  value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
+                  placeholder={editingUser ? 'Unchanged' : 'Type or generate'} style={{ flex: 1, minWidth: 0 }}
+                />
+                <button type="button" className="btn btn-secondary" style={{ padding: '0 0.6rem' }}
+                  onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+                <button type="button" className="btn btn-secondary" style={{ padding: '0 0.6rem' }}
+                  onClick={() => { setForm({ ...form, password: generatePassword() }); setShowPassword(true); }}>
+                  Generate
+                </button>
+              </div>
+              <small className="farm-meta">{PASSWORD_HINT} They'll choose their own password at first login.</small>
             </div>
             <div className="form-group">
               <label>Role *</label>
@@ -181,6 +230,28 @@ export default function UserManagement() {
         </form>
       )}
 
+      {credentials && (
+        <div className="form-card" role="status" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #2e7d32' }}>
+          <h3 style={{ marginTop: 0 }}>
+            {credentials.reset ? `New password for ${credentials.username}` : `User ${credentials.username} created`}
+          </h3>
+          <p style={{ margin: '0.25rem 0 0.75rem', color: '#555' }}>
+            Share these login details with them. This password is shown only now — they'll be asked to choose
+            their own the first time they log in.
+          </p>
+          <div style={{ fontFamily: 'monospace', fontSize: '1.05rem', lineHeight: 1.7 }}>
+            <div>Username: <strong>{credentials.username}</strong></div>
+            <div>Password: <strong data-testid="shared-password">{credentials.password}</strong></div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <button className="btn btn-primary" onClick={copyCredentials}>{copied ? 'Copied ✓' : 'Copy login details'}</button>
+            <button className="btn btn-secondary" onClick={() => setCredentials(null)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {!showForm && error && <div className="error-msg">{error}</div>}
+
       <div className="table-wrapper">
         <table>
           <thead>
@@ -189,7 +260,14 @@ export default function UserManagement() {
           <tbody>
             {users.map(u => (
               <tr key={u.id}>
-                <td><strong>{u.username}</strong></td>
+                <td>
+                  <strong>{u.username}</strong>
+                  {u.must_change_password && (
+                    <span className="farm-meta" title="Using a password set by an admin" style={{ display: 'block', fontSize: '0.75rem' }}>
+                      temporary password
+                    </span>
+                  )}
+                </td>
                 <td>{u.first_name} {u.last_name}</td>
                 <td><span className={`role-badge role-badge-${u.role}`}>{u.role}</span></td>
                 <td>{u.phone || '—'}</td>
@@ -208,6 +286,9 @@ export default function UserManagement() {
                 </td>
                 <td>
                   <button className="btn-action btn-action-edit" onClick={() => startEdit(u)}>Edit</button>
+                  {u.role !== 'admin' && (
+                    <button className="btn-action btn-action-edit" onClick={() => resetPassword(u)} style={{ marginLeft: '0.25rem' }}>Reset password</button>
+                  )}
                   <button className="btn-action btn-action-cancel" onClick={() => handleDelete(u)} style={{ marginLeft: '0.25rem' }}>Delete</button>
                 </td>
               </tr>
@@ -220,8 +301,8 @@ export default function UserManagement() {
         open={confirm.open}
         title={confirm.title}
         message={confirm.message}
-        danger
-        confirmText="Delete"
+        danger={confirm.danger}
+        confirmText={confirm.confirmText}
         onConfirm={confirm.onConfirm}
         onCancel={() => setConfirm({ ...confirm, open: false })}
       />

@@ -586,3 +586,29 @@ fail-fast in prod.
   Browser walkthrough: fresh DB → Setup → dashboard → create farm → Django
   admin styled + login → Recycle Bin; no page errors, no 5xx; no https
   redirect; security headers present.
+
+### BUG-009 — "Admin creates a supervisor but there's no way to set a password"  ✅ FIXED
+- Reported by Sai. The New User form did have a Password field, but browsers
+  treat a username + password pair as a LOGIN form and silently autofill the
+  ADMIN's own saved credentials into it — so the field looked already filled
+  (no visible way to set one), and creating the user could quietly give the
+  supervisor the admin's password. The admin then had no way to know or hand
+  over the supervisor's password, no visible reset, and nothing made the
+  supervisor replace a password someone else chose.
+- Fix (User Management): autocomplete off/new-password so the browser never
+  injects the admin's login; Show/Hide + Generate (strong, readable, e.g.
+  Kp7m-Qx4t-Rw9a); policy hint; after Create, a "Share these login details"
+  card (username + password, Copy, shown once); per-user "Reset password"
+  (new temporary password, signs them out, shown once); "temporary password"
+  marker in the list; server error messages shown properly.
+- Temporary passwords: UserProfile.must_change_password (migration 0028) set
+  when an admin creates a user or resets a password. The supervisor logs in
+  with it, is taken to "Set your password" (welcome message) and can't reach
+  anything else — enforced by the server too (JWT auth returns 403
+  password_change_required except /auth/me, change-password, logout). Choosing
+  the same password again is refused. First-time Setup admin is not forced.
+- Tests: backend 9 (test_user_passwords.py), frontend 11 (UserManagement,
+  ChangePassword, password generator). Browser E2E: admin Generate → card shows
+  password → supervisor logs in on a phone-size screen → forced to set own →
+  dashboard → re-login with own password; temp password then rejected (401).
+  Suites: backend 289, frontend 38.

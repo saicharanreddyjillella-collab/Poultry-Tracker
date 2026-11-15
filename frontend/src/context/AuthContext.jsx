@@ -45,6 +45,12 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Replace the signed-in user's details (e.g. after changing password).
+  const updateUser = (u) => {
+    localStorage.setItem('user', JSON.stringify(u));
+    setUser(u);
+  };
+
   const isAdmin = user?.role === 'admin';
   const isPlant = user?.role === 'plant';
   const canEditFarm = (farmId) => {
@@ -53,7 +59,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAdmin, isPlant, canEditFarm }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, loading, isAdmin, isPlant, canEditFarm }}>
       {children}
     </AuthContext.Provider>
   );
