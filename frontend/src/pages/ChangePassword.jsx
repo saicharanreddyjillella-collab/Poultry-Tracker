@@ -19,18 +19,18 @@ export default function ChangePassword() {
       setError('New passwords do not match');
       return;
     }
-    if (form.new_password.length < 6) {
-      setError('New password must be at least 6 characters');
+    if (form.new_password.length < 8) {
+      setError('New password must be at least 8 characters');
       return;
     }
 
     setLoading(true);
     try {
       const res = await authAPI.changePassword(form.current_password, form.new_password);
-      // Update tokens
-      localStorage.setItem('access_token', res.data.access);
-      localStorage.setItem('refresh_token', res.data.refresh);
-      setSuccess('Password changed successfully');
+      // Server signs out other sessions and returns fresh tokens for this one.
+      if (res.data.access) localStorage.setItem('access_token', res.data.access);
+      if (res.data.refresh) localStorage.setItem('refresh_token', res.data.refresh);
+      setSuccess('Password changed. You have been signed out on other devices.');
       setDirty(false);
       setForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (err) {

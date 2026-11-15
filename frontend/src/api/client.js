@@ -16,9 +16,9 @@ export function getErrorMessage(err) {
   return messages.join(' ') || 'Something went wrong.';
 }
 
-const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
-});
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+const API = axios.create({ baseURL: API_BASE });
 
 // Add auth token to every request
 API.interceptors.request.use(config => {
@@ -29,23 +29,87 @@ API.interceptors.request.use(config => {
   return config;
 });
 
-// On 401, redirect to login
+// ── E15: silent token refresh ───────────────────────────────────────────────
+// Access tokens are short-lived (30 min). On a 401 we swap the refresh token
+// for a new pair and replay the request, so users are only signed out when
+// the refresh token itself is dead (7 days idle, logout, password change).
+//  * single-flight: concurrent 401s share one refresh call
+//  * cross-tab: a Web Lock serialises refreshes between tabs; refresh tokens
+//    rotate (old one is revoked), so a second tab must reuse the new pair
+//    instead of replaying the old token
+//  * auth endpoints and already-retried requests never trigger a refresh
+
+const NO_REFRESH = ['/auth/login/', '/auth/token/refresh/', '/auth/logout/', '/auth/setup/'];
+let refreshInFlight = null;
+
+function clearSession() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user');
+}
+
+export function sessionExpired() {
+  clearSession();
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login?expired=1';
+  }
+}
+
+async function doRefresh(failedAccess) {
+  // Another tab may already have refreshed while we waited for the lock.
+  const current = localStorage.getItem('access_token');
+  if (current && current !== failedAccess) return current;
+
+  const refresh = localStorage.getItem('refresh_token');
+  if (!refresh) throw new Error('no refresh token');
+  // Bare axios: must not go through this interceptor.
+  const res = await axios.post(`${API_BASE}/auth/token/refresh/`, { refresh });
+  localStorage.setItem('access_token', res.data.access);
+  if (res.data.refresh) localStorage.setItem('refresh_token', res.data.refresh);
+  return res.data.access;
+}
+
+export function refreshAccessToken(failedAccess) {
+  if (!refreshInFlight) {
+    const run = () => doRefresh(failedAccess);
+    const locked = typeof navigator !== 'undefined' && navigator.locks?.request
+      ? navigator.locks.request('poultrytrack-token-refresh', run)
+      : run();
+    refreshInFlight = Promise.resolve(locked).finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
 API.interceptors.response.use(
   res => res,
-  err => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async err => {
+    const original = err.config;
+    const status = err.response?.status;
+    const url = original?.url || '';
+    if (status !== 401 || !original || original._retried || NO_REFRESH.some(p => url.includes(p))) {
+      if (status === 401 && original?._retried) sessionExpired();
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+    original._retried = true;
+    const failedAccess = (original.headers?.Authorization || '').replace(/^Bearer /, '') || null;
+    try {
+      const access = await refreshAccessToken(failedAccess);
+      original.headers = { ...(original.headers || {}), Authorization: `Bearer ${access}` };
+      return API(original);
+    } catch {
+      sessionExpired();
+      return Promise.reject(err);
+    }
   }
 );
+
+export { API };
 
 export const authAPI = {
   checkSetup: () => API.get('/auth/check-setup/'),
   setup: (data) => API.post('/auth/setup/', data),
   login: (username, password) => API.post('/auth/login/', { username, password }),
+  logout: (refresh) => API.post('/auth/logout/', { refresh }),
   me: () => API.get('/auth/me/'),
   changePassword: (current_password, new_password) => API.post('/auth/change-password/', { current_password, new_password }),
   listUsers: () => API.get('/auth/users/'),

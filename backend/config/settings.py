@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',   # E15: revocable refresh tokens
     'corsheaders',
     'core',
     'accounting',
@@ -111,12 +112,20 @@ REST_FRAMEWORK = {
         'login': '10/min',
         # E12: frontend crash reports (per client IP).
         'client_errors': '30/min',
+        # E15: token refresh (per client IP; several users may share an office IP).
+        'token_refresh': '60/min',
     },
 }
 
+# E15: short-lived access tokens renewed silently by the frontend with the
+# refresh token. Refresh tokens rotate on every use and the old one is
+# blacklisted, so an active user stays signed in and is only logged out after
+# JWT_REFRESH_DAYS of inactivity (or on logout / password change).
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.environ.get('JWT_ACCESS_MINUTES', '30'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.environ.get('JWT_REFRESH_DAYS', '7'))),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # Password strength validators (enforced at every password-set point).

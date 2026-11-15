@@ -476,3 +476,32 @@ fail-fast in prod.
   tests as annotations (readable via the API — job logs aren't).
 - Note: pre-existing ESLint debt (43 errors in older files) left as is; all new
   files lint clean. Suite: backend 224, frontend 14.
+
+### E15 — Silent token refresh  ✅ DONE
+- Finding: there was NO refresh endpoint — the stored refresh token was never
+  used, so every user was hard-logged-out exactly 24 h after login (mid-entry,
+  unsaved form lost).
+- Backend: POST /api/auth/token/refresh/ (throttled 60/min/IP; returns 401 —
+  never 500 — for expired/blacklisted/malformed tokens or deleted/inactive
+  users; simplejwt's own serializer 500s on a deleted user). Access tokens now
+  30 min (JWT_ACCESS_MINUTES), refresh 7 days (JWT_REFRESH_DAYS), rotated on
+  every use with the old one blacklisted (token_blacklist app) → sliding
+  session: active users stay signed in, 7 days idle → sign in again.
+  POST /api/auth/logout/ revokes the refresh token (idempotent, works with an
+  expired access token). Admin password reset signs that user out everywhere.
+  flushexpiredtokens runs on container start.
+- Frontend (api/client.js): on 401 → one shared refresh (single-flight;
+  Web Lock across tabs; reuses a token another tab already refreshed, since
+  rotation revokes the old refresh) → replay the request. Auth endpoints and
+  already-retried requests never refresh (no loops). Dead refresh → session
+  cleared → /login?expired=1 with "Your session expired" notice. Logout calls
+  the revoke endpoint.
+- BUG-006 (fixed): change-password returned only a message but the page
+  stored res.data.access/refresh → "undefined" tokens → user kicked out right
+  after changing their password. Now returns fresh tokens and revokes all
+  other sessions ("signed out on other devices"); page min length 6 → 8 to
+  match the server policy.
+- Tests: backend 17 (test_token_refresh.py), frontend 8 (tokenRefresh.test.js,
+  real interceptors over a fake adapter). Browser E2E: stale access → 4
+  concurrent 401s → exactly one refresh → page loads; revoked session →
+  /login?expired=1 with notice. Suite: backend 241, frontend 22.

@@ -36,6 +36,9 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // E15: revoke the refresh token server-side (fire and forget).
+    const refresh = localStorage.getItem('refresh_token');
+    if (refresh) authAPI.logout(refresh).catch(() => {});
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');

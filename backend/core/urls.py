@@ -21,6 +21,8 @@ urlpatterns = [
     path('auth/check-setup/', views.check_setup),
     path('auth/setup/', views.initial_setup),
     path('auth/login/', views.login_view),
+    path('auth/token/refresh/', views.token_refresh),
+    path('auth/logout/', views.logout_view),
     path('auth/me/', views.me_view),
     path('auth/change-password/', views.change_password),
     path('auth/users/', views.manage_users),

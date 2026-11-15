@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../api/client';
 import brand from '../config/brand';
@@ -12,6 +12,8 @@ export default function Login() {
   const [needsSetup, setNeedsSetup] = useState(null);
   const { login, user } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const expired = params.get('expired') === '1';
 
   useEffect(() => {
     authAPI.checkSetup().then(res => {
@@ -44,6 +46,11 @@ export default function Login() {
           <h1>{brand.feedsName}</h1>
           <p>Sign in to your account</p>
         </div>
+        {expired && !error && (
+          <div className="alert-banner alert-banner-warning" role="status">
+            Your session expired. Please sign in again.
+          </div>
+        )}
         {error && <div className="error-msg">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
