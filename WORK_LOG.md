@@ -451,3 +451,28 @@ fail-fast in prod.
   create_admin requires a password, so a fresh server got NO admin and a
   login that didn't exist (failure masked as "Admin already exists"). Now a
   random strong password is generated, passed via ADMIN_PASSWORD and shown once.
+
+### E12 — Error boundary + frontend tests  ✅ DONE
+- components/ErrorBoundary.jsx: wraps the routed page area (resetKey = path,
+  so navigating away recovers) — a crashing screen shows "Something went wrong
+  on this page" with Try again / Go to dashboard / Reload while the navbar keeps
+  working; a top-level full-page boundary in main.jsx catches the rest.
+- utils/errorReporting.js: crashes, window errors and unhandled promise
+  rejections are POSTed to /api/client-errors/ (fetch, not axios; dedupe 1/min
+  per message, max 10 per page load, path only — no query strings, size caps,
+  never throws). Axios HTTP errors are left to the screens.
+- Backend /api/client-errors/ (AllowAny, throttled 30/min/IP, size-capped)
+  logs at ERROR on core.client_errors → app.log and Sentry (E7) with no new
+  frontend dependency.
+- Vitest 5 + Testing Library + jsdom (pinned); `npm test`. 14 frontend tests
+  incl. an App-level test proving a crashing page leaves the navbar usable.
+  8 backend tests (test_client_errors.py). CI frontend job now runs npm test.
+- CI FIX (found on the first real CI run of main, which failed): ubuntu-latest
+  moved to Ubuntu 26 with a newer PostgreSQL client than the postgres:16
+  service; pg_dump 17+ dumps don't restore into 16 → backup-script tests
+  failed in CI only (pass locally with pinned deps on PG16). CI now installs
+  postgresql-client-16; the tests skip with a clear reason on a client/server
+  major mismatch; pytest-github-actions-annotate-failures surfaces failing
+  tests as annotations (readable via the API — job logs aren't).
+- Note: pre-existing ESLint debt (43 errors in older files) left as is; all new
+  files lint clean. Suite: backend 224, frontend 14.

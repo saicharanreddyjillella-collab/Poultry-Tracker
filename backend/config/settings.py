@@ -109,6 +109,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         # Brute-force protection on the login endpoint (per client IP).
         'login': '10/min',
+        # E12: frontend crash reports (per client IP).
+        'client_errors': '30/min',
     },
 }
 

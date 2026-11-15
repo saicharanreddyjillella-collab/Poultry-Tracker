@@ -21,3 +21,4 @@ from .billing import (
 from .documents import DocumentViewSet
 from .audit import AuditLogViewSet
 from .health import health
+from .client_errors import client_error

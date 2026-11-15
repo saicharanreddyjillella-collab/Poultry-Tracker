@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AlertBell from './components/AlertBell';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
 import Dashboard from './pages/Dashboard';
@@ -238,6 +239,7 @@ function AppRoutes() {
       {user && isChicken && <ChickenNav />}
       {user && isLayer && <LayerNav />}
       <main className="main-content">
+        <ErrorBoundary resetKey={location.pathname}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/setup" element={<Setup />} />
@@ -290,6 +292,7 @@ function AppRoutes() {
           <Route path="/layer/reports" element={<ProtectedRoute><LayerReports /></ProtectedRoute>} />
           <Route path="/layer/day-close" element={<ProtectedRoute><LayerDayClose /></ProtectedRoute>} />
         </Routes>
+        </ErrorBoundary>
       </main>
     </>
   );
