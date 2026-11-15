@@ -27,7 +27,8 @@ export default function FarmForm() {
     if (!isAdmin && user) {
       farmAPI.list().then(res => {
         const assignedFarms = res.data.filter(f => user.assigned_farm_ids?.includes(f.id));
-        const regions = [...new Set(assignedFarms.map(f => f.region).filter(Boolean))];
+        // Assigned regions count even before they contain any farm.
+        const regions = [...new Set([...(user.assigned_regions || []), ...assignedFarms.map(f => f.region)].filter(Boolean))].sort();
         setMyRegions(regions);
         // Auto-select first region if only one
         if (regions.length === 1 && !isEdit) {

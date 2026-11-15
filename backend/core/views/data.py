@@ -1,6 +1,8 @@
 """Farm / Flock / DailyEntry / Sale / FeedRate / Medication CRUD viewsets."""
 from rest_framework import viewsets
 from ..pagination import GuardedListMixin
+from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
+                      get_visible_farm, get_visible_flock)
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from datetime import date
@@ -19,17 +21,39 @@ class FarmViewSet(viewsets.ModelViewSet):
     serializer_class = FarmSerializer
     permission_classes = [IsAuthenticated, CanEditFarm]
 
+    def get_queryset(self):
+        return visible_farms(self.request.user)
+
+    def get_serializer_class(self):
+        # Feed mill only needs farm names for orders/stock (no PAN, grower data).
+        if is_plant(self.request.user):
+            from ..serializers import FarmNameSerializer
+            return FarmNameSerializer
+        return FarmSerializer
+
+    def perform_update(self, serializer):
+        deny_plant(self.request.user)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        deny_plant(self.request.user)
+        instance.delete()
+
     def perform_create(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+        deny_plant(self.request.user)
         profile = self.request.user.profile
         if not profile.is_admin:
-            assigned_regions = set(
+            assigned_regions = set(profile.assigned_regions or []) | set(
                 profile.assigned_farms.exclude(region='').values_list('region', flat=True).distinct()
             )
+            if not assigned_regions:
+                raise PermissionDenied('You have no regions assigned — ask an admin to assign one first.')
             new_region = serializer.validated_data.get('region', '')
             if not new_region:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'region': 'Region is required.'})
-            if assigned_regions and new_region not in assigned_regions:
+            if new_region not in assigned_regions:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'region': f'You can only create farms in your assigned regions: {", ".join(sorted(assigned_regions))}'})
             farm = serializer.save()
@@ -40,11 +64,11 @@ class FarmViewSet(viewsets.ModelViewSet):
 
 class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Flock.objects.select_related('farm').all()
-    permission_classes = [IsAuthenticated, CanEditFlock]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlock]
     list_filters = ('farm', 'status')
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(farm_id__in=visible_farm_ids(self.request.user))
         if self.action == 'list':
             farm = self.request.query_params.get('farm')
             status = self.request.query_params.get('status')
@@ -63,6 +87,9 @@ class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
         from rest_framework.exceptions import ValidationError
         farm = serializer.validated_data.get('farm')
         chick_count = serializer.validated_data.get('chick_count', 0)
+        if not is_admin(self.request.user) and not self.request.user.profile.can_edit_farm(farm):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You can only add flocks to farms in your regions.')
 
         # Check total active chicks + new flock <= farm capacity
         existing_active_chicks = sum(
@@ -83,10 +110,10 @@ class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
 class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = DailyEntry.objects.select_related('flock', 'flock__farm').all()
     serializer_class = DailyEntrySerializer
-    permission_classes = [IsAuthenticated, CanEditFlockData]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))
         flock_id = self.request.query_params.get('flock')
         if flock_id:
             qs = qs.filter(flock_id=flock_id)
@@ -176,10 +203,10 @@ class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
 class SaleViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Sale.objects.select_related('flock', 'flock__farm').all()
     serializer_class = SaleSerializer
-    permission_classes = [IsAuthenticated, CanEditFlockData]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))
         flock_id = self.request.query_params.get('flock')
         if flock_id:
             qs = qs.filter(flock_id=flock_id)
@@ -216,10 +243,10 @@ class FeedRateViewSet(viewsets.ModelViewSet):
 class MedicationViewSet(GuardedListMixin, viewsets.ModelViewSet):
     queryset = Medication.objects.select_related('flock', 'flock__farm').all()
     serializer_class = MedicationSerializer
-    permission_classes = [IsAuthenticated, CanEditFlockData]
+    permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))
         flock_id = self.request.query_params.get('flock')
         if flock_id:
             qs = qs.filter(flock_id=flock_id)

@@ -115,6 +115,14 @@ class FlockListSerializer(serializers.ModelSerializer):
         return None
 
 
+class FarmNameSerializer(serializers.ModelSerializer):
+    """What the feed mill needs to know about a farm: which one it is."""
+    class Meta:
+        model = Farm
+        fields = ['id', 'farm_code', 'name', 'region']
+        read_only_fields = fields
+
+
 class FarmSerializer(serializers.ModelSerializer):
     active_flocks = serializers.SerializerMethodField()
 

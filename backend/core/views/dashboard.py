@@ -1,5 +1,6 @@
 """Dashboard and cumulative (flock / farm) aggregation endpoints."""
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum
 from datetime import date
@@ -7,13 +8,16 @@ from decimal import Decimal
 
 from ..models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder
 from ..serializers import FarmSerializer, FeedRateSerializer
+from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
+                      get_visible_farm, get_visible_flock)
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def dashboard(request):
     today = date.today()
-    farms = Farm.objects.all()
-    active_flocks = Flock.objects.filter(status='active').select_related('farm')
+    farms = visible_farms(request.user)
+    active_flocks = Flock.objects.filter(status='active', farm__in=farms).select_related('farm')
 
     total_live_birds = 0
     mortality_today = 0
@@ -24,7 +28,7 @@ def dashboard(request):
         if today_entry:
             mortality_today += today_entry.mortality_count
 
-    today_feed = DailyEntry.objects.filter(date=today).aggregate(
+    today_feed = DailyEntry.objects.filter(date=today, flock__farm__in=farms).aggregate(
         bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
     )
 
@@ -121,11 +125,12 @@ def dashboard(request):
 # ─── FLOCK CUMULATIVE ───
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def flock_cumulative(request, flock_id):
     from ..standards import get_standard_weight
 
+    flock = get_visible_flock(request.user, flock_id)          # 404 if missing / other region
     entries = DailyEntry.objects.filter(flock_id=flock_id).order_by('date')
-    flock = Flock.objects.get(id=flock_id)
     sales = Sale.objects.filter(flock_id=flock_id).order_by('date')
 
     BAG_KG = 50
@@ -237,8 +242,9 @@ def flock_cumulative(request, flock_id):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def farm_cumulative(request, farm_id):
-    farm = Farm.objects.get(id=farm_id)
+    farm = get_visible_farm(request.user, farm_id)
     closed_flocks = Flock.objects.filter(farm=farm, status='closed')
 
     BAG_KG = 50

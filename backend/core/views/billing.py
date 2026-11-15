@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from ..models import Flock, BillConfig, Bill, BillVersion
 from ..serializers import BillConfigSerializer, BillSerializer, BillVersionSerializer
+from ..access import is_admin, deny_plant, get_visible_flock, visible_farm_ids
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +15,12 @@ REOPEN_REASON_MIN_CHARS = 10
 
 @api_view(['GET', 'PUT'])
 def bill_config_view(request):
+    # Billing settings (costs, rates, TDS) are admin-only, read and write.
+    if not is_admin(request.user):
+        return Response({'error': 'Admin only'}, status=403)
     config = BillConfig.get_active()
     if request.method == 'GET':
         return Response(BillConfigSerializer(config).data)
-    if not request.user.profile.is_admin:
-        return Response({'error': 'Admin only'}, status=403)
     serializer = BillConfigSerializer(config, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
@@ -29,10 +31,10 @@ def bill_config_view(request):
 @api_view(['POST'])
 def close_flock_and_generate_bill(request, flock_id):
     from ..billing import generate_bill
-    try:
-        flock = Flock.objects.select_related('farm').get(id=flock_id)
-    except Flock.DoesNotExist:
-        return Response({'error': 'Flock not found'}, status=404)
+    deny_plant(request.user)
+    flock = get_visible_flock(request.user, flock_id)             # 404 other region / missing
+    if not is_admin(request.user) and not request.user.profile.can_edit_farm(flock.farm):
+        return Response({'error': 'Permission denied'}, status=403)
 
     if flock.status == 'closed':
         if hasattr(flock, 'bill'):
@@ -66,8 +68,10 @@ def close_flock_and_generate_bill(request, flock_id):
 
 @api_view(['GET'])
 def get_bill(request, flock_id):
+    deny_plant(request.user)
     try:
-        bill = Bill.objects.select_related('flock', 'flock__farm').get(flock_id=flock_id)
+        bill = Bill.objects.select_related('flock', 'flock__farm').get(
+            flock_id=flock_id, flock__farm_id__in=visible_farm_ids(request.user))
     except Bill.DoesNotExist:
         return Response({'error': 'Bill not found'}, status=404)
     return Response(BillSerializer(bill).data)
@@ -75,7 +79,9 @@ def get_bill(request, flock_id):
 
 @api_view(['GET'])
 def list_bills(request):
-    bills = Bill.objects.select_related('flock', 'flock__farm').all()
+    deny_plant(request.user)
+    bills = Bill.objects.select_related('flock', 'flock__farm').filter(
+        flock__farm_id__in=visible_farm_ids(request.user))
     return Response(BillSerializer(bills, many=True).data)
 
 
@@ -125,8 +131,8 @@ def reopen_bill(request, flock_id):
 def bill_history(request, flock_id):
     """E5: every archived (superseded) version of a flock's bill, oldest first,
     plus the live bill's version if one exists."""
-    if not Flock.objects.filter(id=flock_id).exists():
-        return Response({'error': 'Flock not found'}, status=404)
+    deny_plant(request.user)
+    get_visible_flock(request.user, flock_id)                     # 404 other region / missing
     versions = BillVersion.objects.filter(flock_id=flock_id).select_related('reopened_by')
     current = Bill.objects.filter(flock_id=flock_id).values('version', 'net_payable', 'generated_at').first()
     return Response({

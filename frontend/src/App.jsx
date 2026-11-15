@@ -26,6 +26,8 @@ import './styles/components.css';
 import './styles/business.css';
 import brand from './config/brand';
 
+const PLANT_PATHS = ['/feed', '/change-password'];
+
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -34,6 +36,10 @@ function ProtectedRoute({ children }) {
   // Password set by an admin → must choose their own before anything else.
   if (user.must_change_password && location.pathname !== '/change-password') {
     return <Navigate to="/change-password" replace />;
+  }
+  // Feed-mill users only have the Feed screens (the API refuses the rest).
+  if (user.role === 'plant' && !PLANT_PATHS.includes(location.pathname)) {
+    return <Navigate to="/feed" replace />;
   }
   return children;
 }

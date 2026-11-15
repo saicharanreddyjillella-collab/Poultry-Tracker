@@ -9,13 +9,18 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from ..models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
 from ..serializers import FeedRateSerializer
+from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
+                      get_visible_farm, get_visible_flock)
 
 
-def _compute_monthly_report(year, month):
-    """Core monthly report logic — returns dict. Callable without a request."""
+def _compute_monthly_report(year, month, farm_ids=None):
+    """Core monthly report logic — returns dict. Callable without a request.
+    farm_ids limits it to those farms (a supervisor's regions); None = all."""
     import calendar
     BAG_KG = 50
     flocks = Flock.objects.filter(status='closed').select_related('farm')
+    if farm_ids is not None:
+        flocks = flocks.filter(farm_id__in=farm_ids)
     batches = []
 
     for flock in flocks:
@@ -75,14 +80,20 @@ def _compute_monthly_report(year, month):
     }
 
 
+def _report_scope(user):
+    return None if is_admin(user) else visible_farm_ids(user)
+
+
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def monthly_report(request):
     year = int(request.query_params.get('year', date.today().year))
     month = int(request.query_params.get('month', date.today().month))
-    return Response(_compute_monthly_report(year, month))
+    return Response(_compute_monthly_report(year, month, _report_scope(request.user)))
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def export_monthly_report(request):
     import openpyxl
     from io import BytesIO
@@ -91,7 +102,7 @@ def export_monthly_report(request):
     year = int(request.query_params.get('year', date.today().year))
     month = int(request.query_params.get('month', date.today().month))
 
-    report = _compute_monthly_report(year, month)
+    report = _compute_monthly_report(year, month, _report_scope(request.user))
     batches = report['flocks']
 
     wb = openpyxl.Workbook()
@@ -122,13 +133,14 @@ def export_monthly_report(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def export_flock_report(request, flock_id):
     import openpyxl
     from io import BytesIO
     from django.http import HttpResponse
     from ..standards import get_standard_weight
 
-    flock = Flock.objects.select_related('farm').get(id=flock_id)
+    flock = get_visible_flock(request.user, flock_id)
     entries = DailyEntry.objects.filter(flock=flock).order_by('date')
     sales = Sale.objects.filter(flock=flock).order_by('date')
     meds = Medication.objects.filter(flock=flock).order_by('date')
@@ -197,10 +209,11 @@ def export_flock_report(request, flock_id):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def region_performance(request):
     BAG_KG = 50
     region_filter = request.query_params.get('region')
-    farms = Farm.objects.all()
+    farms = visible_farms(request.user)
     if region_filter:
         farms = farms.filter(region=region_filter)
 
@@ -247,7 +260,7 @@ def region_performance(request):
         })
 
     return Response({
-        'regions': sorted(list(Farm.objects.exclude(region='').values_list('region', flat=True).distinct())),
+        'regions': sorted(set(visible_farms(request.user).exclude(region='').values_list('region', flat=True))),
         'data': result,
     })
 
@@ -255,9 +268,10 @@ def region_performance(request):
 # ─── TILL DATE REPORT ───
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def till_date_report(request):
     BAG_KG = 50
-    all_flocks = Flock.objects.select_related('farm').all()
+    all_flocks = Flock.objects.select_related('farm').filter(farm__in=visible_farms(request.user))
     active_flocks = all_flocks.filter(status='active')
 
     total_placed = 0
@@ -673,14 +687,14 @@ def break_even_projection(request):
     })
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, NotPlant])
 def farm_performance_history(request, farm_id):
     """Multi-cycle performance history for one farm: each closed flock's key
     metrics in placement order, plus averages and a trend direction."""
     from ..models import Farm, Flock
 
-    try:
-        farm = Farm.objects.get(id=farm_id)
-    except Farm.DoesNotExist:
+    farm = visible_farms(request.user).filter(id=farm_id).first()
+    if farm is None:
         return Response({'error': 'Farm not found'}, status=404)
 
     flocks = Flock.objects.filter(farm=farm, status='closed').order_by('placement_date')
