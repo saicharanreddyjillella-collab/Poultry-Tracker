@@ -51,6 +51,8 @@ SECRET_KEY=${SECRET_KEY}
 DB_PASSWORD=${DB_PASSWORD}
 SERVER_IP=$(curl -s ifconfig.me)
 DOMAIN=$(curl -s ifconfig.me)
+# Optional error monitoring (E7): paste a Sentry DSN to enable
+SENTRY_DSN=
 ENVEOF
     echo "→ .env created with secure random keys"
 fi

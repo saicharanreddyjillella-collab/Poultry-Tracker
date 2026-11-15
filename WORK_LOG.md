@@ -398,3 +398,22 @@ fail-fast in prod.
   views now check the lock first (assert_flock_unlocked). Test-only: deletes
   raise inside Django's atomic(savepoint=False), poisoning the test
   transaction → assertions run under a savepoint (prod is autocommit).
+
+### E7 — Error monitoring (Sentry)  ✅ DONE
+- config/monitoring.py: Sentry initialised from settings only when SENTRY_DSN
+  is set (dev/tests/CI send nothing). SENTRY_ENVIRONMENT (default production /
+  development), SENTRY_RELEASE, SENTRY_TRACES_SAMPLE_RATE (default 0, clamped,
+  junk-safe). Unhandled exceptions + ERROR logs → events; WARNING → breadcrumbs.
+- Privacy for a system holding PAN/bank data: send_default_pii=False,
+  max_request_body_size='never', EventScrubber with extra denylist (pan, gstin,
+  aadhaar, account, ifsc, upi, phone, tokens...). Business numbers kept.
+- `manage.py check_monitoring` sends a test event to confirm wiring.
+- sentry-sdk==2.75.0 pinned; docker-compose passes SENTRY_* to backend;
+  .env.example + deploy/setup.sh document SENTRY_DSN.
+- Tests: test_monitoring.py (18) incl. end-to-end with the real SDK and a
+  capturing transport: a forced 500 on /api/auth/login/ is reported with
+  endpoint + release while the password/PAN in the body never appear.
+  Full suite 198 pass. Prod-mode boot with a DSN verified.
+- Bugs: none in code (test fixes only: scrubbed values are AnnotatedValue
+  placeholders until serialisation; event carries `transaction`, not url).
+- Frontend error capture deferred to E12 (error boundary).
