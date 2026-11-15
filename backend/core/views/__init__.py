@@ -1,6 +1,7 @@
 from .auth import (
     check_setup, initial_setup, login_view, me_view,
     change_password, manage_users, manage_user_detail, list_regions,
+    token_refresh, logout_view,
 )
 from .data import (
     FarmViewSet, FlockViewSet, DailyEntryViewSet, SaleViewSet,

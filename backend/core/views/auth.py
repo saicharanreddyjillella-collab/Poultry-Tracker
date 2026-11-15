@@ -9,6 +9,21 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from ..models import UserProfile, Farm
 
 
+# ── E15: token lifecycle ───────────────────────────────────────────────────
+def _issue_tokens(user):
+    from rest_framework_simplejwt.tokens import RefreshToken
+    refresh = RefreshToken.for_user(user)
+    return {'access': str(refresh.access_token), 'refresh': str(refresh)}
+
+
+def revoke_all_tokens(user):
+    """Blacklist every outstanding refresh token for this user (signs them
+    out everywhere once their current access token expires)."""
+    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+    for tok in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=tok)
+
+
 def _password_error(password, user=None):
     """Run Django's configured password validators. Returns a joined error
     string if the password is weak, else None."""
@@ -98,7 +113,9 @@ def change_password(request):
         return Response({'error': pw_err}, status=400)
     user.set_password(new)
     user.save()
-    return Response({'message': 'Password changed'})
+    # Sign out every other session, keep this one with fresh tokens.
+    revoke_all_tokens(user)
+    return Response({'message': 'Password changed', **_issue_tokens(user)})
 
 
 @api_view(['GET', 'POST'])
@@ -166,6 +183,7 @@ def manage_user_detail(request, user_id):
         if pw_err:
             return Response({'error': pw_err}, status=400)
         user.set_password(request.data['password'])
+        revoke_all_tokens(user)   # admin reset → that user is signed out everywhere
     user.save()
 
     if hasattr(user, 'profile'):
@@ -199,3 +217,43 @@ def _user_data(user):
         'assigned_farm_ids': list(profile.assigned_farms.values_list('id', flat=True)) if profile else [],
         'assigned_regions': profile.assigned_regions if profile else [],
     }
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
+def token_refresh(request):
+    """E15: exchange a refresh token for a new access token (+ rotated refresh).
+
+    401 when the refresh token is expired, blacklisted, malformed, or its user
+    no longer exists / is inactive — the frontend then signs the user out.
+    """
+    from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+    from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+    from rest_framework.exceptions import AuthenticationFailed
+    serializer = TokenRefreshSerializer(data=request.data)
+    try:
+        serializer.is_valid(raise_exception=True)
+    except (TokenError, InvalidToken, AuthenticationFailed, User.DoesNotExist):
+        return Response({'detail': 'Session expired. Please log in again.', 'code': 'token_not_valid'},
+                        status=401)
+    return Response(serializer.validated_data)
+
+
+token_refresh.cls.throttle_scope = 'token_refresh'
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def logout_view(request):
+    """E15: revoke the given refresh token. Idempotent; works with an expired
+    access token (so logout always succeeds from the user's point of view)."""
+    from rest_framework_simplejwt.tokens import RefreshToken
+    from rest_framework_simplejwt.exceptions import TokenError
+    token = request.data.get('refresh')
+    if token:
+        try:
+            RefreshToken(token).blacklist()
+        except TokenError:
+            pass  # already expired/blacklisted — nothing to revoke
+    return Response({'message': 'Logged out'})
