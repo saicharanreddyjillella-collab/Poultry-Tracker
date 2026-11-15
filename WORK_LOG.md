@@ -612,3 +612,15 @@ fail-fast in prod.
   password → supervisor logs in on a phone-size screen → forced to set own →
   dashboard → re-login with own password; temp password then rejected (401).
   Suites: backend 289, frontend 38.
+
+### Owner View / Break-even / Feed Forecast → admin only  ✅ DONE
+- Requested by Sai: these business-sensitive screens (owner P&L and grower
+  leaderboard, break-even per flock, feed demand) were visible to every
+  non-plant user, supervisors included.
+- Backend: /api/reports/owner-dashboard/, /break-even/, /feed-forecast/ now
+  require an admin (IsAdmin) → 403 for supervisor/plant, 401 anonymous — so the
+  data can't be fetched by URL or API either.
+- Frontend: nav links shown to admins only; AdminRoute sends anyone else who
+  opens the URL to their dashboard. Supervisors keep Today, Farms, Feed, Reports.
+- Tests: backend 13 (test_admin_only_reports.py), frontend 5. Suites: backend
+  302, frontend 43.

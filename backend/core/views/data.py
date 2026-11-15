@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from ..pagination import GuardedListMixin
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum
@@ -14,7 +14,7 @@ from ..serializers import (
     DailyEntrySerializer, SaleSerializer, FeedRateSerializer,
     MedicationSerializer
 )
-from ..permissions import IsAdminOrReadOnly, CanEditFarm, CanEditFlock, CanEditFlockData
+from ..permissions import IsAdmin, IsAdminOrReadOnly, CanEditFarm, CanEditFlock, CanEditFlockData
 
 
 class FarmViewSet(viewsets.ModelViewSet):
@@ -825,6 +825,7 @@ def till_date_report(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])   # business-sensitive: admin only
 def feed_forecast(request):
     """Forward feed-requirement forecast across all active flocks.
 
@@ -919,6 +920,7 @@ def feed_forecast(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])   # business-sensitive: admin only
 def owner_dashboard(request):
     """Owner BI dashboard: active-cycle overview, region/period summary,
     performance leaderboard, and an alerts feed. Read-only aggregation."""
@@ -1048,6 +1050,7 @@ def owner_dashboard(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])   # business-sensitive: admin only
 def break_even_projection(request):
     """Projected break-even for every ACTIVE flock at current feed rates.
 
