@@ -10,3 +10,4 @@ static/
 .pytest_cache/
 backend/media/
 backend/logs/
+.env.local

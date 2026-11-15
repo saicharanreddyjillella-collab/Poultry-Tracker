@@ -1,0 +1,4 @@
+# Host node_modules (e.g. macOS binaries) must never overwrite the image's own
+node_modules/
+dist/
+.env
