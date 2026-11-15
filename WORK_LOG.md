@@ -561,3 +561,28 @@ fail-fast in prod.
 - Tests: backend 20 (test_soft_delete.py), frontend 5 (RecycleBin.test.jsx);
   browser E2E delete → bin → restore. Suites: backend 279 (Postgres + SQLite),
   frontend 27.
+
+### Local production deploy kit  ✅ DONE
+- docker-compose.local.yml (override: nginx on :8080 only, local nginx conf, no
+  Let's Encrypt mount, DISABLE_HTTPS, localhost hosts/origins) +
+  deploy/nginx.local.conf + deploy/local.sh (up/status/logs/down/reset;
+  generates a git-ignored .env.local with random secrets; waits for health).
+- Production fixes found while preparing it:
+  - BUG-008: backend Dockerfile ran collectstatic at BUILD time with no
+    SECRET_KEY; since E1 that raises and `|| true` hid it → new images ship the
+    Django admin without CSS. Moved to container start (writes the static volume).
+  - nginx /admin/ lacked X-Forwarded-Proto → admin redirect loop under the E1
+    HTTPS settings. Fixed in deploy/nginx.conf.
+  - No .dockerignore: on a Mac, `COPY . .` copies macOS node_modules over the
+    image's Linux ones (frontend build breaks) and venv/db/media into the
+    backend image. Added backend/ and frontend/.dockerignore.
+  - Frontend image Node 20 (EOL) → 22, matching CI.
+  - First-time Setup created an admin WITHOUT Django-admin access (create_admin
+    made a superuser) → Setup now makes a superuser too (+1 test).
+- Verified: compose merge (`docker compose config`); full production stack
+  emulated without Docker (Docker Hub unreachable from the build workspace):
+  Python 3.11 + pinned requirements, container start sequence, gunicorn,
+  production frontend build, nginx with nginx.local.conf on :8080, Postgres 16.
+  Browser walkthrough: fresh DB → Setup → dashboard → create farm → Django
+  admin styled + login → Recycle Bin; no page errors, no 5xx; no https
+  redirect; security headers present.

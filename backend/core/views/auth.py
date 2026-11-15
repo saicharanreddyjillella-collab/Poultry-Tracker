@@ -58,8 +58,10 @@ def initial_setup(request):
     if pw_err:
         return Response({'error': pw_err}, status=400)
 
-    user = User.objects.create_user(username=username, password=password,
-                                     first_name=first_name, last_name=last_name)
+    # The first account owns the system: also give it Django-admin access, the
+    # same as `manage.py create_admin` does on the server.
+    user = User.objects.create_superuser(username=username, password=password,
+                                         first_name=first_name, last_name=last_name)
     UserProfile.objects.create(user=user, role='admin')
 
     from rest_framework_simplejwt.tokens import RefreshToken

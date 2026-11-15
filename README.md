@@ -146,3 +146,21 @@ Install on the server with `bash deploy/install-backups.sh` (done automatically 
 `deploy/setup.sh`), then add an off-box rclone destination and a healthchecks.io
 alert URL in `/etc/poultrytrack/backup.env`. Restore with
 `bash deploy/restore.sh latest`. Full runbook: [docs/BACKUPS.md](docs/BACKUPS.md).
+
+## Run the production build locally (Mac)
+
+Same images as the server (DEBUG=False, Postgres 16, gunicorn, nginx), plain
+http on **http://localhost:8080**. Needs Docker Desktop running.
+
+```bash
+git checkout release/feeds-only     # or main
+bash deploy/local.sh up             # build + start; first run creates .env.local
+bash deploy/local.sh status         # containers + health
+bash deploy/local.sh logs           # follow backend logs
+bash deploy/local.sh down           # stop (data kept)
+bash deploy/local.sh reset          # stop and wipe the local database/uploads
+```
+
+A fresh database opens the first-time Setup page to create the admin. To try a
+copy of the server's data, copy a backup file over and run
+`BACKUP_DIR=<folder> bash deploy/restore.sh <file.sql.gz>`.

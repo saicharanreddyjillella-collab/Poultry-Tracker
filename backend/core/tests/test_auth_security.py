@@ -18,6 +18,12 @@ class TestPasswordPolicy:
         resp = api.post("/api/auth/setup/", {"username": "boss", "password": "Str0ng!Pass9"}, format="json")
         assert resp.status_code in (200, 201), resp.data
 
+    def test_setup_admin_can_use_django_admin(self, api):
+        from django.contrib.auth.models import User
+        api.post("/api/auth/setup/", {"username": "boss", "password": "Str0ng!Pass9"}, format="json")
+        u = User.objects.get(username="boss")
+        assert u.is_staff and u.is_superuser and u.profile.role == "admin"
+
     def test_change_password_rejects_weak(self, auth_admin, admin_user):
         resp = auth_admin.post("/api/auth/change-password/", {
             "current_password": "pass12345", "new_password": "12345678",  # all numeric
