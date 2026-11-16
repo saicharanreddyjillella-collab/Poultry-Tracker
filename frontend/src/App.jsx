@@ -72,6 +72,13 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+// "/" is the business switcher (Feeds / Chicken Center / Layer Farm) — the other
+// businesses are admin-only, so everyone else goes straight to Feeds.
+function HomeRoute() {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <Landing /> : <Navigate to="/feeds" replace />;
+}
+
 // Business-sensitive pages (owner P&L, break-even, feed forecast): admin only.
 function AdminRoute({ children }) {
   const { user, isAdmin } = useAuth();
@@ -124,7 +131,7 @@ function NavBar() {
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
         {isAdmin && <Link to="/trash" onClick={closeMenu}>Recycle Bin</Link>}
-        {!isPlant && <Link to="/" onClick={closeMenu}>Switch Business</Link>}
+        {isAdmin && <Link to="/" onClick={closeMenu}>Switch Business</Link>}
         {!isPlant && <AlertBell />}
         <div className="nav-mobile-user">
           <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
@@ -267,7 +274,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/setup" element={<Setup />} />
-          <Route path="/" element={<ProtectedRoute><Landing /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><HomeRoute /></ProtectedRoute>} />
 
           {/* Sai Ram Feeds */}
           <Route path="/feeds" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -290,32 +297,32 @@ function AppRoutes() {
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
           {/* Sai Charan Chicken Center */}
-          <Route path="/chicken" element={<ProtectedRoute><ChickenDashboard /></ProtectedRoute>} />
-          <Route path="/chicken/new" element={<ProtectedRoute><ChickenNewEntry /></ProtectedRoute>} />
-          <Route path="/chicken/parties" element={<ProtectedRoute><ChickenParties /></ProtectedRoute>} />
-          <Route path="/chicken/parties/:id" element={<ProtectedRoute><ChickenPartyStatement /></ProtectedRoute>} />
-          <Route path="/chicken/items" element={<ProtectedRoute><ChickenItems /></ProtectedRoute>} />
-          <Route path="/chicken/outstanding" element={<ProtectedRoute><ChickenOutstanding /></ProtectedRoute>} />
-          <Route path="/chicken/reports" element={<ProtectedRoute><ChickenReports /></ProtectedRoute>} />
-          <Route path="/chicken/transactions" element={<ProtectedRoute><ChickenTransactions /></ProtectedRoute>} />
-          <Route path="/chicken/pending-bills" element={<ProtectedRoute><ChickenPendingBills /></ProtectedRoute>} />
-          <Route path="/chicken/invoice/:id" element={<ProtectedRoute><ChickenInvoice /></ProtectedRoute>} />
-          <Route path="/chicken/day-close" element={<ProtectedRoute><ChickenDayClose /></ProtectedRoute>} />
-          <Route path="/chicken/opening" element={<ProtectedRoute><ChickenOpening /></ProtectedRoute>} />
-          <Route path="/chicken/ledgers" element={<ProtectedRoute><ChickenLedgers /></ProtectedRoute>} />
-          <Route path="/chicken/daybook" element={<ProtectedRoute><ChickenDaybook /></ProtectedRoute>} />
-          <Route path="/chicken/sales-summary" element={<ProtectedRoute><ChickenSalesSummary /></ProtectedRoute>} />
+          <Route path="/chicken" element={<AdminRoute><ChickenDashboard /></AdminRoute>} />
+          <Route path="/chicken/new" element={<AdminRoute><ChickenNewEntry /></AdminRoute>} />
+          <Route path="/chicken/parties" element={<AdminRoute><ChickenParties /></AdminRoute>} />
+          <Route path="/chicken/parties/:id" element={<AdminRoute><ChickenPartyStatement /></AdminRoute>} />
+          <Route path="/chicken/items" element={<AdminRoute><ChickenItems /></AdminRoute>} />
+          <Route path="/chicken/outstanding" element={<AdminRoute><ChickenOutstanding /></AdminRoute>} />
+          <Route path="/chicken/reports" element={<AdminRoute><ChickenReports /></AdminRoute>} />
+          <Route path="/chicken/transactions" element={<AdminRoute><ChickenTransactions /></AdminRoute>} />
+          <Route path="/chicken/pending-bills" element={<AdminRoute><ChickenPendingBills /></AdminRoute>} />
+          <Route path="/chicken/invoice/:id" element={<AdminRoute><ChickenInvoice /></AdminRoute>} />
+          <Route path="/chicken/day-close" element={<AdminRoute><ChickenDayClose /></AdminRoute>} />
+          <Route path="/chicken/opening" element={<AdminRoute><ChickenOpening /></AdminRoute>} />
+          <Route path="/chicken/ledgers" element={<AdminRoute><ChickenLedgers /></AdminRoute>} />
+          <Route path="/chicken/daybook" element={<AdminRoute><ChickenDaybook /></AdminRoute>} />
+          <Route path="/chicken/sales-summary" element={<AdminRoute><ChickenSalesSummary /></AdminRoute>} />
 
           {/* Sai Ram Layer Farm */}
-          <Route path="/layer" element={<ProtectedRoute><LayerDashboard /></ProtectedRoute>} />
-          <Route path="/layer/flocks" element={<ProtectedRoute><LayerFlocks /></ProtectedRoute>} />
-          <Route path="/layer/flocks/:id" element={<ProtectedRoute><LayerFlockDetail /></ProtectedRoute>} />
-          <Route path="/layer/new" element={<ProtectedRoute><LayerNewEntry /></ProtectedRoute>} />
-          <Route path="/layer/feed" element={<ProtectedRoute><LayerFeedMill /></ProtectedRoute>} />
-          <Route path="/layer/transactions" element={<ProtectedRoute><LayerTransactions /></ProtectedRoute>} />
-          <Route path="/layer/masters" element={<ProtectedRoute><LayerMasters /></ProtectedRoute>} />
-          <Route path="/layer/reports" element={<ProtectedRoute><LayerReports /></ProtectedRoute>} />
-          <Route path="/layer/day-close" element={<ProtectedRoute><LayerDayClose /></ProtectedRoute>} />
+          <Route path="/layer" element={<AdminRoute><LayerDashboard /></AdminRoute>} />
+          <Route path="/layer/flocks" element={<AdminRoute><LayerFlocks /></AdminRoute>} />
+          <Route path="/layer/flocks/:id" element={<AdminRoute><LayerFlockDetail /></AdminRoute>} />
+          <Route path="/layer/new" element={<AdminRoute><LayerNewEntry /></AdminRoute>} />
+          <Route path="/layer/feed" element={<AdminRoute><LayerFeedMill /></AdminRoute>} />
+          <Route path="/layer/transactions" element={<AdminRoute><LayerTransactions /></AdminRoute>} />
+          <Route path="/layer/masters" element={<AdminRoute><LayerMasters /></AdminRoute>} />
+          <Route path="/layer/reports" element={<AdminRoute><LayerReports /></AdminRoute>} />
+          <Route path="/layer/day-close" element={<AdminRoute><LayerDayClose /></AdminRoute>} />
         </Routes>
         </ErrorBoundary>
       </main>

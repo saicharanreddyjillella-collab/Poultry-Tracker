@@ -164,3 +164,23 @@ bash deploy/local.sh reset          # stop and wipe the local database/uploads
 A fresh database opens the first-time Setup page to create the admin. To try a
 copy of the server's data, copy a backup file over and run
 `BACKUP_DIR=<folder> bash deploy/restore.sh <file.sql.gz>`.
+
+## Browser tests (Playwright)
+
+`frontend/e2e/` drives the real app in Chromium — the production React build
+against the real Django API on a throwaway SQLite database loaded by
+`manage.py seed_e2e` (two regions, four farms, a billed flock, users for every
+role). Covers sign-in and sessions, what each role can see and open, region
+scoping, daily entries / sales / medicines and their validation, closing and
+billing (lock, admin reopen, revisions), farms, the feed order lifecycle
+(order → mill sends → farm receives, cancel, transfer, rates), user management
+and first-login passwords, the Recycle Bin, reports and a phone-sized screen.
+
+```bash
+cd frontend
+npx playwright install chromium          # once
+E2E_PYTHON=../backend/venv/bin/python npm run e2e
+npm run e2e:report                       # HTML report of the last run
+```
+
+CI runs them on every push (job "Browser tests").

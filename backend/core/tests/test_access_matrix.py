@@ -10,6 +10,7 @@ import datetime
 from decimal import Decimal
 
 import pytest
+from django.apps import apps
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
@@ -148,7 +149,7 @@ WRITES = [
     ("transfer from other reg", "post",  "/api/feed-transfers/", lambda w: {"from_farm": w["B"].id, "to_farm": w["A"].id, "feed_type": "BFP", "quantity_bags": 1, "date": str(T)}, (403, 403, 401)),
     ("transfer to other region","post",  "/api/feed-transfers/", lambda w: {"from_farm": w["A"].id, "to_farm": w["B"].id, "feed_type": "BFP", "quantity_bags": 1, "date": str(T)}, (403, 403, 401)),
     ("mark other order sent",   "post",  "/api/feed-orders/{ob.id}/mark-sent/", None, (403, 200, 401)),
-    ("feed rate",               "post",  "/api/feed-rates/", lambda w: {"week_start_date": str(T), "feed_type": "BFP", "rate_per_bag": "100"}, (403, 403, 401)),
+    ("feed rate",               "post",  "/api/feed-rates/", lambda w: {"week_start_date": str(T), "feed_type": "BFP", "rate_per_kg": "44"}, (403, 403, 401)),
     ("bill settings",           "put",   "/api/bill-config/", lambda w: {"feed_cost_per_kg": "1"}, (403, 403, 401)),
     ("close other-region flock","post",  "/api/flocks/{fb.id}/close-and-bill/", None, (404, 403, 401)),
     ("closed other flock bill", "post",  "/api/flocks/{fb2.id}/close-and-bill/", None, (404, 403, 401)),
@@ -200,3 +201,25 @@ def test_supervisor_without_regions_cannot_create_farms(world):
     r = c.post("/api/farms/", {"farm_code": "Q1", "name": "Q", "owner_name": "q", "capacity": 10, "region": "Zone-Q"},
                format="json")
     assert r.status_code == 403
+
+
+@pytest.mark.skipif(not apps.is_installed("chicken_center"), reason="Feeds-only build has no other businesses")
+@pytest.mark.parametrize("url", ["/api/layer/flocks/", "/api/inventory/items/", "/api/chicken/sales/",
+                                 "/api/accounting/reports/pnl/", "/api/accounting/parties/"])
+def test_other_businesses_are_admin_only(world, url):
+    """Chicken Center / Layer Farm / their accounting & inventory: admin only."""
+    assert world["c"]["admin"].get(url).status_code != 403
+    for role in ("supA", "plant"):
+        r = world["c"][role].get(url)
+        assert r.status_code == 403, f"{role} {url} → {r.status_code}"
+    assert world["c"]["anon"].get(url).status_code == 401
+
+
+def test_updating_this_weeks_rate_corrects_it(world):
+    admin = world["c"]["admin"]
+    body = {"week_start_date": str(T), "feed_type": "BSC", "rate_per_kg": "46"}
+    assert admin.post("/api/feed-rates/", body, format="json").status_code == 201
+    r = admin.post("/api/feed-rates/", {**body, "rate_per_kg": "47.50"}, format="json")
+    assert r.status_code == 200 and r.data["rate_per_kg"] == "47.50"
+    from core.models import FeedRate
+    assert FeedRate.objects.filter(week_start_date=T, feed_type="BSC").count() == 1

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../api/client';
+import { authAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import brand from '../config/brand';
 
@@ -37,7 +37,7 @@ export default function Setup() {
       localStorage.setItem('user', JSON.stringify(res.data.user));
       window.location.href = '/';
     } catch (err) {
-      setError(err.response?.data?.error || 'Setup failed');
+      setError(getErrorMessage(err));
     }
     setLoading(false);
   };

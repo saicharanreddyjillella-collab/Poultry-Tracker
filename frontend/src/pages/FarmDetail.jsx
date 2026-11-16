@@ -9,25 +9,36 @@ import FarmPerformanceHistory from '../components/FarmPerformanceHistory';
 
 export default function FarmDetail() {
   const { id } = useParams();
-  const { canEditFarm } = useAuth();
+  const { canEditFarm, isAdmin } = useAuth();
   const [farm, setFarm] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [supervisors, setSupervisors] = useState([]);
   const [showFlockForm, setShowFlockForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [flockForm, setFlockForm] = useState({ placement_date: '', chick_count: '', supervisor: '' });
+  const [loadError, setLoadError] = useState('');
 
   const load = async () => {
-    const farmRes = await farmAPI.get(id);
+    let farmRes;
+    try {
+      farmRes = await farmAPI.get(id);
+    } catch (err) {
+      setLoadError(err.response?.status === 404
+        ? 'Farm not found — it may have been deleted, or it is outside your regions.'
+        : getErrorMessage(err));
+      return;
+    }
     setFarm(farmRes.data);
     try {
       const cumRes = await farmAPI.cumulative(id);
       setCumulative(cumRes.data);
     } catch { setCumulative(null); }
-    try {
-      const usersRes = await authAPI.listUsers();
-      setSupervisors(usersRes.data.filter(u => u.role === 'supervisor'));
-    } catch {}
+    if (isAdmin) {   // the user list is admin-only
+      try {
+        const usersRes = await authAPI.listUsers();
+        setSupervisors(usersRes.data.filter(u => u.role === 'supervisor'));
+      } catch { /* ignore */ }
+    }
   };
 
   useEffect(() => { load(); }, [id]);
@@ -49,6 +60,12 @@ export default function FarmDetail() {
     }
   };
 
+  if (loadError) return (
+    <div className="page">
+      <div className="error-msg" role="alert" style={{ marginBottom: '1rem' }}>{loadError}</div>
+      <Link to="/farms" className="btn btn-primary">Back to Farms</Link>
+    </div>
+  );
   if (!farm) return <FlockDetailSkeleton />;
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';

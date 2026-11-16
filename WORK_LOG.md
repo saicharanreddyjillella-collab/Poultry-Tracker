@@ -662,3 +662,40 @@ settings admin-only; plant user = feed only.
   assigned_regions too.
 - Tests: test_access_matrix.py (71: 37 read checks × 4 roles, 19 write checks
   × 3 roles, list-content checks, own-region work still allowed). Suite 373.
+
+### Browser test suite + more bugs it found (BUG-017 … BUG-020)  ✅ DONE
+- Playwright suite in frontend/e2e (84 tests, ~3 min, CI job "e2e"): real
+  production build + real API on a throwaway SQLite DB seeded by
+  `manage.py seed_e2e` (refuses to run unless DEBUG=True and E2E_SEED=1 — it
+  wipes the database). Specs: auth (login per role, wrong password, logout,
+  silent refresh, revoked session, first-login password), roles (menus, every
+  restricted URL per role), regions (lists, dashboard, direct links → not
+  found, feed page, dropdowns, reports), flock (entries incl. duplicate /
+  out-of-range / negative / high-mortality confirm OK+Cancel / over-mortality /
+  over-stock, edit, delete, sale incl. over-sale, medicine, export), billing
+  (close → bill → lock on screen and API → admin reopen with reason →
+  revision 2 + history), farms (create, duplicate code, supervisor regions,
+  edit, new flock), feed (order → mill sends → supervisor receives, dispatched
+  lock, cancel, transfer, rates), users (generate → first login → reset →
+  delete), Recycle Bin (entry + whole farm restore, billed farm refused),
+  reports (all tabs, exports, admin reports, no page errors), phone (menu,
+  daily entry, no sideways scroll).
+- Settings: SQLITE_PATH (separate test DB) and THROTTLE_LOGIN_RATE env
+  (production default 10/min unchanged).
+- BUG-017 (main only): Chicken Center, Layer Farm, accounting and inventory
+  APIs only required a login — a Feeds supervisor or the feed mill could read
+  and change another business's sales, payments, P&L and balance sheet. Now
+  admin-only (one check in core/authentication.py); "Switch Business" and the
+  business switcher shown to admins only; others go straight to Feeds.
+- BUG-018: opening another region's / a deleted farm showed a blank page
+  forever; a flock showed raw "No Flock matches the given query." → clear
+  "not found" messages with a way back. FarmDetail no longer calls the
+  admin-only user list for supervisors.
+- BUG-019: "Update Rate" for a week that already had a rate (e.g. correcting
+  this Monday's rate) failed with raw JSON {"non_field_errors": …}. Saving
+  now corrects that week's rate.
+- BUG-020: several screens showed raw JSON or a generic "Failed" instead of
+  the server's reason (farm form, feed order / transfer / rate forms, feed
+  actions, closing a flock, setup, document upload) → readable messages.
+- Noted, not changed: with all admin links the desktop menu wraps to two lines
+  at 1280px wide (cosmetic).
