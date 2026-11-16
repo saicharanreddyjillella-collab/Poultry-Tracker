@@ -59,7 +59,9 @@ export default function FlockDetail() {
       } catch {}
     } catch (err) {
       console.error('Flock load error:', err);
-      setLoadError(err.response?.data?.error || err.response?.data?.detail || 'Failed to load flock data. Check console for details.');
+      setLoadError(err.response?.status === 404
+        ? 'Flock not found — it may have been deleted, or it belongs to a farm outside your regions.'
+        : (err.response?.data?.error || err.response?.data?.detail || 'Failed to load flock data. Please try again.'));
     }
   };
 
@@ -219,7 +221,7 @@ export default function FlockDetail() {
   if (loadError) return (
     <div className="page">
       <div className="error-msg" style={{ marginBottom: '1rem' }}>{loadError}</div>
-      <Link to="/" className="btn btn-primary">Back to Dashboard</Link>
+      <Link to="/farms" className="btn btn-primary">Back to Farms</Link>
     </div>
   );
   if (!flock || !cumulative) return <FlockDetailSkeleton />;
@@ -774,7 +776,7 @@ export default function FlockDetail() {
                   await billAPI.closeAndBill(id, closeFlags);
                   navigate(`/flocks/${id}/bill`);
                 } catch (err) {
-                  alert(err.response?.data?.error || 'Failed to close flock');
+                  alert(getErrorMessage(err));
                 }
               }}>Generate Bill</button>
             </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { documentAPI } from '../api/client';
+import { documentAPI, getErrorMessage } from '../api/client';
 
 const DOC_TYPES = [
   ['agreement', 'Farmer Agreement'],
@@ -62,7 +62,7 @@ export default function DocumentsSection({ farmId, flockId, canEdit = true }) {
       resetForm();
       load();
     } catch (err) {
-      setError(err.response?.data?.detail || err.response?.data?.file?.[0] || 'Upload failed.');
+      setError(getErrorMessage(err));
     } finally {
       setUploading(false);
     }

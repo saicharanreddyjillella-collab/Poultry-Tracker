@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
-import { feedOrderAPI, feedStockAPI, feedRateAPI, feedTransferAPI, farmAPI } from '../api/client';
+import { feedOrderAPI, feedStockAPI, feedRateAPI, feedTransferAPI, farmAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function FeedStock() {
@@ -53,7 +53,7 @@ export default function FeedStock() {
       setShowOrderForm(false);
       setOrderForm({ farm: '', flock: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
       load();
-    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleRate = async (e) => {
@@ -63,7 +63,7 @@ export default function FeedStock() {
       setShowRateForm(false);
       setRateForm({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
       load();
-    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleTransfer = async (e) => {
@@ -80,7 +80,7 @@ export default function FeedStock() {
       setShowTransferForm(false);
       setTransferForm({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: new Date().toISOString().split('T')[0], notes: '' });
       load();
-    } catch (err) { setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed'); }
+    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleAction = async (orderId, action) => {
@@ -89,7 +89,7 @@ export default function FeedStock() {
       else if (action === 'delivered') await feedOrderAPI.markDelivered(orderId);
       else if (action === 'cancel') await feedOrderAPI.cancel(orderId);
       load();
-    } catch (err) { alert(err.response?.data?.error || 'Action failed'); }
+    } catch (err) { alert(getErrorMessage(err)); }
   };
 
   const fmtDec = (n) => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });

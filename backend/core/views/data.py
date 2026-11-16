@@ -4,6 +4,7 @@ from ..pagination import GuardedListMixin
 from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
                       get_visible_farm, get_visible_flock)
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from django.db.models import Sum
 from datetime import date
 
@@ -238,6 +239,18 @@ class FeedRateViewSet(viewsets.ModelViewSet):
     queryset = FeedRate.objects.all()
     serializer_class = FeedRateSerializer
     permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
+
+    def create(self, request, *args, **kwargs):
+        """'Update Rate' for a week + feed type that already has a rate corrects
+        that rate instead of failing on the unique (week, feed type) rule."""
+        week, feed_type = request.data.get('week_start_date'), request.data.get('feed_type')
+        existing = FeedRate.objects.filter(week_start_date=week, feed_type=feed_type).first() if week and feed_type else None
+        if existing is None:
+            return super().create(request, *args, **kwargs)
+        serializer = self.get_serializer(existing, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=200)
 
 
 class MedicationViewSet(GuardedListMixin, viewsets.ModelViewSet):

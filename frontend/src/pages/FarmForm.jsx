@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { farmAPI } from '../api/client';
+import { farmAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 
@@ -56,7 +56,7 @@ export default function FarmForm() {
       } else if (err.response?.data?.region) {
         setError(Array.isArray(err.response.data.region) ? err.response.data.region[0] : err.response.data.region);
       } else if (err.response?.data) {
-        setError(typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data));
+        setError(getErrorMessage(err));
       } else {
         setError('Failed to save farm');
       }

@@ -89,7 +89,8 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            # SQLITE_PATH lets the browser-test suite use its own throwaway file.
+            'NAME': os.environ.get('SQLITE_PATH') or (BASE_DIR / 'db.sqlite3'),
         }
     }
 
@@ -114,7 +115,7 @@ REST_FRAMEWORK = {
         'user': os.environ.get('THROTTLE_USER_RATE', '600/min'),
         'anon': os.environ.get('THROTTLE_ANON_RATE', '60/min'),
         # Brute-force protection on the login endpoint (per client IP).
-        'login': '10/min',
+        'login': os.environ.get('THROTTLE_LOGIN_RATE', '10/min'),
         # E12: frontend crash reports (per client IP).
         'client_errors': '30/min',
         # E15: token refresh (per client IP; several users may share an office IP).
