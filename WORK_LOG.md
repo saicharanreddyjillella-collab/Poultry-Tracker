@@ -720,3 +720,27 @@ settings admin-only; plant user = feed only.
 - Found, not changed yet (next work item E20): the dashboard runs ~50 database
   queries per farm (3 farms → 166, 18 → 929); farm list ~41/farm, flock list
   ~38/flock, owner view ~23/farm. Fine today, slow at 100+ farms.
+
+### Feed leakage detector (Insights #1)  ✅ DONE
+- Supervisors record a physical **bag count** (BPSC/BSC/BFP) on the flock page
+  ("Feed Bag Counts" → "+ Bag Count"); the app shows paper stock vs counted and
+  the difference right away. One count per flock per day; only an admin can
+  change or remove a count (it is evidence); counts lock with the bill; audited.
+- Paper stock at a date = delivered + transferred in − transferred out −
+  recorded as eaten, up to that date (core/feed_audit.py).
+- Admin **Insights → Feed Audit** (/feed-audit): active flocks + flocks closed in
+  the last 45 days, worst first, with feed value at risk (BillConfig feed ₹/kg):
+  - Bags short: count below paper by ≥ 2 bags and ≥ 2% of feed received (high)
+  - Bags extra: count above paper — feeding recorded that didn't happen (medium)
+  - Above standard: recorded feed > 10% over the Cobb intake standard for the
+    birds' ages and numbers while weight < 95% of standard (high) or not
+    weighed (medium)
+  - Left at close: paper stock left on a closed flock, never moved (high)
+  - Count due: no count in 7 days, flocks 7+ days old (low)
+  The report loads everything in a fixed number of queries (test proves it
+  doesn't grow with the number of flocks).
+- Menu: Feed Forecast / Owner View / Break-even moved into one **Insights** page
+  (admin), which also fixes the admin menu wrapping at 1280px and leaves room
+  for the next insight pages.
+- Tests: backend test_feed_audit.py (24), vitest Insights/Feed Audit access,
+  e2e feed-audit.spec.js (count → short → audit → filter → admin removes).

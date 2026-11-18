@@ -29,6 +29,7 @@ CHILD_FLOCK_FIELDS = {
     'Medication': ('flock_id',),
     'FeedOrder': ('flock_id',),
     'FeedTransfer': ('from_flock_id', 'to_flock_id'),
+    'FeedStockCount': ('flock_id',),
 }
 
 

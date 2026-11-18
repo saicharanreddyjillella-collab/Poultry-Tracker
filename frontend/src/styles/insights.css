@@ -1,0 +1,21 @@
+/* Insights pages (feed audit, heat stress, hatcheries, lift planner) */
+.sev { display: inline-block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.03em; padding: 0.1rem 0.45rem; border-radius: 4px; margin-right: 0.4rem; white-space: nowrap; }
+.sev-high { background: #fde8e6; color: #a5281b; }
+.sev-medium { background: #fff3d6; color: #8a5a00; }
+.sev-low { background: #eceae6; color: #555; }
+.sev-ok { background: #e3f2ea; color: #1f5c40; }
+.flag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.flag-list li { font-size: 0.85rem; line-height: 1.35; }
+.insight-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.insight-card { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.1rem 1.25rem; box-shadow: var(--shadow); color: var(--text); text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s; }
+.insight-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.insight-card h3 { margin: 0 0 0.35rem; font-size: 1.05rem; color: var(--primary); }
+.insight-card p { margin: 0; color: var(--text-muted); font-size: 0.875rem; line-height: 1.4; }
+.insight-card .insight-tag { display: inline-block; margin-top: 0.6rem; font-size: 0.72rem; font-weight: 700; color: var(--primary-light); }
+.count-result { margin: 0.5rem 0 1rem; }
+.gap-short { color: var(--danger); font-weight: 600; }
+.gap-excess { color: #8a5a00; font-weight: 600; }
+.gap-ok { color: var(--primary); font-weight: 600; }

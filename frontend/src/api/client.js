@@ -322,3 +322,14 @@ export const layerAPI = {
 };
 
 export default API;
+
+// ─── Insights: feed audit, heat stress, hatcheries, lift planner ───
+export const feedCountAPI = {
+  list: (flockId) => API.get(`/feed-counts/?flock=${flockId}`),
+  create: (data) => API.post('/feed-counts/', data),
+  remove: (id) => API.delete(`/feed-counts/${id}/`),
+};
+
+export const insightsAPI = {
+  feedAudit: (region) => API.get(`/reports/feed-audit/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
+};

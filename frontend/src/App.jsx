@@ -18,6 +18,8 @@ import UserManagement from './pages/UserManagement';
 import ChangePassword from './pages/ChangePassword';
 import FeedStock from './pages/FeedStock';
 import FeedForecast from './pages/FeedForecast';
+import Insights from './pages/Insights';
+import FeedAudit from './pages/FeedAudit';
 import OwnerDashboard from './pages/OwnerDashboard';
 import BreakEven from './pages/BreakEven';
 import BillView from './pages/BillView';
@@ -124,9 +126,7 @@ function NavBar() {
         )}
         {isAdmin && (
           <>
-            <Link to="/feed-forecast" onClick={closeMenu}>Feed Forecast</Link>
-            <Link to="/owner-dashboard" onClick={closeMenu}>Owner View</Link>
-            <Link to="/break-even" onClick={closeMenu}>Break-even</Link>
+            <Link to="/insights" onClick={closeMenu}>Insights</Link>
           </>
         )}
         {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
@@ -287,6 +287,8 @@ function AppRoutes() {
           <Route path="/flocks/:flockId/bill" element={<ProtectedRoute><BillView /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/feed-forecast" element={<AdminRoute><FeedForecast /></AdminRoute>} />
+          <Route path="/insights" element={<AdminRoute><Insights /></AdminRoute>} />
+          <Route path="/feed-audit" element={<AdminRoute><FeedAudit /></AdminRoute>} />
           <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />
           <Route path="/break-even" element={<AdminRoute><BreakEven /></AdminRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
