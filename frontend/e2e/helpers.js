@@ -76,5 +76,10 @@ export function field(scope, label) {
 export const navLinks = async (page) =>
   (await page.locator('nav .nav-links > a').allInnerTexts()).map(t => t.trim()).filter(Boolean);
 
-export const iso = (d) => d.toISOString().slice(0, 10);
-export const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return iso(d); };
+// Dates are India dates (the server runs on Asia/Kolkata), whatever zone the test machine is in.
+const IST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+export const istToday = () => IST.format(new Date());
+export const daysAgo = (n) => {
+  const [y, m, d] = istToday().split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d - n)).toISOString().slice(0, 10);
+};
