@@ -8,6 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useAuth } from '../context/AuthContext';
 import DocumentsSection from '../components/DocumentsSection';
 import BagCountSection from '../components/BagCountSection';
+import ChickQualityCard from '../components/ChickQualityCard';
 import { todayISO } from '../utils/dates';
 
 export default function FlockDetail() {
@@ -277,6 +278,8 @@ export default function FlockDetail() {
           {cumulative.flock_feed_stock.total <= 0 && <span className="text-danger" style={{ fontSize: '0.8rem' }}>Order feed for this flock</span>}
         </div>
       )}
+
+      <ChickQualityCard flock={flock} canEdit={canEditFarm(flock.farm)} onSaved={load} />
 
       {error && <div className="error-msg">{error}</div>}
 

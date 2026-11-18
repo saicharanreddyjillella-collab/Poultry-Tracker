@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
         from core.billing import generate_bill
         from core.models import (BillConfig, DailyEntry, Farm, FeedOrder, FeedRate, Flock,
-                                 Medication, RegionLocation, Sale, UserProfile)
+                                 Hatchery, Medication, RegionLocation, Sale, UserProfile)
 
         def user(username, role, regions=(), first='', must_change=False, password=E2E_PASSWORD):
             make = User.objects.create_superuser if role == 'admin' else User.objects.create_user
@@ -103,6 +103,13 @@ class Command(BaseCommand):
                                       mortality_count=2, feed_bfp_bags=Decimal('20'))
         Sale.objects.create(flock=fa3, date=today - datetime.timedelta(days=1), bird_count=2990,
                             total_weight_kg=Decimal('6100'), rate_per_kg=Decimal('102'), trader_name='Sri Traders')
+
+        # Hatcheries (chick quality): A1, A2 from Sri Venkateswara, A3 from Balaji, B1 not recorded.
+        # QuerySet.update: A2 is already billed (locked), this is seed data, not an edit.
+        sv = Hatchery.objects.create(name='Sri Venkateswara')
+        bc = Hatchery.objects.create(name='Balaji Chicks')
+        Flock.objects.filter(pk__in=[fa1.pk, fa2.pk]).update(hatchery=sv, doa_count=12, chick_weight_g=Decimal('41'))
+        Flock.objects.filter(pk=fa3.pk).update(hatchery=bc, doa_count=30, chick_weight_g=Decimal('37'))
 
         # B1: another region's active flock + pending order.
         fb1 = flock(B1, 15, 6000)
