@@ -19,6 +19,7 @@ export const BACKEND_ENV = {
   THROTTLE_ANON_RATE: '10000/min',
   THROTTLE_USER_RATE: '10000/min',
   LOG_LEVEL: 'WARNING',            // keep request logs out of the test output
+  WEATHER_FAKE: '1',               // fixed hot week instead of the internet (heat-stress tests)
 };
 process.env.E2E_SQLITE_PATH = BACKEND_ENV.SQLITE_PATH;
 

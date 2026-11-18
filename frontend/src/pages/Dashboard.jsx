@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardSkeleton } from '../components/Skeletons';
 import { Link } from 'react-router-dom';
 import { dashboardAPI } from '../api/client';
+import HeatBanner from '../components/HeatBanner';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -32,6 +33,8 @@ export default function Dashboard() {
         </div>
         <Link to="/farms/new" className="btn btn-primary">+ Add Farm</Link>
       </div>
+
+      <HeatBanner />
 
       {/* TODAY STATS */}
       <div className="stats-grid stats-grid-wide">

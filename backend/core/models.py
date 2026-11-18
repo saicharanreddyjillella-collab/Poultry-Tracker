@@ -834,6 +834,20 @@ class FeedStockCount(models.Model):
         return f"Bag count flock {self.flock_id} on {self.date}"
 
 
+class RegionLocation(models.Model):
+    """One map point per region, used to fetch the weather (heat-stress forecast)."""
+    region = models.CharField(max_length=200, unique=True)
+    latitude = models.DecimalField(max_digits=8, decimal_places=5)
+    longitude = models.DecimalField(max_digits=8, decimal_places=5)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['region']
+
+    def __str__(self):
+        return f"{self.region} ({self.latitude}, {self.longitude})"
+
+
 class BillConfig(models.Model):
     """Configurable billing rates — only one active config at a time."""
     chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)

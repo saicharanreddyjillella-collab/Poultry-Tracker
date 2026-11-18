@@ -17,6 +17,7 @@ import FeedStock from './pages/FeedStock';
 import FeedForecast from './pages/FeedForecast';
 import Insights from './pages/Insights';
 import FeedAudit from './pages/FeedAudit';
+import HeatStress from './pages/HeatStress';
 import OwnerDashboard from './pages/OwnerDashboard';
 import BreakEven from './pages/BreakEven';
 import BillView from './pages/BillView';
@@ -149,6 +150,7 @@ function AppRoutes() {
           <Route path="/feed-forecast" element={<AdminRoute><FeedForecast /></AdminRoute>} />
           <Route path="/insights" element={<AdminRoute><Insights /></AdminRoute>} />
           <Route path="/feed-audit" element={<AdminRoute><FeedAudit /></AdminRoute>} />
+          <Route path="/heat-stress" element={<ProtectedRoute><HeatStress /></ProtectedRoute>} />
           <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />
           <Route path="/break-even" element={<AdminRoute><BreakEven /></AdminRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

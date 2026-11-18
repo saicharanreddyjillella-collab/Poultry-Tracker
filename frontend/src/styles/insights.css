@@ -19,3 +19,14 @@
 .gap-short { color: var(--danger); font-weight: 600; }
 .gap-excess { color: #8a5a00; font-weight: 600; }
 .gap-ok { color: var(--primary); font-weight: 600; }
+.heat { display: inline-block; min-width: 4.6rem; text-align: center; font-size: 0.75rem; font-weight: 700;
+  padding: 0.2rem 0.4rem; border-radius: 4px; text-transform: capitalize; }
+.heat-none { background: #eef5f0; color: #5d7a68; }
+.heat-watch { background: #fff3d6; color: #8a5a00; }
+.heat-danger { background: #ffd9c2; color: #9a3a05; }
+.heat-emergency { background: #c0392b; color: #fff; }
+.heat-cell small { display: block; color: var(--text-muted); font-weight: 400; margin-top: 0.15rem; }
+.heat-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; font-size: 0.85rem; margin: 0.25rem 0 1rem; }
+.loc-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.loc-row .form-group { margin: 0; }
+.loc-row strong { min-width: 8rem; align-self: center; }

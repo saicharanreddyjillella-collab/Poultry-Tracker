@@ -241,4 +241,10 @@ export const feedCountAPI = {
 
 export const insightsAPI = {
   feedAudit: (region) => API.get(`/reports/feed-audit/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
+  heatStress: () => API.get('/reports/heat-stress/'),
+};
+
+export const regionLocationAPI = {
+  list: () => API.get('/region-locations/'),
+  save: (region, latitude, longitude) => API.post('/region-locations/', { region, latitude, longitude }),
 };
