@@ -47,7 +47,26 @@ class MedicationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class FlockSerializer(serializers.ModelSerializer):
+class ChickQualityFields(serializers.Serializer):
+    """Hatchery, dead-on-arrival and chick weight on a flock — shared checks."""
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        chicks = attrs.get('chick_count', getattr(self.instance, 'chick_count', None))
+        doa = attrs.get('doa_count')
+        if doa is not None and chicks is not None and doa > chicks:
+            raise serializers.ValidationError({'doa_count': 'Dead on arrival cannot be more than the chicks placed.'})
+        w = attrs.get('chick_weight_g')
+        if w is not None and not (20 <= w <= 80):
+            raise serializers.ValidationError({'chick_weight_g': 'A day-old chick weighs 20–80 g. Check the number.'})
+        h = attrs.get('hatchery')
+        if h is not None and not h.active and getattr(self.instance, 'hatchery_id', None) != h.id:
+            raise serializers.ValidationError({'hatchery': f'{h.name} is no longer used. Pick another hatchery.'})
+        return attrs
+
+
+class FlockSerializer(ChickQualityFields, serializers.ModelSerializer):
+    hatchery_name = serializers.CharField(source='hatchery.name', read_only=True, default=None)
     age_days = serializers.ReadOnlyField()
     total_mortality = serializers.ReadOnlyField()
     total_feed_kg = serializers.ReadOnlyField()
@@ -79,7 +98,7 @@ class FlockSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class FlockListSerializer(serializers.ModelSerializer):
+class FlockListSerializer(ChickQualityFields, serializers.ModelSerializer):
     age_days = serializers.ReadOnlyField()
     total_mortality = serializers.ReadOnlyField()
     total_feed_kg = serializers.ReadOnlyField()

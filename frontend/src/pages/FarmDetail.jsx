@@ -2,7 +2,7 @@ import { FlockDetailSkeleton } from '../components/Skeletons';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { farmAPI, flockAPI, authAPI, getErrorMessage } from '../api/client';
+import { farmAPI, flockAPI, authAPI, hatcheryAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import DocumentsSection from '../components/DocumentsSection';
 import FarmPerformanceHistory from '../components/FarmPerformanceHistory';
@@ -16,7 +16,9 @@ export default function FarmDetail() {
   const [supervisors, setSupervisors] = useState([]);
   const [showFlockForm, setShowFlockForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [flockForm, setFlockForm] = useState({ placement_date: '', chick_count: '', supervisor: '' });
+  const EMPTY_FLOCK = { placement_date: '', chick_count: '', supervisor: '', hatchery: '', doa_count: '', chick_weight_g: '' };
+  const [flockForm, setFlockForm] = useState(EMPTY_FLOCK);
+  const [hatcheries, setHatcheries] = useState([]);
   const [loadError, setLoadError] = useState('');
 
   const load = async () => {
@@ -43,6 +45,7 @@ export default function FarmDetail() {
   };
 
   useEffect(() => { load(); }, [id]);
+  useEffect(() => { hatcheryAPI.list().then(r => setHatcheries(r.data.filter(h => h.active))).catch(() => {}); }, []);
 
   const handleCreateFlock = async (e) => {
     e.preventDefault();
@@ -52,9 +55,12 @@ export default function FarmDetail() {
         placement_date: flockForm.placement_date,
         chick_count: parseInt(flockForm.chick_count),
         supervisor: flockForm.supervisor || null,
+        hatchery: flockForm.hatchery || null,
+        doa_count: parseInt(flockForm.doa_count) || 0,
+        chick_weight_g: flockForm.chick_weight_g || null,
       });
       setShowFlockForm(false);
-      setFlockForm({ placement_date: '', chick_count: '', supervisor: '' });
+      setFlockForm(EMPTY_FLOCK);
       load();
     } catch (err) {
       alert(getErrorMessage(err));
@@ -139,6 +145,26 @@ export default function FarmDetail() {
                     <option key={s.id} value={s.id}>{s.first_name} {s.last_name} ({s.username})</option>
                   ))}
                 </select>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Hatchery</label>
+                <select value={flockForm.hatchery} onChange={e => setFlockForm({ ...flockForm, hatchery: e.target.value })}>
+                  <option value="">Select hatchery...</option>
+                  {hatcheries.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                </select>
+                <small className="field-hint">Where the chicks came from</small>
+              </div>
+              <div className="form-group">
+                <label>Dead on Arrival</label>
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={flockForm.doa_count} placeholder="0" onChange={e => setFlockForm({ ...flockForm, doa_count: e.target.value })} />
+                <small className="field-hint">Chicks dead in the boxes (not deducted from chicks placed)</small>
+              </div>
+              <div className="form-group">
+                <label>Avg Chick Weight (g)</label>
+                <input type="text" inputMode="decimal" value={flockForm.chick_weight_g} placeholder="e.g. 40" onChange={e => setFlockForm({ ...flockForm, chick_weight_g: e.target.value })} />
+                <small className="field-hint">Weigh one box ÷ chicks in it</small>
               </div>
             </div>
             <div className="form-actions">

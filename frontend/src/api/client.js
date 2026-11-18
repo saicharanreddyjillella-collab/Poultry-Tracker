@@ -333,6 +333,19 @@ export const feedCountAPI = {
 export const insightsAPI = {
   feedAudit: (region) => API.get(`/reports/feed-audit/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
   heatStress: () => API.get('/reports/heat-stress/'),
+  hatcheries: (days) => API.get(`/reports/hatcheries/${days ? `?days=${days}` : ''}`),
+};
+
+export const hatcheryAPI = {
+  list: () => API.get('/hatcheries/'),
+  create: (data) => API.post('/hatcheries/', data),
+  update: (id, data) => API.patch(`/hatcheries/${id}/`, data),
+  remove: (id) => API.delete(`/hatcheries/${id}/`),
+};
+
+/** Change only the chick-quality fields of a flock (hatchery, dead on arrival, chick weight). */
+export const chickQualityAPI = {
+  save: (flockId, data) => API.patch(`/flocks/${flockId}/`, data),
 };
 
 export const regionLocationAPI = {

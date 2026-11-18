@@ -763,3 +763,20 @@ settings admin-only; plant user = feed only.
 - WEATHER_FAKE=1 gives a fixed hot week (used by the browser tests).
 - Tests: backend test_heat.py (29, incl. Open-Meteo parsing + cache, outage,
   region scoping, bad coordinates), vitest HeatBanner (3), e2e heat.spec.js (4).
+
+### Chick quality by hatchery (Insights #3)  ✅ DONE
+- Flock gets **hatchery** (from an admin-kept list), **dead on arrival** and
+  **average chick weight**. Recorded in the "Place New Flock" form and editable
+  on the flock page ("Chicks:" bar → Edit) while the flock is active. DOA is
+  for hatchery quality only — not deducted from chicks placed, not in the bill.
+  Checks: DOA ≤ chicks, chick weight 20–80 g, retired hatchery can't be picked
+  for a new flock (old flocks keep theirs).
+- Hatchery list: everyone except the feed mill can read it; only an admin adds,
+  retires ("not used") or removes one; one with flocks can't be removed.
+- Admin **Insights → Chick Quality** (/hatcheries): per hatchery for flocks
+  placed in the last 90/180/365/730 days — first-week mortality (days 1–7,
+  only flocks past week 1; Recycle-Bin entries excluded), flocks over the
+  BillConfig first-week limit, DOA %, average chick weight, final mortality of
+  closed flocks; verdict: above limit (high) / ≥ 0.5 pt worse than average
+  (warning) / OK; click a hatchery for its flocks. "Not recorded" grouped last.
+- Tests: backend test_hatchery.py (15), e2e hatchery.spec.js (5).

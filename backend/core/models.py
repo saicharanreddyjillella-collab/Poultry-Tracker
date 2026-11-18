@@ -166,6 +166,12 @@ class Flock(SoftDeleteModel):
     chick_count = models.PositiveIntegerField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     supervisor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='supervised_flocks')
+    # Chick quality (for comparing hatcheries; not used in the bill)
+    hatchery = models.ForeignKey('Hatchery', on_delete=models.PROTECT, null=True, blank=True, related_name='flocks')
+    doa_count = models.PositiveIntegerField(default=0, help_text="Chicks found dead in the boxes on arrival "
+                                            "(hatchery quality only — not deducted from the chick count)")
+    chick_weight_g = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True,
+                                         help_text="Average chick weight on arrival (grams), from a sample box")
 
     # Feed estimate per bird (kg) — soft target, not a hard limit
     bpsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="Estimated BPSC per bird (kg)")
@@ -850,6 +856,20 @@ class RegionLocation(models.Model):
 
     def __str__(self):
         return f"{self.region} ({self.latitude}, {self.longitude})"
+
+
+class Hatchery(models.Model):
+    """Where a flock's chicks came from (admin keeps the list)."""
+    name = models.CharField(max_length=120, unique=True)
+    active = models.BooleanField(default=True, help_text="Inactive hatcheries can't be picked for new flocks")
+    notes = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 
 class BillConfig(models.Model):
