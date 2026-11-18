@@ -7,6 +7,7 @@ import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStoc
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import DocumentsSection from '../components/DocumentsSection';
+import { todayISO } from '../utils/dates';
 
 export default function FlockDetail() {
   const { id } = useParams();
@@ -32,16 +33,16 @@ export default function FlockDetail() {
   });
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, danger: false });
   const [entryForm, setEntryForm] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayISO(),
     mortality_count: '', cull_count: '', feed_type: 'BPSC', feed_bags: '',
     water_consumed_liters: '', avg_body_weight_grams: '', notes: '',
   });
   const [saleForm, setSaleForm] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayISO(),
     bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '',
   });
   const [medForm, setMedForm] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: todayISO(),
     name: '', dose: '', route: '', cost: '', reason: '',
   });
   const [feedOrderForm, setFeedOrderForm] = useState({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
@@ -68,7 +69,7 @@ export default function FlockDetail() {
   useEffect(() => { load(); }, [id]);
 
   const resetEntryForm = () => {
-    setEntryForm({ date: new Date().toISOString().split('T')[0], mortality_count: '', cull_count: '', feed_type: 'BPSC', feed_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
+    setEntryForm({ date: todayISO(), mortality_count: '', cull_count: '', feed_type: 'BPSC', feed_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
     setEditingEntry(null);
   };
 
@@ -167,7 +168,7 @@ export default function FlockDetail() {
         notes: saleForm.notes,
       });
       setShowSaleForm(false);
-      setSaleForm({ date: new Date().toISOString().split('T')[0], bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '' });
+      setSaleForm({ date: todayISO(), bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -181,7 +182,7 @@ export default function FlockDetail() {
         cost: parseFloat(medForm.cost) || 0, reason: medForm.reason,
       });
       setShowMedForm(false);
-      setMedForm({ date: new Date().toISOString().split('T')[0], name: '', dose: '', route: '', cost: '', reason: '' });
+      setMedForm({ date: todayISO(), name: '', dose: '', route: '', cost: '', reason: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -285,7 +286,7 @@ export default function FlockDetail() {
         <form onSubmit={handleEntry} className="form-card" style={{ marginBottom: '1.5rem' }}>
           <h3>{editingEntry ? 'Edit Daily Entry' : 'Add Daily Entry'}</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} min={flock.placement_date} max={new Date().toISOString().split('T')[0]} /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={entryForm.date} onChange={e => setEntryForm({ ...entryForm, date: e.target.value })} required disabled={!!editingEntry} min={flock.placement_date} max={todayISO()} /></div>
             <div className="form-group"><label>Mortality</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.mortality_count} onChange={e => setEntryForm({ ...entryForm, mortality_count: e.target.value })} placeholder="0" /></div>
             <div className="form-group"><label>Culls</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.cull_count} onChange={e => setEntryForm({ ...entryForm, cull_count: e.target.value })} placeholder="0" /></div>
           </div>
@@ -317,7 +318,7 @@ export default function FlockDetail() {
         <form onSubmit={handleSale} className="form-card" style={{ marginBottom: '1.5rem' }}>
           <h3>Record Sale / Lifting</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required min={flock.placement_date} max={new Date().toISOString().split('T')[0]} /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={saleForm.date} onChange={e => setSaleForm({ ...saleForm, date: e.target.value })} required min={flock.placement_date} max={todayISO()} /></div>
             <div className="form-group"><label>Trader / Buyer *</label><input value={saleForm.trader_name} onChange={e => setSaleForm({ ...saleForm, trader_name: e.target.value })} required placeholder="e.g. Raju Traders" /></div>
           </div>
           <div className="form-row">
@@ -338,7 +339,7 @@ export default function FlockDetail() {
         <form onSubmit={handleMed} className="form-card" style={{ marginBottom: '1.5rem' }}>
           <h3>Add Medication / Vaccine</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={medForm.date} onChange={e => setMedForm({ ...medForm, date: e.target.value })} required min={flock.placement_date} max={new Date().toISOString().split('T')[0]} /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={medForm.date} onChange={e => setMedForm({ ...medForm, date: e.target.value })} required min={flock.placement_date} max={todayISO()} /></div>
             <div className="form-group"><label>Medicine Name *</label><input value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} required placeholder="e.g. Lasota, Enrofloxacin" /></div>
             <div className="form-group"><label>Dose</label><input value={medForm.dose} onChange={e => setMedForm({ ...medForm, dose: e.target.value })} placeholder="e.g. 1ml/L water" /></div>
           </div>

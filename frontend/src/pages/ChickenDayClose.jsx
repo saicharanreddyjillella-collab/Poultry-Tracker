@@ -4,12 +4,13 @@ import { accountingAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 const BIZ = 'chicken_center';
 
 export default function ChickenDayClose() {
   const [closedThrough, setClosedThrough] = useState(null);
-  const [pickDate, setPickDate] = useState(new Date().toISOString().slice(0, 10));
+  const [pickDate, setPickDate] = useState(todayISO());
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,7 @@ export default function ChickenDayClose() {
           <>
             <div className="form-group">
               <label>Close all transactions on or before</label>
-              <input type="date" value={pickDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setPickDate(e.target.value)} />
+              <input type="date" value={pickDate} max={todayISO()} onChange={e => setPickDate(e.target.value)} />
             </div>
             <div className="form-actions">
               {closedThrough && <button className="btn btn-secondary" onClick={doReopen}>Re-open</button>}

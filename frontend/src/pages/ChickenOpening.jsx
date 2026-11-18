@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountingAPI, chickenAPI, getErrorMessage } from '../api/client';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 const BIZ = { business: 'chicken_center' };
 const CASH_ACCS = [['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI']];
@@ -14,7 +15,7 @@ export default function ChickenOpening() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const [form, setForm] = useState({ as_of: today, account_code: 'CASH' });
 
   useEffect(() => {

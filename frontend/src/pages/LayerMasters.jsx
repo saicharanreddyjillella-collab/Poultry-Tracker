@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { inventoryAPI, accountingAPI, layerAPI, getErrorMessage } from '../api/client';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 const BIZ = { business: 'layer' };
 const CASH_ACCS = [['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI']];
@@ -11,7 +12,7 @@ export default function LayerMasters() {
   const [editItemId, setEditItemId] = useState(null);
   const [editPartyId, setEditPartyId] = useState(null);
   const [ok, setOk] = useState('');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const [opening, setOpening] = useState({ mode: 'party', as_of: today, account_code: 'CASH' });
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
@@ -22,7 +23,7 @@ export default function LayerMasters() {
   const [showItem, setShowItem] = useState(false);
   const [showParty, setShowParty] = useState(false);
   const [itemForm, setItemForm] = useState({ name: '', base_unit: '', stock_group: '' });
-  const [partyForm, setPartyForm] = useState({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) });
+  const [partyForm, setPartyForm] = useState({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: todayISO() });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -66,11 +67,11 @@ export default function LayerMasters() {
       if (!payload.opening_balance) { delete payload.opening_balance; delete payload.opening_as_of; }
       if (editPartyId) await accountingAPI.updateParty(editPartyId, payload);
       else await accountingAPI.createParty(payload);
-      setShowParty(false); setEditPartyId(null); setPartyForm({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) }); load();
+      setShowParty(false); setEditPartyId(null); setPartyForm({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: todayISO() }); load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
 
-  const editParty = (p) => { setEditPartyId(p.id); setPartyForm({ name: p.name, phone: p.phone || '', email: p.email || '', address: p.address || '', state: p.state || '', gst_number: p.gst_number || '', pan: p.pan || '', party_type: p.party_type, opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) }); setShowParty(true); setError(''); };
+  const editParty = (p) => { setEditPartyId(p.id); setPartyForm({ name: p.name, phone: p.phone || '', email: p.email || '', address: p.address || '', state: p.state || '', gst_number: p.gst_number || '', pan: p.pan || '', party_type: p.party_type, opening_balance: '', opening_as_of: todayISO() }); setShowParty(true); setError(''); };
 
   const submitOpening = async (e) => {
     e.preventDefault(); setError(''); setOk('');
@@ -213,7 +214,7 @@ export default function LayerMasters() {
 
       {tab === 'Vendors & Traders' && (
         <>
-          <button className="btn btn-primary" onClick={() => { setEditPartyId(null); setPartyForm({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) }); setShowParty(!showParty); }} style={{ marginBottom: '1rem' }}>+ Party</button>
+          <button className="btn btn-primary" onClick={() => { setEditPartyId(null); setPartyForm({ name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: todayISO() }); setShowParty(!showParty); }} style={{ marginBottom: '1rem' }}>+ Party</button>
           {showParty && (
             <form onSubmit={submitParty} className="form-card" style={{ maxWidth: 520, marginBottom: '1.5rem' }}>
               <h3>{editPartyId ? "Edit Ledger" : "Add Ledger"}</h3>
@@ -241,7 +242,7 @@ export default function LayerMasters() {
               {!editPartyId && (
                 <div className="form-row">
                   <div className="form-group"><label>Opening balance (₹)</label><input type="text" inputMode="decimal" value={partyForm.opening_balance} onChange={e => setPartyForm({ ...partyForm, opening_balance: e.target.value })} placeholder="+owes us / −we owe" /></div>
-                  <div className="form-group"><label>As of</label><input type="date" value={partyForm.opening_as_of} max={new Date().toISOString().slice(0,10)} onChange={e => setPartyForm({ ...partyForm, opening_as_of: e.target.value })} /></div>
+                  <div className="form-group"><label>As of</label><input type="date" value={partyForm.opening_as_of} max={todayISO()} onChange={e => setPartyForm({ ...partyForm, opening_as_of: e.target.value })} /></div>
                 </div>
               )}
               <div className="form-actions">

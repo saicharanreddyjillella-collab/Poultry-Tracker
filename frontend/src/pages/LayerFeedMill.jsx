@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { layerAPI, inventoryAPI, getErrorMessage } from '../api/client';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 const BIZ = { business: 'layer' };
 
@@ -9,7 +10,7 @@ export default function LayerFeedMill() {
   const [batches, setBatches] = useState([]);
   const [items, setItems] = useState([]);
   const [show, setShow] = useState(false);
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), feed_item: '', output_kg: '', overhead: '' });
+  const [form, setForm] = useState({ date: todayISO(), feed_item: '', output_kg: '', overhead: '' });
   const [inputs, setInputs] = useState([{ item: '', qty_kg: '', cost: '' }]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,7 +44,7 @@ export default function LayerFeedMill() {
         inputs: validInputs.map(i => ({ item: i.item, qty_kg: i.qty_kg, cost: i.cost })),
       });
       setShow(false);
-      setForm({ date: new Date().toISOString().slice(0, 10), feed_item: '', output_kg: '', overhead: '' });
+      setForm({ date: todayISO(), feed_item: '', output_kg: '', overhead: '' });
       setInputs([{ item: '', qty_kg: '', cost: '' }]);
       load();
     } catch (err) { setError(getErrorMessage(err)); }
@@ -68,7 +69,7 @@ export default function LayerFeedMill() {
         <form onSubmit={submit} className="form-card" style={{ maxWidth: 640, marginBottom: '1.5rem' }}>
           <h3>Production Batch</h3>
           <div className="form-row">
-            <div className="form-group"><label>Date *</label><input type="date" value={form.date} max={new Date().toISOString().slice(0, 10)} onChange={e => setForm({ ...form, date: e.target.value })} required /></div>
+            <div className="form-group"><label>Date *</label><input type="date" value={form.date} max={todayISO()} onChange={e => setForm({ ...form, date: e.target.value })} required /></div>
             <div className="form-group">
               <label>Feed produced *</label>
               <select value={form.feed_item} onChange={e => setForm({ ...form, feed_item: e.target.value })} required>

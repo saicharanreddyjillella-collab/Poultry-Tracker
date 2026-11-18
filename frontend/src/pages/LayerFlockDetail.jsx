@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { layerAPI, getErrorMessage } from '../api/client';
+import { todayISO } from '../utils/dates';
 
 export default function LayerFlockDetail() {
   const { id } = useParams();
@@ -8,7 +9,7 @@ export default function LayerFlockDetail() {
   const [costs, setCosts] = useState([]);
   const [entries, setEntries] = useState([]);
   const [showDaily, setShowDaily] = useState(false);
-  const [daily, setDaily] = useState({ date: new Date().toISOString().slice(0, 10), eggs: '', broken: '', feed_kg: '', mortality: '', culls: '' });
+  const [daily, setDaily] = useState({ date: todayISO(), eggs: '', broken: '', feed_kg: '', mortality: '', culls: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ export default function LayerFlockDetail() {
         mortality: parseInt(daily.mortality) || 0, culls: parseInt(daily.culls) || 0,
       });
       setShowDaily(false);
-      setDaily({ date: new Date().toISOString().slice(0, 10), eggs: '', broken: '', feed_kg: '', mortality: '', culls: '' });
+      setDaily({ date: todayISO(), eggs: '', broken: '', feed_kg: '', mortality: '', culls: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -74,7 +75,7 @@ export default function LayerFlockDetail() {
       {showDaily && (
         <form onSubmit={submitDaily} className="form-card" style={{ maxWidth: 560, marginTop: '1.25rem' }}>
           <h3>Daily Entry</h3>
-          <div className="form-group"><label>Date *</label><input type="date" value={daily.date} max={new Date().toISOString().slice(0, 10)} onChange={e => setDaily({ ...daily, date: e.target.value })} required /></div>
+          <div className="form-group"><label>Date *</label><input type="date" value={daily.date} max={todayISO()} onChange={e => setDaily({ ...daily, date: e.target.value })} required /></div>
           <div className="form-row">
             <div className="form-group"><label>Eggs laid</label><input type="text" inputMode="numeric" value={daily.eggs} onChange={e => setDaily({ ...daily, eggs: e.target.value })} /></div>
             <div className="form-group"><label>Broken</label><input type="text" inputMode="numeric" value={daily.broken} onChange={e => setDaily({ ...daily, broken: e.target.value })} /></div>

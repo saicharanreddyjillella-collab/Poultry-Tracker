@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { accountingAPI, inventoryAPI, chickenAPI, getErrorMessage } from '../api/client';
 import brand from '../config/brand';
+import { todayISO, monthStartISO } from '../utils/dates';
 
 const BIZ = { business: 'chicken_center' };
 
@@ -12,10 +13,8 @@ export default function ChickenDashboard() {
   const [recentSales, setRecentSales] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  const from = monthStart.toISOString().slice(0, 10);
-  const to = new Date().toISOString().slice(0, 10);
+  const from = monthStartISO();
+  const to = todayISO();
 
   useEffect(() => {
     Promise.all([

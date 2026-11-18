@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
 import { feedOrderAPI, feedStockAPI, feedRateAPI, feedTransferAPI, farmAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { todayISO } from '../utils/dates';
 
 export default function FeedStock() {
   const { isAdmin, isPlant, canEditFarm } = useAuth();
@@ -15,8 +16,8 @@ export default function FeedStock() {
   const [showRateForm, setShowRateForm] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [orderForm, setOrderForm] = useState({ farm: '', flock: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
-  const [rateForm, setRateForm] = useState({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
-  const [transferForm, setTransferForm] = useState({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: new Date().toISOString().split('T')[0], notes: '' });
+  const [rateForm, setRateForm] = useState({ week_start_date: todayISO(), feed_type: 'BFP', rate_per_kg: '', notes: '' });
+  const [transferForm, setTransferForm] = useState({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: todayISO(), notes: '' });
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState('');
 
@@ -61,7 +62,7 @@ export default function FeedStock() {
     try {
       await feedRateAPI.create(rateForm);
       setShowRateForm(false);
-      setRateForm({ week_start_date: new Date().toISOString().split('T')[0], feed_type: 'BFP', rate_per_kg: '', notes: '' });
+      setRateForm({ week_start_date: todayISO(), feed_type: 'BFP', rate_per_kg: '', notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -78,7 +79,7 @@ export default function FeedStock() {
         notes: transferForm.notes,
       });
       setShowTransferForm(false);
-      setTransferForm({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: new Date().toISOString().split('T')[0], notes: '' });
+      setTransferForm({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: todayISO(), notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };

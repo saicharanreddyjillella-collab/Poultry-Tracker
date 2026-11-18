@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { chickenAPI } from '../api/client';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 export default function ChickenDaybook() {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayISO());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export default function ChickenDaybook() {
           <h1>Daybook</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={e => setDate(e.target.value)} />
+          <input type="date" value={date} max={todayISO()} onChange={e => setDate(e.target.value)} />
           <button className="btn btn-secondary" onClick={() => window.print()}>Print</button>
         </div>
       </div>

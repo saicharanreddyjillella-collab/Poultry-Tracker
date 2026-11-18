@@ -6,6 +6,7 @@ import { farmAPI, flockAPI, authAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import DocumentsSection from '../components/DocumentsSection';
 import FarmPerformanceHistory from '../components/FarmPerformanceHistory';
+import { todayISO } from '../utils/dates';
 
 export default function FarmDetail() {
   const { id } = useParams();
@@ -123,7 +124,7 @@ export default function FarmDetail() {
             <div className="form-row">
               <div className="form-group">
                 <label>Placement Date *</label>
-                <input type="date" value={flockForm.placement_date} onChange={e => setFlockForm({ ...flockForm, placement_date: e.target.value })} required max={new Date().toISOString().split('T')[0]} />
+                <input type="date" value={flockForm.placement_date} onChange={e => setFlockForm({ ...flockForm, placement_date: e.target.value })} required max={todayISO()} />
               </div>
               <div className="form-group">
                 <label>Chicks Placed *</label>

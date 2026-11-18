@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { chickenAPI } from '../api/client';
 import brand from '../config/brand';
+import { todayISO, monthStartISO } from '../utils/dates';
 
-function monthStartISO() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); }
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function ChickenSalesSummary() {
   const [tab, setTab] = useState('By Customer');

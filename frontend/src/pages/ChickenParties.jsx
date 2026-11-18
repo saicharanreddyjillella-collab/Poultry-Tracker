@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { accountingAPI, getErrorMessage } from '../api/client';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 const BIZ = { business: 'chicken_center' };
-const EMPTY = { name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) };
+const EMPTY = { name: '', phone: '', email: '', address: '', state: '', gst_number: '', pan: '', party_type: 'BOTH', opening_balance: '', opening_as_of: todayISO() };
 
 export default function ChickenParties() {
   const [parties, setParties] = useState([]);
@@ -24,7 +25,7 @@ export default function ChickenParties() {
   const fmt = (n) => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
   const openAdd = () => { setEditId(null); setForm(EMPTY); setShowForm(true); setError(''); };
-  const openEdit = (p) => { setEditId(p.id); setForm({ name: p.name, phone: p.phone || '', email: p.email || '', address: p.address || '', state: p.state || '', gst_number: p.gst_number || '', pan: p.pan || '', party_type: p.party_type, opening_balance: '', opening_as_of: new Date().toISOString().slice(0,10) }); setShowForm(true); setError(''); };
+  const openEdit = (p) => { setEditId(p.id); setForm({ name: p.name, phone: p.phone || '', email: p.email || '', address: p.address || '', state: p.state || '', gst_number: p.gst_number || '', pan: p.pan || '', party_type: p.party_type, opening_balance: '', opening_as_of: todayISO() }); setShowForm(true); setError(''); };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -89,7 +90,7 @@ export default function ChickenParties() {
           {!editId && (
             <div className="form-row">
               <div className="form-group"><label>Opening balance (₹)</label><input type="text" inputMode="decimal" value={form.opening_balance} onChange={e => setForm({ ...form, opening_balance: e.target.value })} placeholder="+owes us / −we owe" /></div>
-              <div className="form-group"><label>As of</label><input type="date" value={form.opening_as_of} max={new Date().toISOString().slice(0,10)} onChange={e => setForm({ ...form, opening_as_of: e.target.value })} /></div>
+              <div className="form-group"><label>As of</label><input type="date" value={form.opening_as_of} max={todayISO()} onChange={e => setForm({ ...form, opening_as_of: e.target.value })} /></div>
             </div>
           )}
           <div className="form-actions">

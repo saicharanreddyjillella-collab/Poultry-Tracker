@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { layerAPI, getErrorMessage } from '../api/client';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 export default function LayerFlocks() {
   const [flocks, setFlocks] = useState([]);
   const [farms, setFarms] = useState([]);
   const [showFlock, setShowFlock] = useState(false);
   const [showFarm, setShowFarm] = useState(false);
-  const [flockForm, setFlockForm] = useState({ farm: '', name: '', placement_date: new Date().toISOString().slice(0, 10), bird_count: '' });
+  const [flockForm, setFlockForm] = useState({ farm: '', name: '', placement_date: todayISO(), bird_count: '' });
   const [farmForm, setFarmForm] = useState({ name: '', code: '', location: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,7 +36,7 @@ export default function LayerFlocks() {
     e.preventDefault(); setError('');
     try {
       await layerAPI.createFlock({ ...flockForm, bird_count: parseInt(flockForm.bird_count) });
-      setShowFlock(false); setFlockForm({ farm: '', name: '', placement_date: new Date().toISOString().slice(0, 10), bird_count: '' }); load();
+      setShowFlock(false); setFlockForm({ farm: '', name: '', placement_date: todayISO(), bird_count: '' }); load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
 
@@ -86,7 +87,7 @@ export default function LayerFlocks() {
             <div className="form-group"><label>Flock name *</label><input value={flockForm.name} onChange={e => setFlockForm({ ...flockForm, name: e.target.value })} required placeholder="e.g. Batch-2026-A" /></div>
             <div className="form-group"><label>Birds placed *</label><input type="text" inputMode="numeric" value={flockForm.bird_count} onChange={e => setFlockForm({ ...flockForm, bird_count: e.target.value })} required /></div>
           </div>
-          <div className="form-group"><label>Placement date *</label><input type="date" value={flockForm.placement_date} max={new Date().toISOString().slice(0, 10)} onChange={e => setFlockForm({ ...flockForm, placement_date: e.target.value })} required /></div>
+          <div className="form-group"><label>Placement date *</label><input type="date" value={flockForm.placement_date} max={todayISO()} onChange={e => setFlockForm({ ...flockForm, placement_date: e.target.value })} required /></div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setShowFlock(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary">Place Flock</button>

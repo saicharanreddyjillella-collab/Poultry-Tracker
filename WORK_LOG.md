@@ -699,3 +699,24 @@ settings admin-only; plant user = feed only.
   actions, closing a flock, setup, document upload) → readable messages.
 - Noted, not changed: with all admin links the desktop menu wraps to two lines
   at 1280px wide (cosmetic).
+
+### Status recheck: early-morning date bug + library security updates (BUG-021, BUG-022)  ✅ DONE
+- BUG-021: every date field took "today" from `toISOString()`, which is the
+  UTC date. Between midnight and 5:30 AM India time that is still yesterday,
+  so a supervisor entering data early in the morning got yesterday as the
+  default and could not pick today (max = yesterday); Chicken/Layer reports
+  also started the month on the last day of the previous month. All 18
+  screens now use `utils/dates.js` (local date). The server was already
+  correct (Django runs on Asia/Kolkata).
+  The browser tests had the same flaw (their "today" was UTC while the server's
+  is IST → random failures 6 PM–midnight UTC, e.g. on CI); helpers now use the
+  India date and the test browser runs in Asia/Kolkata like real users.
+  Tests: utils/dates.test.js (1:30 AM and 1 Dec 2 AM cases), e2e
+  early-morning.spec.js (browser clock at 1 AM IST).
+- BUG-022: `npm audit` reported 5 vulnerable libraries (axios, react-router,
+  follow-redirects, form-data — 4 high). Updated within the same major
+  versions (lockfile only): axios 1.21.1, react-router 7.18.6. 0 left.
+  Backend `pip-audit`: no known vulnerabilities.
+- Found, not changed yet (next work item E20): the dashboard runs ~50 database
+  queries per farm (3 farms → 166, 18 → 929); farm list ~41/farm, flock list
+  ~38/flock, owner view ~23/farm. Fine today, slow at 100+ farms.

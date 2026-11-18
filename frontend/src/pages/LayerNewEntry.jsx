@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { layerAPI, accountingAPI, inventoryAPI, getErrorMessage } from '../api/client';
 import brand from '../config/brand';
+import { todayISO } from '../utils/dates';
 
 const BIZ = { business: 'layer' };
 const TABS = ['Purchase', 'Feed → Flock', 'Apply', 'Egg Sale', 'Collection', 'Payment', 'Expense'];
@@ -22,7 +23,7 @@ export default function LayerNewEntry() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const [form, setForm] = useState({ date: today, mode: 'CASH', account_code: 'LABOUR', kind: 'RAW', split_across_flocks: true });
 
   useEffect(() => {
