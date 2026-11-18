@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import feed_audit
+from .views import feed_audit, heat
 
 router = DefaultRouter()
 router.register(r'farms', views.FarmViewSet)
@@ -59,4 +59,6 @@ urlpatterns = [
 # Insights (each in its own module)
 urlpatterns += [
     path('reports/feed-audit/', feed_audit.feed_audit_report),
+    path('reports/heat-stress/', heat.heat_stress_report),
+    path('region-locations/', heat.region_locations),
 ]

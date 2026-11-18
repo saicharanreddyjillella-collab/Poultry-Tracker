@@ -744,3 +744,22 @@ settings admin-only; plant user = feed only.
   for the next insight pages.
 - Tests: backend test_feed_audit.py (24), vitest Insights/Feed Audit access,
   e2e feed-audit.spec.js (count → short → audit → filter → admin removes).
+
+### Heat-stress forecast (Insights #2)  ✅ DONE
+- Admin sets **one map point per region** (type it, or "Use my location") on
+  the Heat Stress page → Region locations. Regions without a point are listed,
+  never guessed.
+- Weather: Open-Meteo hourly forecast (free, no key), 5 days, cached 2 hours
+  per region; an outage shows a message, not an error. The production server
+  needs outbound internet to api.open-meteo.com.
+- Risk: livestock heat index THI = 0.8·T + RH/100·(T − 14.4) + 46.4 at the
+  hottest hour → OK < 74 · Watch 74–78 · Danger 79–83 · Emergency ≥ 84; then
+  birds 28+ days one level up, chicks under 14 days two down, EC shed one down
+  — using the birds' age on each forecast day.
+- **Heat Stress page** (/heat-stress): weather by region, every active farm ×
+  5 days, and what to do at each level. Admin: all farms (Insights card);
+  supervisor: their regions, reached from a **dashboard heat alert** shown when
+  any of their farms is at Danger or worse in the next 3 days.
+- WEATHER_FAKE=1 gives a fixed hot week (used by the browser tests).
+- Tests: backend test_heat.py (29, incl. Open-Meteo parsing + cache, outage,
+  region scoping, bad coordinates), vitest HeatBanner (3), e2e heat.spec.js (4).

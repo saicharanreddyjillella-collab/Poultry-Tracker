@@ -5,6 +5,8 @@ import '../styles/insights.css';
 const INSIGHTS = [
   { to: '/feed-audit', title: 'Feed Audit', tag: 'Protect money',
     text: 'Bag counts vs paper stock and feeding vs the age standard — find where feed is leaving the farm.' },
+  { to: '/heat-stress', title: 'Heat Stress', tag: 'Prevent losses',
+    text: 'Next 5 days of heat risk per farm from the weather forecast, by bird age and shed type — with what to do.' },
   { to: '/owner-dashboard', title: 'Owner View', tag: 'Business',
     text: 'Profit, region and grower performance at a glance.' },
   { to: '/break-even', title: 'Break-even', tag: 'Business',

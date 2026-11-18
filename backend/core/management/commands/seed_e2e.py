@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
         from core.billing import generate_bill
         from core.models import (BillConfig, DailyEntry, Farm, FeedOrder, FeedRate, Flock,
-                                 Medication, Sale, UserProfile)
+                                 Medication, RegionLocation, Sale, UserProfile)
 
         def user(username, role, regions=(), first='', must_change=False, password=E2E_PASSWORD):
             make = User.objects.create_superuser if role == 'admin' else User.objects.create_user
@@ -55,6 +55,9 @@ class Command(BaseCommand):
                                  capacity=10000)
         B1 = Farm.objects.create(farm_code='B1', name='Venkat Farm', owner_name='Venkat', region='Zone-B',
                                  capacity=10000)
+
+        # Weather point for Zone-A only (Zone-B: the admin sets it in the heat-stress test).
+        RegionLocation.objects.create(region='Zone-A', latitude=Decimal('17.38500'), longitude=Decimal('78.48670'))
 
         admin, _ = user('admin', 'admin', first='Sai')
         _, pa = user('sup_a', 'supervisor', ['Zone-A'], first='Ravi')
