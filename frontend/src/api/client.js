@@ -243,6 +243,12 @@ export const insightsAPI = {
   feedAudit: (region) => API.get(`/reports/feed-audit/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
   heatStress: () => API.get('/reports/heat-stress/'),
   hatcheries: (days) => API.get(`/reports/hatcheries/${days ? `?days=${days}` : ''}`),
+  liftPlanner: (trend = true) => API.get(`/reports/lift-planner/${trend ? '' : '?trend=0'}`),
+};
+
+export const marketRateAPI = {
+  list: () => API.get('/market-rates/'),
+  save: (data) => API.post('/market-rates/', data),
 };
 
 export const hatcheryAPI = {

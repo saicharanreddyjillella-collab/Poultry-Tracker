@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import feed_audit, hatchery, heat
+from .views import feed_audit, hatchery, heat, lift
 
 router = DefaultRouter()
 router.register(r'farms', views.FarmViewSet)
@@ -16,6 +16,7 @@ router.register(r'documents', views.DocumentViewSet, basename='document')
 router.register(r'audit-log', views.AuditLogViewSet, basename='auditlog')
 router.register(r'feed-counts', feed_audit.FeedStockCountViewSet)
 router.register(r'hatcheries', hatchery.HatcheryViewSet)
+router.register(r'market-rates', lift.MarketRateViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -63,4 +64,5 @@ urlpatterns += [
     path('reports/heat-stress/', heat.heat_stress_report),
     path('region-locations/', heat.region_locations),
     path('reports/hatcheries/', hatchery.hatchery_report),
+    path('reports/lift-planner/', lift.lift_planner),
 ]
