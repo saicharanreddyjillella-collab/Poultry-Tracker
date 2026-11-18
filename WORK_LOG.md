@@ -780,3 +780,21 @@ settings admin-only; plant user = feed only.
   closed flocks; verdict: above limit (high) / ≥ 0.5 pt worse than average
   (warning) / OK; click a hatchery for its flocks. "Not recorded" grouped last.
 - Tests: backend test_hatchery.py (15), e2e hatchery.spec.js (5).
+
+### Best day to lift (Insights #4)  ✅ DONE
+- Admin enters the day's **market rate** (₹/kg live bird) on the Lift Planner
+  page; saving a date again corrects it (20–500, not in the future). If none in
+  the last 7 days the planner uses the weight-weighted rate of our own sales in
+  the last 7 days; if neither exists it asks for today's rate.
+- **Insights → Best Day to Lift** (/lift-planner, admin): every active flock
+  aged 28–56 days, value of lifting today vs each of the next 10 days =
+  birds left × projected weight × (price − grower charge/kg) − feed eaten
+  meanwhile. Weight: last weighing carried on the Cobb curve at the same % of
+  standard (standard if never weighed). Deaths: the flock's last 7 days (the
+  standard rate otherwise). Feed: standard intake × birds at the latest BFP
+  feed rate (or BillConfig). Price: flat, or "follow the trend" = half the
+  recent 14-day change, capped at ±₹1.5/kg/day. Shows best day, extra ₹ vs
+  lifting today, advice, and a day-by-day table.
+- Sanity check (10,000 standard birds, flat price): ₹90 → lift now; ₹110 → a
+  30-day flock is best around day 38; ₹130 → hold to the end of the window.
+- Tests: backend test_lift.py (17), vitest access, e2e lift.spec.js (5).

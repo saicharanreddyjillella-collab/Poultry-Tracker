@@ -872,6 +872,20 @@ class Hatchery(models.Model):
         return self.name
 
 
+class MarketRate(models.Model):
+    """The day's live-bird market rate (₹/kg), entered by the admin — used by the lift planner."""
+    date = models.DateField(unique=True)
+    rate_per_kg = models.DecimalField(max_digits=8, decimal_places=2)
+    notes = models.CharField(max_length=200, blank=True, help_text="Source, e.g. association rate / trader quote")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.date}: ₹{self.rate_per_kg}/kg"
+
+
 class BillConfig(models.Model):
     """Configurable billing rates — only one active config at a time."""
     chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)
