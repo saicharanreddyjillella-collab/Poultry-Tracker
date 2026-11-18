@@ -24,7 +24,7 @@ test('without a market rate it uses our own recent sales', async ({ page }) => {
   await loginAs(page, 'admin', '/insights');
   await page.getByRole('link', { name: /Best Day to Lift/ }).click();
   await expect(page.getByRole('heading', { name: 'Best Day to Lift' })).toBeVisible();
-  await expect(page.getByText('₹102/kg')).toBeVisible();
+  await expect(page.locator('.stat-value', { hasText: '₹102/kg' })).toBeVisible();
   await expect(page.getByText('Average of our sales in the last 7 days')).toBeVisible();
   await expect(ganga(page)).toContainText('35d');
   await expect(ganga(page)).toContainText('93% of standard');
@@ -48,7 +48,7 @@ test('a poor rate for the same day corrects it and says lift now', async ({ page
   await loginAs(page, 'admin', '/lift-planner');
   await field(page, 'Rate ₹/kg').fill('70');
   await page.getByRole('button', { name: 'Save Rate' }).click();
-  await expect(page.getByText('₹70/kg')).toBeVisible();
+  await expect(page.locator('.stat-value', { hasText: '₹70/kg' })).toBeVisible();
   await expect(ganga(page)).toContainText('Now');
   await expect(ganga(page)).toContainText('Lift now');
 });
