@@ -810,6 +810,30 @@ class FeedTransfer(SoftDeleteModel):
         return f"{self.from_farm.farm_code} → {self.to_farm.farm_code}: {self.feed_type} x{self.quantity_bags}"
 
 
+class FeedStockCount(models.Model):
+    """A physical count of feed bags at the farm for one flock (feed leakage check).
+
+    Compared with paper ("book") stock: delivered + transferred in − transferred
+    out − recorded as eaten, all up to and including the count date. Supervisors
+    record counts; only an admin can change or remove one (it is evidence).
+    """
+    flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='stock_counts')
+    date = models.DateField(help_text="Count taken after this day's feeding is recorded")
+    bpsc_bags = models.PositiveIntegerField(default=0)
+    bsc_bags = models.PositiveIntegerField(default=0)
+    bfp_bags = models.PositiveIntegerField(default=0)
+    counted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
+        constraints = [models.UniqueConstraint(fields=['flock', 'date'], name='one_stock_count_per_flock_day')]
+
+    def __str__(self):
+        return f"Bag count flock {self.flock_id} on {self.date}"
+
+
 class BillConfig(models.Model):
     """Configurable billing rates — only one active config at a time."""
     chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)

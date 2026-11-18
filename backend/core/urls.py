@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import feed_audit
 
 router = DefaultRouter()
 router.register(r'farms', views.FarmViewSet)
@@ -13,6 +14,7 @@ router.register(r'feed-orders', views.FeedOrderViewSet)
 router.register(r'feed-transfers', views.FeedTransferViewSet)
 router.register(r'documents', views.DocumentViewSet, basename='document')
 router.register(r'audit-log', views.AuditLogViewSet, basename='auditlog')
+router.register(r'feed-counts', feed_audit.FeedStockCountViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -52,4 +54,9 @@ urlpatterns = [
     path('flocks/<int:flock_id>/reopen-bill/', views.reopen_bill),
     path('flocks/<int:flock_id>/bill-history/', views.bill_history),
     path('bills/', views.list_bills),
+]
+
+# Insights (each in its own module)
+urlpatterns += [
+    path('reports/feed-audit/', feed_audit.feed_audit_report),
 ]

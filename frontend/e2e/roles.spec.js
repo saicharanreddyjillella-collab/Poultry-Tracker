@@ -5,7 +5,7 @@ import { reseed, loginAs, navLinks, flockIdOf, farmIdOf } from './helpers';
 
 test.beforeAll(() => reseed());
 
-const ADMIN_ONLY = ['Feed Forecast', 'Owner View', 'Break-even', 'Users', 'Recycle Bin'];
+const ADMIN_ONLY = ['Insights', 'Users', 'Recycle Bin'];
 
 test('admin menu has everything', async ({ page }) => {
   await loginAs(page, 'admin', '/farms');
@@ -27,7 +27,7 @@ test('feed-mill menu: Feed only', async ({ page }) => {
   for (const l of ['Today', 'Farms', 'Reports', ...ADMIN_ONLY]) expect(links).not.toContain(l);
 });
 
-for (const path of ['/owner-dashboard', '/break-even', '/feed-forecast', '/trash']) {
+for (const path of ['/insights', '/feed-audit', '/owner-dashboard', '/break-even', '/feed-forecast', '/trash']) {
   test(`supervisor opening ${path} is sent back to their dashboard`, async ({ page }) => {
     await loginAs(page, 'sup_a', path);
     await expect(page.getByRole('heading', { name: "Today's Dashboard" })).toBeVisible();

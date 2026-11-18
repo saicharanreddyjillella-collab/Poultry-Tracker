@@ -7,12 +7,13 @@ import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStoc
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import DocumentsSection from '../components/DocumentsSection';
+import BagCountSection from '../components/BagCountSection';
 import { todayISO } from '../utils/dates';
 
 export default function FlockDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canEditFarm } = useAuth();
+  const { canEditFarm, isAdmin } = useAuth();
   const [flock, setFlock] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [farmStock, setFarmStock] = useState(null);
@@ -485,6 +486,8 @@ export default function FlockDetail() {
         <div className="stat-card"><span className="stat-label">Med Cost</span><span className="stat-value">₹{parseFloat(flock.total_medication_cost).toLocaleString()}</span></div>
         <div className="stat-card"><span className="stat-label">Current Feed</span><span className="stat-value"><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></span></div>
       </div>
+
+      <BagCountSection flock={flock} canEdit={canEditFarm(flock.farm)} isAdmin={isAdmin} />
 
       {/* Feed Schedule Progress */}
       <h2 style={{ margin: '1.5rem 0 0.75rem' }}>Feed Schedule</h2>
