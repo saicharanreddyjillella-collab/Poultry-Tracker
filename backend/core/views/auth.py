@@ -84,7 +84,9 @@ def login_view(request):
     if not user:
         return Response({'error': 'Invalid credentials'}, status=401)
 
+    from django.contrib.auth.models import update_last_login
     from rest_framework_simplejwt.tokens import RefreshToken
+    update_last_login(None, user)                      # shown on the admin's System Health page
     refresh = RefreshToken.for_user(user)
     return Response({
         'access': str(refresh.access_token),

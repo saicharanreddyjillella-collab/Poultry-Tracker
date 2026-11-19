@@ -902,6 +902,22 @@ class FeatureSetting(models.Model):
         return f"{self.key}: {'on' if self.enabled else 'off'}"
 
 
+class ErrorEvent(models.Model):
+    """A server or screen error, kept for the admin's System Health page (newest 500)."""
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    level = models.CharField(max_length=10)
+    source = models.CharField(max_length=10, default='server')        # server | screen
+    logger = models.CharField(max_length=100, blank=True)
+    message = models.TextField()
+    path = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.timestamp:%Y-%m-%d %H:%M} {self.level} {self.message[:60]}"
+
+
 class BillConfig(models.Model):
     """Configurable billing rates — only one active config at a time."""
     chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)

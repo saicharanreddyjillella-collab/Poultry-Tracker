@@ -69,4 +69,5 @@ urlpatterns += [
     path('features/', settings_views.feature_states),
     path('settings/features/', settings_views.feature_settings),
     path('settings/features/<str:key>/', settings_views.feature_setting),
+    path('settings/health/', settings_views.system_health),
 ]

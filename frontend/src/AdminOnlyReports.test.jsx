@@ -34,7 +34,7 @@ const as = (role, path) => {
 
 beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));
 
-test.each(['/owner-dashboard', '/break-even', '/feed-forecast', '/insights', '/feed-audit', '/hatcheries', '/lift-planner', '/grower-ranking'])('supervisor opening %s is sent to the dashboard', async (path) => {
+test.each(['/owner-dashboard', '/break-even', '/feed-forecast', '/insights', '/feed-audit', '/hatcheries', '/lift-planner', '/grower-ranking', '/system-health'])('supervisor opening %s is sent to the dashboard', async (path) => {
   as('supervisor', path);
   await screen.findAllByRole('link', { name: 'Farms' });
   // their dashboard: /feeds on main, / on the Feeds-only release

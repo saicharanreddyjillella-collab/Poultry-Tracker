@@ -857,3 +857,22 @@ settings admin-only; plant user = feed only.
   fit nowhere are shown as left over.
 - Tests: backend test_placement.py (11), vitest access, e2e
   grower-ranking.spec.js (4).
+
+### System Health page (admin, E16)  ✅ DONE
+- **Settings → System Health →** (/system-health), admin only. Overall
+  status, then a card per check (✓ / ! / ✕ / i):
+  - Database: answering + size.
+  - Backups: last nightly backup from deploy/backup.sh's last_backup.json —
+    OK ≤ 26 h, "needs a look" ≤ 50 h, "needs action" if older or FAILED;
+    "not set up on this computer" on the Mac. docker-compose.yml now mounts
+    ${BACKUP_DIR:-/root/backups} read-only into the backend for this.
+  - Errors (24 h): server + screen errors. ERROR logs are now also stored in
+    the database (core/error_log.py, newest 500 kept, never breaks a request).
+  - Yesterday's daily entries: active flocks missing one, by farm.
+  - Weather (Heat Stress): forecast service reachable?
+  - Switchable features: which are on/off.
+  Then the 20 most recent errors and "Who is active": each user's last
+  sign-in, last change and changes in 7 days.
+- Sign-in now records "last login" (wasn't recorded before).
+- Tests: backend test_system_health.py (15), vitest access, e2e
+  system-health.spec.js (3).

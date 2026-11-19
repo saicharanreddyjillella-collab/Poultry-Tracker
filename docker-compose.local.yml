@@ -11,6 +11,10 @@ services:
       - ALLOWED_HOSTS=localhost,127.0.0.1
       - CORS_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
       - SENTRY_ENVIRONMENT=local
+      - BACKUP_STATUS_FILE=                # no nightly backups on this computer
+    volumes: !override                    # (no server backup folder to mount here)
+      - static_files:/app/static
+      - media_files:/app/media
   nginx:
     ports: !override
       - "8080:80"

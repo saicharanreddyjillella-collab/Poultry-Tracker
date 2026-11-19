@@ -198,11 +198,16 @@ if not DEBUG:
 # LOG_LEVEL env controls verbosity (default INFO; DEBUG in dev).
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO').upper()
 LOG_DIR = os.environ.get('LOG_DIR', os.path.join(BASE_DIR, 'logs'))
-_handlers = ['console']
+_handlers = ['console', 'db_errors']
 _handler_defs = {
     'console': {
         'class': 'logging.StreamHandler',
         'formatter': 'verbose',
+    },
+    # Errors also go to the database for the admin's System Health page (newest 500 kept).
+    'db_errors': {
+        'class': 'core.error_log.DatabaseErrorHandler',
+        'level': 'ERROR',
     },
 }
 if not DEBUG:
@@ -236,6 +241,9 @@ LOGGING = {
         'django.db.backends': {'handlers': _handlers, 'level': os.environ.get('SQL_LOG_LEVEL', 'WARNING'), 'propagate': False},
     },
 }
+
+# System Health page: the backup script's status file (deploy/backup.sh writes it).
+BACKUP_STATUS_FILE = os.environ.get('BACKUP_STATUS_FILE', '')
 
 # ── E7: error monitoring (Sentry) — off unless SENTRY_DSN is set ──
 from config.monitoring import init_sentry  # noqa: E402

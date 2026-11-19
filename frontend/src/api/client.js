@@ -365,4 +365,5 @@ export const featureAPI = {
   states: () => API.get('/features/'),
   list: () => API.get('/settings/features/'),
   set: (key, enabled) => API.patch(`/settings/features/${key}/`, { enabled }),
+  health: () => API.get('/settings/health/'),
 };
