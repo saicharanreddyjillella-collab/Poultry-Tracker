@@ -216,12 +216,43 @@ class Flock(SoftDeleteModel):
         from datetime import date
         return (date.today() - self.placement_date).days
 
+    # Page speed: core.prime.prime_flocks() fills this for list pages; None = query as usual.
+    _stats = None
+
+    def _consumed_bags(self):
+        """{'BPSC', 'BSC', 'BFP'} → bags recorded as eaten (None when no entries, like SQL SUM)."""
+        if self._stats is not None:
+            return self._stats['consumed']
+        agg = self.daily_entries.aggregate(BPSC=models.Sum('feed_bpsc_bags'), BSC=models.Sum('feed_bsc_bags'),
+                                           BFP=models.Sum('feed_bfp_bags'))
+        return agg
+
+    def _feed_moves(self):
+        """(delivered, transfers in, transfers out) bags by feed type for this flock."""
+        if self._stats is not None:
+            return self._stats['delivered'], self._stats['t_in'], self._stats['t_out']
+        from django.apps import apps
+        FeedOrderModel = apps.get_model('core', 'FeedOrder')
+        FeedTransferModel = apps.get_model('core', 'FeedTransfer')
+        Sum = models.Sum
+        delivered = {d['feed_type']: int(d['t']) for d in FeedOrderModel.objects.filter(flock=self, status='delivered')
+                     .values('feed_type').annotate(t=Sum('quantity_bags'))}
+        t_in = {t['feed_type']: int(t['t']) for t in
+                FeedTransferModel.objects.filter(to_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))}
+        t_out = {t['feed_type']: int(t['t']) for t in
+                 FeedTransferModel.objects.filter(from_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))}
+        return delivered, t_in, t_out
+
     @property
     def total_mortality(self):
+        if self._stats is not None:
+            return self._stats['mortality'] or 0
         return self.daily_entries.aggregate(total=models.Sum('mortality_count'))['total'] or 0
 
     @property
     def total_culls(self):
+        if self._stats is not None:
+            return self._stats['culls'] or 0
         return self.daily_entries.aggregate(total=models.Sum('cull_count'))['total'] or 0
 
     @property
@@ -232,21 +263,14 @@ class Flock(SoftDeleteModel):
 
     @property
     def total_feed_kg(self):
-        agg = self.daily_entries.aggregate(
-            bpsc=models.Sum('feed_bpsc_bags'),
-            bsc=models.Sum('feed_bsc_bags'),
-            bfp=models.Sum('feed_bfp_bags'),
-        )
-        total_bags = float(agg['bpsc'] or 0) + float(agg['bsc'] or 0) + float(agg['bfp'] or 0)
+        c = self._consumed_bags()
+        total_bags = float(c['BPSC'] or 0) + float(c['BSC'] or 0) + float(c['BFP'] or 0)
         return total_bags * 50
 
     @property
     def feed_by_type(self):
-        agg = self.daily_entries.aggregate(
-            bpsc=models.Sum('feed_bpsc_bags'),
-            bsc=models.Sum('feed_bsc_bags'),
-            bfp=models.Sum('feed_bfp_bags'),
-        )
+        c = self._consumed_bags()
+        agg = {'bpsc': c['BPSC'], 'bsc': c['BSC'], 'bfp': c['BFP']}
         return {
             'bpsc_bags': float(agg['bpsc'] or 0),
             'bsc_bags': float(agg['bsc'] or 0),
@@ -280,10 +304,14 @@ class Flock(SoftDeleteModel):
 
     @property
     def total_sold_birds(self):
+        if self._stats is not None:
+            return self._stats['sold_birds'] or 0
         return self.sales.aggregate(total=models.Sum('bird_count'))['total'] or 0
 
     @property
     def total_sold_weight_kg(self):
+        if self._stats is not None:
+            return self._stats['sold_kg'] or 0
         return self.sales.aggregate(total=models.Sum('total_weight_kg'))['total'] or 0
 
     @property
@@ -334,9 +362,12 @@ class Flock(SoftDeleteModel):
         'on_track' within +/-3% of standard, else 'above' / 'below'.
         """
         from .standards import get_standard_weight
-        entry = (self.daily_entries
-                 .exclude(avg_body_weight_grams__isnull=True)
-                 .order_by('-date').first())
+        if self._stats is not None:
+            entry = self._stats['latest_weighed']
+        else:
+            entry = (self.daily_entries
+                     .exclude(avg_body_weight_grams__isnull=True)
+                     .order_by('-date').first())
         if entry is None or entry.avg_body_weight_grams is None:
             return None
         day = (entry.date - self.placement_date).days
@@ -435,7 +466,8 @@ class Flock(SoftDeleteModel):
         water_liters, feed_kg} for every entry flagged 'low' or 'high'.
         """
         alerts = []
-        for e in self.daily_entries.all():  # Meta ordering is -date
+        entries = self._stats['entries'] if self._stats is not None else self.daily_entries.all()
+        for e in entries:  # Meta ordering is -date
             status = e.water_feed_status
             if status in ('low', 'high'):
                 alerts.append({
@@ -487,34 +519,16 @@ class Flock(SoftDeleteModel):
 
     @property
     def total_medication_cost(self):
+        if self._stats is not None:
+            return self._stats['med_cost'] or 0
         return self.medications.aggregate(total=models.Sum('cost'))['total'] or 0
 
     @property
     def flock_feed_stock(self):
         """Feed stock for THIS flock only = delivered to this flock + transfers in - consumed - transfers out."""
-        from django.db.models import Sum
-        from django.apps import apps
-        FeedOrderModel = apps.get_model('core', 'FeedOrder')
-        FeedTransferModel = apps.get_model('core', 'FeedTransfer')
-
-        # Only orders assigned to this flock
-        delivered = FeedOrderModel.objects.filter(
-            flock=self, status='delivered'
-        ).values('feed_type').annotate(t=Sum('quantity_bags'))
-        del_map = {d['feed_type']: int(d['t']) for d in delivered}
-
-        # This flock's consumption
-        consumed = self.daily_entries.aggregate(
-            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-        )
-
-        # Transfers in to this flock
-        t_in = FeedTransferModel.objects.filter(to_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))
-        in_map = {t['feed_type']: int(t['t']) for t in t_in}
-
-        # Transfers out from this flock
-        t_out = FeedTransferModel.objects.filter(from_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))
-        out_map = {t['feed_type']: int(t['t']) for t in t_out}
+        del_map, in_map, out_map = self._feed_moves()
+        c = self._consumed_bags()
+        consumed = {'bpsc': c['BPSC'], 'bsc': c['BSC'], 'bfp': c['BFP']}
 
         bpsc = del_map.get('BPSC', 0) + in_map.get('BPSC', 0) - out_map.get('BPSC', 0) - (consumed['bpsc'] or 0)
         bsc = del_map.get('BSC', 0) + in_map.get('BSC', 0) - out_map.get('BSC', 0) - (consumed['bsc'] or 0)
@@ -538,21 +552,9 @@ class Flock(SoftDeleteModel):
         tolerance of dispatched, else 'over_dispatched' / 'under_dispatched'.
         Tolerance comes from the active BillConfig.
         """
-        from django.db.models import Sum
         from django.apps import apps
-        FeedOrderModel = apps.get_model('core', 'FeedOrder')
-        FeedTransferModel = apps.get_model('core', 'FeedTransfer')
-
-        delivered = FeedOrderModel.objects.filter(flock=self, status='delivered') \
-            .values('feed_type').annotate(t=Sum('quantity_bags'))
-        del_map = {d['feed_type']: int(d['t']) for d in delivered}
-        t_in = {t['feed_type']: int(t['t']) for t in
-                FeedTransferModel.objects.filter(to_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))}
-        t_out = {t['feed_type']: int(t['t']) for t in
-                 FeedTransferModel.objects.filter(from_flock=self).values('feed_type').annotate(t=Sum('quantity_bags'))}
-        consumed = self.daily_entries.aggregate(
-            BPSC=Sum('feed_bpsc_bags'), BSC=Sum('feed_bsc_bags'), BFP=Sum('feed_bfp_bags'),
-        )
+        del_map, t_in, t_out = self._feed_moves()
+        consumed = self._consumed_bags()
 
         by_type = {}
         disp_total = cons_total = 0
@@ -567,11 +569,14 @@ class Flock(SoftDeleteModel):
         variance_pct = round((variance / disp_total) * 100, 1) if disp_total else 0.0
 
         # Tolerance from active config (fall back to 5%).
-        try:
-            BillConfigModel = apps.get_model('core', 'BillConfig')
-            tol = float(BillConfigModel.get_active().feed_reconciliation_tolerance_pct)
-        except Exception:
-            tol = 5.0
+        if self._stats is not None:
+            tol = self._stats['tolerance']
+        else:
+            try:
+                BillConfigModel = apps.get_model('core', 'BillConfig')
+                tol = float(BillConfigModel.get_active().feed_reconciliation_tolerance_pct)
+            except Exception:
+                tol = 5.0
 
         if abs(variance_pct) <= tol:
             status = 'balanced'

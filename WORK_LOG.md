@@ -798,3 +798,27 @@ settings admin-only; plant user = feed only.
 - Sanity check (10,000 standard birds, flat price): ₹90 → lift now; ₹110 → a
   30-day flock is best around day 38; ₹130 → hold to the end of the window.
 - Tests: backend test_lift.py (17), vitest access, e2e lift.spec.js (5).
+
+### Page speed (E20)  ✅ DONE
+- Cause: every flock figure (live birds, mortality, feed used, sales, medicine
+  cost, feed stock, weight vs standard, water alerts, …) ran its own query, and
+  pages computed 20–40 of them per flock, flock by flock.
+- Fix: `core/prime.py` — `prime_flocks(flocks)` loads those totals for all
+  listed flocks in ~8 grouped queries and stores them on each instance; the
+  figures read from memory when primed. Un-primed flocks behave exactly as
+  before (fresh queries), and serializers prime → serialize → unprime, so
+  nothing ever shows stale totals after a save. Farm lists fetch all farms'
+  flocks and supervisors at once; Dashboard, Owner View, Till-date, Feed
+  Forecast, Break-even and Feed Stock load per-farm totals in grouped queries.
+- Database queries per page (2 farms → 12 farms), before → after:
+  Dashboard 115→623 ⇒ 34→32 · Farms 85→495 ⇒ 13→13 · Flocks 81→461 ⇒ 13→13 ·
+  Owner View 51→281 ⇒ 13→13 · Till-date 26→116 ⇒ 16→16 · Feed Stock 14→64 ⇒
+  9→9 · Feed orders 8→28 ⇒ 4→4 · Feed Forecast 10→40 ⇒ 12→12 · Break-even
+  12→52 ⇒ 12→12.
+- Proof nothing changed: the old and new code produced byte-identical JSON
+  (timestamps aside) for 15 pages on the same messy dataset (deleted entry,
+  transfers, pending orders, closed + billed flock, unpriced sale).
+- Tests: test_page_speed.py — query count must not grow from 2 to 12 farms on
+  10 pages; every primed figure equals its un-primed value (incl. a flock with
+  no data, a Recycle-Bin entry, a closed billed flock); primed figures need 0
+  queries; a saved entry shows up at once on detail and list.
