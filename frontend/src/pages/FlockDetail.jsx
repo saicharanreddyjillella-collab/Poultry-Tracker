@@ -2,7 +2,7 @@ import { FlockDetailSkeleton } from '../components/Skeletons';
 import ConfirmModal from '../components/ConfirmModal';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI, getErrorMessage } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { useAuth } from '../context/AuthContext';
@@ -10,9 +10,22 @@ import DocumentsSection from '../components/DocumentsSection';
 import BagCountSection from '../components/BagCountSection';
 import ChickQualityCard from '../components/ChickQualityCard';
 import { todayISO } from '../utils/dates';
+import { Chip, Panel, StatTile } from '../components/ui';
+import { fmtDate, fmtNum } from '../utils/format';
+
+const TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'entries', label: 'Daily entries' },
+  { key: 'sales', label: 'Sales' },
+  { key: 'feed', label: 'Feed' },
+  { key: 'health', label: 'Health' },
+  { key: 'documents', label: 'Documents' },
+];
 
 export default function FlockDetail() {
   const { id } = useParams();
+  const [params, setParams] = useSearchParams();
+  const showTab = (k) => setParams(k === 'overview' ? {} : { tab: k }, { replace: true });
   const navigate = useNavigate();
   const { canEditFarm, isAdmin } = useAuth();
   const [flock, setFlock] = useState(null);
@@ -153,6 +166,7 @@ export default function FlockDetail() {
         await dailyEntryAPI.create(data);
       }
       setShowEntryForm(false);
+      showTab('entries');                       // show what was just saved
       resetEntryForm();
       load();
     } catch (err) { setError(getErrorMessage(err)); }
@@ -170,6 +184,7 @@ export default function FlockDetail() {
         notes: saleForm.notes,
       });
       setShowSaleForm(false);
+      showTab('sales');                       // show what was just saved
       setSaleForm({ date: todayISO(), bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
@@ -184,6 +199,7 @@ export default function FlockDetail() {
         cost: parseFloat(medForm.cost) || 0, reason: medForm.reason,
       });
       setShowMedForm(false);
+      showTab('health');                       // show what was just saved
       setMedForm({ date: todayISO(), name: '', dose: '', route: '', cost: '', reason: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
@@ -200,6 +216,7 @@ export default function FlockDetail() {
         notes: feedOrderForm.notes,
       });
       setShowFeedOrderForm(false);
+      showTab('feed');                       // show what was just saved
       setFeedOrderForm({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
@@ -232,16 +249,30 @@ export default function FlockDetail() {
   const fs = cumulative.feed_schedule_status || {};
   const pctUsed = (used, quota) => quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
 
+
+  const tab = TABS.some(t => t.key === params.get('tab')) ? params.get('tab') : 'overview';
+  const counts = { entries: cumulative.entries.length, sales: (cumulative.sales || []).length, health: (flock.medications || []).length };
+  const wvs = cumulative.weight_vs_standard;
+  const fr = cumulative.feed_reconciliation;
+  const totalBags = cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags;
+  const hasEntries = cumulative.entries.length > 0;
+
   return (
-    <div className="page">
+    <div className="page flock-page">
       <UnsavedPrompt when={showEntryForm || showSaleForm || showMedForm || showFeedOrderForm} message="You have an unsaved form open. Discard changes?" />
-      <div className="page-header">
+      <nav className="crumbs" aria-label="Breadcrumb">
+        <Link to="/farms">Farms</Link><span aria-hidden="true">/</span>
+        <Link to={`/farms/${flock.farm}`} className="back-link">{flock.farm_name}</Link><span aria-hidden="true">/</span>
+        <span>Flock placed {fmtDate(flock.placement_date)}</span>
+      </nav>
+      <div className="page-header flock-header">
         <div>
-          <Link to={`/farms/${flock.farm}`} className="back-link">&larr; Back to Farm</Link>
-          <h1>{flock.farm_name} — Flock</h1>
+          <h1>{flock.farm_name} — Flock {flock.status === 'active'
+            ? <Chip tone={cumulative.live_birds > 0 ? 'ok' : 'info'}>{cumulative.live_birds > 0 ? `Active · day ${flock.age_days}` : 'Sold out · bill due'}</Chip>
+            : <Chip>Closed</Chip>}</h1>
           <p className="farm-meta">Placed: {flock.placement_date} &middot; Day {flock.age_days} &middot; {flock.chick_count.toLocaleString()} chicks</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="header-actions">
           {flock.status === 'active' && (
             <>
               <button className="btn btn-primary" onClick={() => { setShowEntryForm(!showEntryForm); setShowSaleForm(false); setShowMedForm(false); setShowFeedOrderForm(false); }}>+ Daily Entry</button>
@@ -266,20 +297,6 @@ export default function FlockDetail() {
           ⚠️ {cumulative.sales.filter(s => !s.rate_per_kg).length} sale(s) missing rate/price — please update to calculate bill correctly
         </div>
       )}
-
-      {/* Flock Feed Stock — active only */}
-      {flock.status === 'active' && cumulative.flock_feed_stock && (
-        <div className="farm-stock-bar">
-          <strong>This Flock's Feed Stock:</strong>
-          <span className={`feed-badge feed-badge-bpsc ${cumulative.flock_feed_stock.bpsc <= 0 ? 'stock-low' : ''}`}>BPSC: {cumulative.flock_feed_stock.bpsc}</span>
-          <span className={`feed-badge feed-badge-bsc ${cumulative.flock_feed_stock.bsc <= 0 ? 'stock-low' : ''}`}>BSC: {cumulative.flock_feed_stock.bsc}</span>
-          <span className={`feed-badge feed-badge-bfp ${cumulative.flock_feed_stock.bfp <= 0 ? 'stock-low' : ''}`}>BFP: {cumulative.flock_feed_stock.bfp}</span>
-          <span>Total: {cumulative.flock_feed_stock.total} bags</span>
-          {cumulative.flock_feed_stock.total <= 0 && <span className="text-danger" style={{ fontSize: '0.8rem' }}>Order feed for this flock</span>}
-        </div>
-      )}
-
-      <ChickQualityCard flock={flock} canEdit={canEditFarm(flock.farm)} onSaved={load} />
 
       {error && <div className="error-msg">{error}</div>}
 
@@ -417,147 +434,52 @@ export default function FlockDetail() {
         </div>
       )}
 
-      {cumulative.water_alerts && cumulative.water_alerts.length > 0 && (
-        <div className="alert-banner alert-banner-warning">
-          💧 Water:feed ratio out of range on {cumulative.water_alerts.length} day{cumulative.water_alerts.length > 1 ? 's' : ''}:
-          {' '}{cumulative.water_alerts.slice(0, 3).map(a => `d${a.day} ${a.ratio}L/kg (${a.status})`).join(', ')}
-          {cumulative.water_alerts.length > 3 ? '…' : ''}.
-          {' '}Low can signal illness/under-drinking; high can signal heat stress or spillage.
-        </div>
-      )}
 
-      {/* Performance scorecard */}
-      {cumulative.scorecard && cumulative.scorecard.components.length > 0 && (
-        <div className={`scorecard scorecard-${cumulative.scorecard.rating.toLowerCase()}`}>
-          <div className="scorecard-head">
-            <div>
-              <span className="scorecard-label">Performance</span>
-              <span className="scorecard-rating">{cumulative.scorecard.rating}</span>
+      <div className="tabs" role="tablist" aria-label="Flock sections">
+        {TABS.map(t => (
+          <button key={t.key} type="button" role="tab" id={`tab-${t.key}`} aria-selected={tab === t.key} aria-controls="flock-tabpanel"
+                  className={`tab ${tab === t.key ? 'on' : ''}`} onClick={() => showTab(t.key)}>
+            {t.label}{counts[t.key] ? <span className="tab-count">{counts[t.key]}</span> : null}
+          </button>
+        ))}
+      </div>
+
+      <div id="flock-tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="tabpanel">
+      {tab === 'overview' && (
+        <div className="flock-overview">
+          <div className="flock-main">
+            <div className="stats-grid tiles tiles-4">
+              <StatTile label="Live birds" value={fmtNum(cumulative.live_birds)} note={`of ${fmtNum(flock.chick_count)} placed`} />
+              <StatTile label="Mortality" value={fmtNum(flock.total_mortality)} unit={`${flock.mortality_percentage}%`}
+                        tone={flock.mortality_percentage > 5 ? 'danger' : undefined}
+                        note={flock.total_culls ? `+ ${flock.total_culls} culls (${flock.cull_percentage}%)` : 'No culls'}
+                        trend={cumulative.entries.map(e => e.daily_mortality)} trendColor="var(--warning)" />
+              <StatTile label="FCR" value={cumulative.fcr ?? '—'} note={cumulative.epef != null ? `EPEF ${cumulative.epef}` : 'feed kg ÷ live kg'} />
+              {wvs ? (
+                <StatTile label={`Weight vs target (d${wvs.day})`} value={`${wvs.actual_g}`} unit="g"
+                          tone={wvs.status === 'below' ? 'danger' : wvs.status === 'above' ? 'ok' : undefined}
+                          note={`${wvs.variance_pct > 0 ? '+' : ''}${wvs.variance_pct}% vs ${wvs.standard_g} g`} />
+              ) : <StatTile label="Weight vs target" value="—" note="No weight recorded yet" />}
             </div>
-            <div className="scorecard-score">
-              {cumulative.scorecard.overall_score}<small>/100</small>
-              {cumulative.scorecard.farmer_grade && (
-                <span className="scorecard-grade">Grade {cumulative.scorecard.farmer_grade}</span>
-              )}
-            </div>
-          </div>
-          <div className="scorecard-bars">
-            {cumulative.scorecard.components.map((c) => (
-              <div className="scorecard-bar" key={c.label}>
-                <div className="scorecard-bar-top">
-                  <span className="scorecard-bar-label">{c.label}</span>
-                  <span className="scorecard-bar-detail">{c.detail}</span>
-                </div>
-                <div className="scorecard-track">
-                  <div className="scorecard-fill" style={{ width: `${Math.max(0, Math.min(100, c.score))}%` }}></div>
-                </div>
+
+            {!hasEntries && (
+              <div className="empty-state">
+                <p>No entries yet. Click "+ Daily Entry" to start recording.</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="stats-grid stats-grid-wide">
-        <div className="stat-card"><span className="stat-label">Live Birds</span><span className="stat-value">{cumulative.live_birds.toLocaleString()}</span></div>
-        <div className="stat-card stat-alert"><span className="stat-label">Mortality</span><span className="stat-value">{flock.total_mortality} ({flock.mortality_percentage}%)</span></div>
-        <div className="stat-card"><span className="stat-label">Culls</span><span className="stat-value">{flock.total_culls} ({flock.cull_percentage}%)</span></div>
-        <div className="stat-card stat-success"><span className="stat-label">Sold</span><span className="stat-value">{cumulative.total_sold_birds.toLocaleString()} / {cumulative.total_sold_weight_kg.toLocaleString()} kg</span></div>
-        <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{(cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags).toFixed(1)} bags<br/><small>{cumulative.total_feed_kg.toLocaleString()} kg</small></span></div>
-        {cumulative.feed_reconciliation && (
-          <div className={`stat-card ${cumulative.feed_reconciliation.is_balanced ? '' : 'stat-alert'}`}>
-            <span className="stat-label">Feed Dispatched vs Fed</span>
-            <span className="stat-value">
-              {cumulative.feed_reconciliation.dispatched_bags} / {cumulative.feed_reconciliation.consumed_bags} bags
-              <br/><small>{cumulative.feed_reconciliation.is_balanced ? '● balanced' : `${cumulative.feed_reconciliation.variance_bags > 0 ? '+' : ''}${cumulative.feed_reconciliation.variance_bags} bags (${cumulative.feed_reconciliation.variance_pct}%)`}</small>
-            </span>
-          </div>
-        )}
-        <div className="stat-card stat-info"><span className="stat-label">FCR</span><span className="stat-value">{cumulative.fcr ?? '—'}</span></div>
-        {cumulative.epef != null && (
-          <div className="stat-card stat-info"><span className="stat-label">EPEF</span><span className="stat-value">{cumulative.epef}</span></div>
-        )}
-        {cumulative.weight_vs_standard && (
-          <div className={`stat-card ${cumulative.weight_vs_standard.status === 'below' ? 'stat-alert' : cumulative.weight_vs_standard.status === 'above' ? 'stat-success' : ''}`}>
-            <span className="stat-label">Weight vs Target (d{cumulative.weight_vs_standard.day})</span>
-            <span className="stat-value">
-              {cumulative.weight_vs_standard.actual_g}g
-              <br/><small>{cumulative.weight_vs_standard.variance_pct > 0 ? '+' : ''}{cumulative.weight_vs_standard.variance_pct}% vs {cumulative.weight_vs_standard.standard_g}g</small>
-            </span>
-          </div>
-        )}
-        <div className="stat-card"><span className="stat-label">Med Cost</span><span className="stat-value">₹{parseFloat(flock.total_medication_cost).toLocaleString()}</span></div>
-        <div className="stat-card"><span className="stat-label">Current Feed</span><span className="stat-value"><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></span></div>
-      </div>
-
-      <BagCountSection flock={flock} canEdit={canEditFarm(flock.farm)} isAdmin={isAdmin} />
-
-      {/* Feed Schedule Progress */}
-      <h2 style={{ margin: '1.5rem 0 0.75rem' }}>Feed Schedule</h2>
-      <div className="feed-progress-grid">
-        <div className="feed-progress-card">
-          <div className="feed-progress-header">
-            <span className="feed-badge feed-badge-bpsc">BPSC</span>
-            <span>{fs.bpsc_used_bags} / ~{fs.bpsc_estimate_bags} bags ({fs.bpsc_used_kg} / ~{fs.bpsc_estimate_kg} kg)</span>
-          </div>
-          <div className="progress-bar"><div className="progress-fill progress-bpsc" style={{ width: `${pctUsed(fs.bpsc_used_kg, fs.bpsc_estimate_kg)}%` }}></div></div>
-          <span className="feed-progress-sub">{fs.bpsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bpsc_per_bird_kg} kg/bird</span>
-        </div>
-        <div className="feed-progress-card">
-          <div className="feed-progress-header">
-            <span className="feed-badge feed-badge-bsc">BSC</span>
-            <span>{fs.bsc_used_bags} / ~{fs.bsc_estimate_bags} bags ({fs.bsc_used_kg} / ~{fs.bsc_estimate_kg} kg)</span>
-          </div>
-          <div className="progress-bar"><div className="progress-fill progress-bsc" style={{ width: `${pctUsed(fs.bsc_used_kg, fs.bsc_estimate_kg)}%` }}></div></div>
-          <span className="feed-progress-sub">{fs.bsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bsc_per_bird_kg} kg/bird</span>
-        </div>
-        <div className="feed-progress-card">
-          <div className="feed-progress-header">
-            <span className="feed-badge feed-badge-bfp">BFP</span>
-            <span>{fs.bfp_used_bags} bags ({fs.bfp_used_kg} kg)</span>
-          </div>
-          <span className="feed-progress-sub">No fixed target — given after BPSC &amp; BSC</span>
-        </div>
-      </div>
-
-
-      {/* Charts */}
-      {cumulative.entries.length > 0 && (
-        <>
-          <h2 style={{ margin: '2rem 0 1rem' }}>Feed by Type — Cumulative (bags)</h2>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={cumulative.entries}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="day_number" label={{ value: 'Day', position: 'bottom' }} />
-                <YAxis /><Tooltip /><Legend />
-                <Area type="monotone" dataKey="cum_bpsc_bags" name="BPSC (bags)" stackId="1" stroke="#e67e22" fill="#fdebd0" />
-                <Area type="monotone" dataKey="cum_bsc_bags" name="BSC (bags)" stackId="1" stroke="#2980b9" fill="#d4e6f1" />
-                <Area type="monotone" dataKey="cum_bfp_bags" name="BFP (bags)" stackId="1" stroke="#27ae60" fill="#d5f5e3" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          <h2 style={{ margin: '2rem 0 1rem' }}>Mortality</h2>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={cumulative.entries}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="day_number" /><YAxis /><Tooltip /><Legend />
-                <Line type="monotone" dataKey="cumulative_mortality" name="Cumulative" stroke="#e74c3c" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="daily_mortality" name="Daily" stroke="#e67e22" strokeWidth={1.5} strokeDasharray="4 4" dot={{ r: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
+            )}
+            {hasEntries && (
+              <>
           {/* Body Weight vs Standard Curve */}
-          {(cumulative.entries.some(e => e.avg_body_weight_grams) || cumulative.standard_curve) && (
+          {!cumulative.entries.some(e => e.avg_body_weight_grams) && (
+            <p className="note-line">Body weight: none recorded yet. Add a weight in a daily entry to compare with the Cobb 400 standard.</p>
+          )}
+          {cumulative.entries.some(e => e.avg_body_weight_grams) && (
             <>
-              <h2 style={{ margin: '2rem 0 1rem' }}>Body Weight vs Cobb 400 Standard</h2>
+              <h2 className="section-h">Body Weight vs Cobb 400 Standard</h2>
               <div className="chart-container">
                 <ResponsiveContainer width="100%" height={350}>
                   <LineChart>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E4EAF0" vertical={false} />
                     <XAxis
                       dataKey="day_number"
                       type="number"
@@ -574,7 +496,7 @@ export default function FlockDetail() {
                       type="monotone"
                       dataKey="standard_weight_grams"
                       name="Cobb 400 Standard"
-                      stroke="#bdc3c7"
+                      stroke="#8DA2B8"
                       strokeWidth={2}
                       strokeDasharray="6 4"
                       dot={false}
@@ -585,9 +507,9 @@ export default function FlockDetail() {
                       type="monotone"
                       dataKey="avg_body_weight_grams"
                       name="Actual Weight"
-                      stroke="#3498db"
+                      stroke="#0F766E"
                       strokeWidth={2.5}
-                      dot={{ r: 5, fill: '#3498db' }}
+                      dot={{ r: 5, fill: '#0F766E' }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -632,8 +554,72 @@ export default function FlockDetail() {
               )}
             </>
           )}
+          <h2 className="section-h">Mortality</h2>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={cumulative.entries}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E4EAF0" vertical={false} />
+                <XAxis dataKey="day_number" /><YAxis /><Tooltip /><Legend />
+                <Line type="monotone" dataKey="cumulative_mortality" name="Cumulative" stroke="#B42318" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="daily_mortality" name="Daily" stroke="#C2410C" strokeWidth={1.5} strokeDasharray="4 4" dot={{ r: 2 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+              </>
+            )}
+          </div>
 
-          <h2 style={{ margin: '2rem 0 1rem' }}>Daily Entries</h2>
+          <aside className="flock-aside">
+            <Panel title="Summary">
+              <dl className="kv kv-panel">
+                <dt>Placed</dt><dd>{fmtDate(flock.placement_date)}</dd>
+                <dt>Chicks</dt><dd className="num">{fmtNum(flock.chick_count)}</dd>
+                <dt>Age</dt><dd className="num">{flock.age_days} days</dd>
+                <dt>Sold</dt><dd className="num">{fmtNum(cumulative.total_sold_birds)} · {fmtNum(cumulative.total_sold_weight_kg)} kg</dd>
+                <dt>Feed used</dt><dd className="num">{totalBags.toFixed(1)} bags</dd>
+                {fr && <><dt>Dispatched vs fed</dt><dd className={`num ${fr.is_balanced ? '' : 'tone-danger'}`}>{fr.dispatched_bags} / {fr.consumed_bags}{fr.is_balanced ? '' : ` (${fr.variance_bags > 0 ? '+' : ''}${fr.variance_bags})`}</dd></>}
+                <dt>Current feed</dt><dd><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></dd>
+                <dt>Medicine cost</dt><dd className="num">₹{fmtNum(flock.total_medication_cost)}</dd>
+              </dl>
+            </Panel>
+      {/* Performance scorecard */}
+      {cumulative.scorecard && cumulative.scorecard.components.length > 0 && (
+        <div className={`scorecard scorecard-${cumulative.scorecard.rating.toLowerCase()}`}>
+          <div className="scorecard-head">
+            <div>
+              <span className="scorecard-label">Performance</span>
+              <span className="scorecard-rating">{cumulative.scorecard.rating}</span>
+            </div>
+            <div className="scorecard-score">
+              {cumulative.scorecard.overall_score}<small>/100</small>
+              {cumulative.scorecard.farmer_grade && (
+                <span className="scorecard-grade">Grade {cumulative.scorecard.farmer_grade}</span>
+              )}
+            </div>
+          </div>
+          <div className="scorecard-bars">
+            {cumulative.scorecard.components.map((c) => (
+              <div className="scorecard-bar" key={c.label}>
+                <div className="scorecard-bar-top">
+                  <span className="scorecard-bar-label">{c.label}</span>
+                  <span className="scorecard-bar-detail">{c.detail}</span>
+                </div>
+                <div className="scorecard-track">
+                  <div className="scorecard-fill" style={{ width: `${Math.max(0, Math.min(100, c.score))}%` }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+            <ChickQualityCard flock={flock} canEdit={canEditFarm(flock.farm)} onSaved={load} />
+          </aside>
+        </div>
+      )}
+
+      {tab === 'entries' && (hasEntries ? (
+        <>
+          <h2 className="section-h">Daily Entries</h2>
           <div className="table-wrapper">
             <table>
               <thead>
@@ -677,12 +663,12 @@ export default function FlockDetail() {
             </table>
           </div>
         </>
-      )}
+      ) : <div className="empty-state"><p>No entries yet. Click "+ Daily Entry" to start recording.</p></div>)}
 
-      {/* Sales */}
-      {cumulative.sales && cumulative.sales.length > 0 && (
-        <>
-          <h2 style={{ margin: '2rem 0 1rem' }}>Sales / Liftings</h2>
+      {tab === 'sales' && (
+        (cumulative.sales || []).length === 0 ? <div className="empty-state"><p>No sales recorded yet.</p></div> : (
+      <>
+          <h2 className="section-h">Sales / Liftings</h2>
           <div className="table-wrapper">
             <table>
               <thead><tr><th>Date</th><th>Trader</th><th>Birds</th><th>Weight</th><th>Avg/Bird</th><th>Rate</th><th>Amount</th><th>Notes</th></tr></thead>
@@ -703,12 +689,81 @@ export default function FlockDetail() {
             </table>
           </div>
         </>
+      ))}
+
+      {tab === 'feed' && (
+        <>
+          {flock.status === 'active' && cumulative.flock_feed_stock && (
+            <div className="farm-stock-bar">
+              <strong>This Flock's Feed Stock:</strong>
+              <span className={`feed-badge feed-badge-bpsc ${cumulative.flock_feed_stock.bpsc <= 0 ? 'stock-low' : ''}`}>BPSC: {cumulative.flock_feed_stock.bpsc}</span>
+              <span className={`feed-badge feed-badge-bsc ${cumulative.flock_feed_stock.bsc <= 0 ? 'stock-low' : ''}`}>BSC: {cumulative.flock_feed_stock.bsc}</span>
+              <span className={`feed-badge feed-badge-bfp ${cumulative.flock_feed_stock.bfp <= 0 ? 'stock-low' : ''}`}>BFP: {cumulative.flock_feed_stock.bfp}</span>
+              <span>Total: {cumulative.flock_feed_stock.total} bags</span>
+              {cumulative.flock_feed_stock.total <= 0 && <span className="text-danger" style={{ fontSize: '0.8rem' }}>Order feed for this flock</span>}
+            </div>
+          )}
+          <h2 className="section-h">Feed Schedule</h2>
+      <h2 style={{ margin: '1.5rem 0 0.75rem' }}>Feed Schedule</h2>
+      <div className="feed-progress-grid">
+        <div className="feed-progress-card">
+          <div className="feed-progress-header">
+            <span className="feed-badge feed-badge-bpsc">BPSC</span>
+            <span>{fs.bpsc_used_bags} / ~{fs.bpsc_estimate_bags} bags ({fs.bpsc_used_kg} / ~{fs.bpsc_estimate_kg} kg)</span>
+          </div>
+          <div className="progress-bar"><div className="progress-fill progress-bpsc" style={{ width: `${pctUsed(fs.bpsc_used_kg, fs.bpsc_estimate_kg)}%` }}></div></div>
+          <span className="feed-progress-sub">{fs.bpsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bpsc_per_bird_kg} kg/bird</span>
+        </div>
+        <div className="feed-progress-card">
+          <div className="feed-progress-header">
+            <span className="feed-badge feed-badge-bsc">BSC</span>
+            <span>{fs.bsc_used_bags} / ~{fs.bsc_estimate_bags} bags ({fs.bsc_used_kg} / ~{fs.bsc_estimate_kg} kg)</span>
+          </div>
+          <div className="progress-bar"><div className="progress-fill progress-bsc" style={{ width: `${pctUsed(fs.bsc_used_kg, fs.bsc_estimate_kg)}%` }}></div></div>
+          <span className="feed-progress-sub">{fs.bsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bsc_per_bird_kg} kg/bird</span>
+        </div>
+        <div className="feed-progress-card">
+          <div className="feed-progress-header">
+            <span className="feed-badge feed-badge-bfp">BFP</span>
+            <span>{fs.bfp_used_bags} bags ({fs.bfp_used_kg} kg)</span>
+          </div>
+          <span className="feed-progress-sub">No fixed target — given after BPSC &amp; BSC</span>
+        </div>
+      </div>
+          {hasEntries && (
+            <>
+          <h2 className="section-h">Feed by Type — Cumulative (bags)</h2>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={cumulative.entries}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E4EAF0" vertical={false} />
+                <XAxis dataKey="day_number" label={{ value: 'Day', position: 'bottom' }} />
+                <YAxis /><Tooltip /><Legend />
+                <Area type="monotone" dataKey="cum_bpsc_bags" name="BPSC (bags)" stackId="1" stroke="#C2410C" fill="#FBE3D3" />
+                <Area type="monotone" dataKey="cum_bsc_bags" name="BSC (bags)" stackId="1" stroke="#1D4ED8" fill="#DCE6FB" />
+                <Area type="monotone" dataKey="cum_bfp_bags" name="BFP (bags)" stackId="1" stroke="#0F766E" fill="#D3EEEA" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+            </>
+          )}
+      <BagCountSection flock={flock} canEdit={canEditFarm(flock.farm)} isAdmin={isAdmin} />
+        </>
       )}
 
-      {/* Medications */}
-      {flock.medications && flock.medications.length > 0 && (
+      {tab === 'health' && (
         <>
-          <h2 style={{ margin: '2rem 0 1rem' }}>Medications / Vaccines <small style={{ fontWeight: 400, color: '#6b6b6b' }}>(Total: ₹{parseFloat(flock.total_medication_cost).toLocaleString()})</small></h2>
+          {cumulative.water_alerts && cumulative.water_alerts.length > 0 && (
+            <div className="alert-banner alert-banner-warning">
+              💧 Water:feed ratio out of range on {cumulative.water_alerts.length} day{cumulative.water_alerts.length > 1 ? 's' : ''}:
+              {' '}{cumulative.water_alerts.slice(0, 3).map(a => `d${a.day} ${a.ratio}L/kg (${a.status})`).join(', ')}
+              {cumulative.water_alerts.length > 3 ? '…' : ''}.
+              {' '}Low can signal illness/under-drinking; high can signal heat stress or spillage.
+            </div>
+          )}
+          {(flock.medications || []).length === 0 ? <div className="empty-state"><p>No medicines or vaccines recorded yet.</p></div> : (
+      <>
+          <h2 className="section-h">Medications / Vaccines <small style={{ fontWeight: 400, color: '#6b6b6b' }}>(Total: ₹{parseFloat(flock.total_medication_cost).toLocaleString()})</small></h2>
           <div className="table-wrapper">
             <table>
               <thead><tr><th>Date</th><th>Day</th><th>Name</th><th>Dose</th><th>Route</th><th>Cost (₹)</th><th>Reason</th></tr></thead>
@@ -728,13 +783,12 @@ export default function FlockDetail() {
             </table>
           </div>
         </>
+          )}
+        </>
       )}
 
-      {cumulative.entries.length === 0 && (
-        <div className="empty-state" style={{ marginTop: '2rem' }}>
-          <p>No entries yet. Click "+ Daily Entry" to start recording.</p>
-        </div>
-      )}
+      {tab === 'documents' && <DocumentsSection flockId={flock.id} canEdit={canEditFarm(flock.farm)} />}
+      </div>
 
       {/* Close Flock Modal */}
       {showCloseModal && (
@@ -800,8 +854,6 @@ export default function FlockDetail() {
         onConfirm={confirm.onConfirm}
         onCancel={() => setConfirm({ ...confirm, open: false })}
       />
-
-      <DocumentsSection flockId={flock.id} canEdit={canEditFarm(flock.farm)} />
     </div>
   );
 }

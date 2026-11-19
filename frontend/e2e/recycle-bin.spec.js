@@ -7,7 +7,7 @@ test.beforeAll(() => reseed());
 
 test('delete a daily entry → it appears in the bin → restore brings it back', async ({ page, request }) => {
   const flock = await flockIdOf(request, 'A1');
-  await loginAs(page, 'sup_a', `/flocks/${flock}`);
+  await loginAs(page, 'sup_a', `/flocks/${flock}?tab=entries`);
   await page.locator('tr', { hasText: daysAgo(18) }).getByRole('button', { name: 'Delete' }).click();
   await page.getByRole('button', { name: 'Yes, proceed' }).click();
   await expect(page.locator('tr', { hasText: daysAgo(18) })).toHaveCount(0);

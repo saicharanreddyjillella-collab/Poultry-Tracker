@@ -10,7 +10,7 @@ const countForm = (page) => page.locator('form.form-card', { has: page.getByRole
 
 test('supervisor records a bag count and is told it is short', async ({ page, request }) => {
   const flock = await flockIdOf(request, 'A1');
-  await loginAs(page, 'sup_a', `/flocks/${flock}`);
+  await loginAs(page, 'sup_a', `/flocks/${flock}?tab=feed`);
   await page.getByRole('button', { name: '+ Bag Count' }).click();
   const f = countForm(page);
   await expect(field(f, 'Date *')).toHaveValue(daysAgo(0));
@@ -23,7 +23,7 @@ test('supervisor records a bag count and is told it is short', async ({ page, re
 
 test('a second count for the same day is explained', async ({ page, request }) => {
   const flock = await flockIdOf(request, 'A1');
-  await loginAs(page, 'sup_a', `/flocks/${flock}`);
+  await loginAs(page, 'sup_a', `/flocks/${flock}?tab=feed`);
   await page.getByRole('button', { name: '+ Bag Count' }).click();
   await field(countForm(page), 'BFP bags').fill('185');
   await countForm(page).getByRole('button', { name: 'Save Count' }).click();
@@ -32,7 +32,7 @@ test('a second count for the same day is explained', async ({ page, request }) =
 
 test('supervisor cannot remove a count; the API refuses too', async ({ page, request }) => {
   const flock = await flockIdOf(request, 'A1');
-  await loginAs(page, 'sup_a', `/flocks/${flock}`);
+  await loginAs(page, 'sup_a', `/flocks/${flock}?tab=feed`);
   await expect(page.locator('.bag-counts table')).toBeVisible();
   await expect(page.locator('.bag-counts').getByRole('button', { name: 'Remove' })).toHaveCount(0);
   const [c] = (await api(request, 'admin', 'GET', `/feed-counts/?flock=${flock}`)).body;
@@ -63,7 +63,7 @@ test('region filter and "Problems only"', async ({ page }) => {
 
 test('admin removes a count', async ({ page, request }) => {
   const flock = await flockIdOf(request, 'A1');
-  await loginAs(page, 'admin', `/flocks/${flock}`);
+  await loginAs(page, 'admin', `/flocks/${flock}?tab=feed`);
   page.once('dialog', d => d.accept());
   await page.locator('.bag-counts').getByRole('button', { name: 'Remove' }).click();
   await expect(page.locator('.bag-counts table')).toHaveCount(0);
