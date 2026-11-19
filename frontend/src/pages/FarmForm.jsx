@@ -98,11 +98,11 @@ export default function FarmForm() {
             </select>
             <small className="field-hint">1% TDS for Individual/HUF, 2% otherwise</small>
           </div>
-          <div className="form-group">
+          {isAdmin && <div className="form-group">
             <label>PAN</label>
             <input value={form.pan || ''} onChange={e => setForm({ ...form, pan: e.target.value.toUpperCase() })} placeholder="ABCDE1234F" maxLength={10} style={{ textTransform: 'uppercase' }} />
-            <small className="field-hint">Used for TDS reporting (optional)</small>
-          </div>
+            <small className="field-hint">Used for TDS reporting (optional, admin only)</small>
+          </div>}
         </div>
         <div className="form-row">
           <div className="form-group">

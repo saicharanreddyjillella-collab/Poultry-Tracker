@@ -75,7 +75,7 @@ READS = [
     ("/api/feed-orders/",                       (200, 200, 200, 401)),
     ("/api/feed-transfers/",                    (200, 200, 200, 401)),
     ("/api/feed-stock/",                        (200, 200, 200, 401)),
-    ("/api/feed-rates/",                        (200, 200, 200, 401)),
+    ("/api/feed-rates/",                        (200, 403, 200, 401)),   # prices: admin + mill
     ("/api/dashboard/",                         (200, 200, 403, 401)),
     ("/api/flocks/{fb.id}/cumulative/",         (200, 404, 403, 401)),
     ("/api/flocks/{fa.id}/cumulative/",         (200, 200, 403, 401)),

@@ -237,10 +237,10 @@ export default function FarmDetail() {
               <span className="stat-label">Avg Bird Wt</span>
               <span className="stat-value">{cumulative.avg_bird_weight_kg ?? '—'} kg</span>
             </div>
-            <div className="stat-card stat-success">
+            {isAdmin && <div className="stat-card stat-success">
               <span className="stat-label">Sale Amount</span>
               <span className="stat-value">₹{fmtDec(cumulative.total_sale_amount)}</span>
-            </div>
+            </div>}
             <div className="stat-card">
               <span className="stat-label">Feed</span>
               <span className="stat-value">{fmtDec(cumulative.total_feed_kg)} kg</span>
@@ -250,10 +250,10 @@ export default function FarmDetail() {
               <span className="stat-label">FCR</span>
               <span className="stat-value">{cumulative.fcr ?? '—'}</span>
             </div>
-            <div className="stat-card stat-info">
+            {isAdmin && <div className="stat-card stat-info">
               <span className="stat-label">Feed Cost / kg</span>
               <span className="stat-value">{cumulative.cost_per_kg_production != null ? `₹${fmtDec(cumulative.cost_per_kg_production)}` : '—'}</span>
-            </div>
+            </div>}
           </div>
         </>
       )}
