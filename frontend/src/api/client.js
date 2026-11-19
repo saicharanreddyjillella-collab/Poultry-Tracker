@@ -335,6 +335,7 @@ export const insightsAPI = {
   heatStress: () => API.get('/reports/heat-stress/'),
   hatcheries: (days) => API.get(`/reports/hatcheries/${days ? `?days=${days}` : ''}`),
   liftPlanner: (trend = true) => API.get(`/reports/lift-planner/${trend ? '' : '?trend=0'}`),
+  growerRanking: (params = {}) => API.get('/reports/grower-ranking/', { params }),
 };
 
 export const marketRateAPI = {

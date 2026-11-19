@@ -35,12 +35,12 @@ def switch(world, key, on):
 
 def test_features_are_on_by_default_and_everyone_can_read_the_switches(world):
     for who in ("admin", "sup", "mill"):
-        assert world[who].get("/api/features/").data == {"feed_audit": True, "lift_planner": True}
+        assert world[who].get("/api/features/").data == {"feed_audit": True, "lift_planner": True, "placement_planner": True}
 
 
 def test_admin_sees_each_feature_with_what_turning_it_off_does(world):
     rows = world["admin"].get("/api/settings/features/").data
-    assert [r["key"] for r in rows] == ["feed_audit", "lift_planner"]
+    assert [r["key"] for r in rows] == ["feed_audit", "lift_planner", "placement_planner"]
     assert all(r["name"] and r["description"] and r["when_off"] and r["enabled"] for r in rows)
     assert rows[0]["updated_by"] is None
 

@@ -840,3 +840,20 @@ settings admin-only; plant user = feed only.
   random failures. `loginAs` now clears storage first (32/32 repeated runs).
 - Tests: backend test_features.py (7), vitest Settings.test.jsx (3), e2e
   settings.spec.js (4).
+
+### Who gets the next chicks — grower ranking + placement plan (admin only)  ✅ DONE
+- **Insights → Who Gets the Next Chicks** (/grower-ranking), admin only, with
+  its own on/off switch in Settings → Features (starts on).
+- Score 0–100 per farm from its last 4 settled (billed) flocks in 2 years,
+  using the bill's final numbers: FCR 45%, mortality 35%, consistency (spread
+  of FCR between cycles; one cycle = middle) 20%. Each part is a percentile
+  among your scored growers (best = 100). Farms with no settled flock are
+  listed separately as new growers. Click a grower for its cycles.
+- Availability: a farm can take chicks when it has no running flock, its last
+  flock is billed, and it was settled at least N rest days ago (default 14).
+- Plan: enter chicks available (+ rest days, region) → free farms filled in
+  score order, then new growers; each gets its capacity, or the chicks left
+  when that is within the ±5% capacity rule, else it is skipped; chicks that
+  fit nowhere are shown as left over.
+- Tests: backend test_placement.py (11), vitest access, e2e
+  grower-ranking.spec.js (4).
