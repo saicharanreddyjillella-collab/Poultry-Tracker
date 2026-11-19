@@ -117,3 +117,65 @@ tbody tr:hover td { background: #F9FBFC; }
 
 /* Old top-bar classes are no longer used by the shell (kept for the print layout). */
 .navbar { display: none; }
+
+/* ── Tiles, dashboard and data tables ── */
+.tiles { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 1.25rem; }
+.tile-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+.tile-unit { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.8125rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0; }
+.sparkline { flex: 0 0 auto; }
+.tone-ok { color: var(--ok); font-weight: 600; }
+.tone-warn { color: var(--warning); font-weight: 600; }
+.tone-danger { color: var(--danger); font-weight: 600; }
+.small { font-size: 0.75rem; }
+
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem; }
+.panel-link { font-size: 0.8125rem; font-weight: 600; color: var(--primary); }
+.panel-actions { display: flex; align-items: center; gap: 8px; }
+.panel-foot { padding: 0.625rem 1rem; border-top: 1px solid #E4EAF0; font-size: 0.8125rem; color: var(--text-muted); }
+.panel-foot a { color: var(--primary); font-weight: 500; }
+.empty-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--text-muted); }
+
+.region-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.region-cell { padding: 0.875rem 1rem; border-right: 1px solid #E4EAF0; border-bottom: 1px solid #E4EAF0; }
+.region-name { font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.5rem; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-size: 0.8125rem; }
+.kv dt { color: var(--text-muted); }
+.kv dd { margin: 0; text-align: right; }
+
+.alert-list { list-style: none; margin: 0; padding: 0.25rem 0; }
+.alert-list li { display: flex; gap: 10px; align-items: flex-start; padding: 0.55rem 1rem; }
+.alert-list li + li { border-top: 1px solid #F0F3F6; }
+.alert-list div { display: flex; flex-direction: column; min-width: 0; }
+.alert-farm { font-weight: 600; font-size: 0.8125rem; color: var(--text); }
+a.alert-farm:hover { color: var(--primary); }
+.alert-msg { font-size: 0.8125rem; color: var(--text-muted); }
+.dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; background: var(--nav-muted); }
+.dot-danger { background: var(--danger); } .dot-warn { background: #C2410C; } .dot-info { background: var(--info); } .dot-ok { background: var(--ok); }
+
+.data-table th.r, .data-table td.r { text-align: right; }
+.data-table td { vertical-align: middle; }
+.cell-title { font-weight: 600; color: var(--primary); }
+.cell-title:hover { text-decoration: underline; }
+.action-link:hover .chip { filter: brightness(0.96); text-decoration: underline; }
+
+.meter { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.meter-track { width: 72px; height: 6px; border-radius: 3px; background: #E4EAF0; display: inline-block; overflow: hidden; }
+.meter-fill { display: block; height: 100%; border-radius: 3px; }
+.meter-ok { background: var(--primary); } .meter-warn { background: #C2410C; } .meter-danger { background: var(--danger); }
+.dash-grid { align-items: start; }
+
+/* Phone: two figures per row; tables marked cards-on-phone become one card per row. */
+@media (max-width: 640px) {
+  .tiles { grid-template-columns: 1fr 1fr; gap: 0.625rem; }
+  .tile .sparkline { display: none; }
+  .tile .stat-value { font-size: 1.125rem; }
+  .page-header { flex-wrap: wrap; gap: 10px; }
+  .cards-on-phone thead { display: none; }
+  .cards-on-phone, .cards-on-phone tbody { display: block; }
+  .cards-on-phone tr { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; padding: 0.75rem 1rem; border-top: 1px solid #E4EAF0; }
+  .cards-on-phone td { display: flex; justify-content: space-between; gap: 8px; padding: 0; border: 0; text-align: left !important; }
+  .cards-on-phone td[data-label]::before { content: attr(data-label); color: var(--text-muted); font-family: 'IBM Plex Sans', sans-serif; font-size: 0.75rem; }
+  .cards-on-phone .cell-main { grid-column: 1; font-size: 0.875rem; }
+  .cards-on-phone .cell-action { grid-column: 2; grid-row: 1; justify-content: flex-end; }
+  .cards-on-phone tbody tr:hover td { background: none; }
+}

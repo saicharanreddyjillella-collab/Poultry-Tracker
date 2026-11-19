@@ -1,6 +1,13 @@
 """Shared pytest fixtures for the poultry-suite backend test suite."""
 import datetime
+import os
+import time
 from decimal import Decimal
+
+# Test modules compute "today" when imported, before Django switches the process clock to
+# TIME_ZONE. Switch it here first, so tests agree with the app between 00:00 and 05:30 IST.
+os.environ['TZ'] = 'Asia/Kolkata'
+time.tzset()
 
 import pytest
 from django.contrib.auth.models import User

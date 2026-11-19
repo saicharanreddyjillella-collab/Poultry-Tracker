@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import viewsets
 from ..pagination import GuardedListMixin
 from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
@@ -388,6 +389,8 @@ def dashboard(request):
             })
 
     data['alerts'] = alerts
+    from ..control_room import control_room          # next actions, trends, regions (no extra per-flock queries)
+    data.update(control_room(active_flocks, list(farms), today))
     return Response(data)
 
 
@@ -1018,7 +1021,7 @@ def owner_dashboard(request):
         })
 
     # ── 2. Region / period summary (closed flocks billed in the period) ──
-    period_closed = [f for f in closed if hasattr(f, 'bill') and f.bill and f.bill.generated_at.date() >= since]
+    period_closed = [f for f in closed if hasattr(f, 'bill') and f.bill and timezone.localdate(f.bill.generated_at) >= since]
     region_map = {}
     for f in period_closed:
         r = f.farm.region or 'Unassigned'

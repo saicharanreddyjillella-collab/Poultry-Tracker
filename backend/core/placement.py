@@ -13,6 +13,7 @@ Placement: farms with no active flock whose last flock was settled at least
 farms first, then new growers; each farm gets its capacity — or the chicks left
 when that is still within the ±5% capacity rule — and is skipped otherwise.
 """
+from django.utils import timezone
 import datetime
 import statistics
 
@@ -50,7 +51,7 @@ def grower_scores(farms, today):
             continue
         rows = cycles.setdefault(b.flock.farm_id, [])
         if len(rows) < MAX_CYCLES:
-            rows.append({'flock_id': b.flock_id, 'closed': b.generated_at.date().isoformat(),
+            rows.append({'flock_id': b.flock_id, 'closed': timezone.localdate(b.generated_at).isoformat(),
                          'placement_date': b.flock.placement_date.isoformat(),
                          'fcr': round(float(b.total_feed_kg) / sold, 3),
                          'mortality_pct': round(b.total_mortality / b.chicks_placed * 100, 2),
@@ -91,7 +92,7 @@ def availability(farms, today, rest_days):
     last_bill = {}
     for b in (Bill.objects.filter(flock__farm__in=farms, flock__deleted_at__isnull=True)
               .select_related('flock').order_by('generated_at')):
-        last_bill[b.flock.farm_id] = b.generated_at.date()
+        last_bill[b.flock.farm_id] = timezone.localdate(b.generated_at)
     closed_unbilled = set(Flock.objects.filter(farm__in=farms, status='closed', bill__isnull=True)
                           .values_list('farm_id', flat=True))
     out = {}

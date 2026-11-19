@@ -921,3 +921,23 @@ settings admin-only; plant user = feed only.
   no ratio, no alarm.
 - Tests: vitest AppShell (4), water test, e2e helpers read the sidebar; all
   browser tests pass on the new frame.
+
+### UI redesign 2/3a — Control-room dashboard (+ BUG-028)  ✅ DONE
+- Dashboard rebuilt in Style B: key figures with 14-day trend lines (live
+  birds, mortality, daily entries done/due, feed used, feed on farms + pending
+  orders; feed rates admin-only), Regions panel, Alerts panel, and a
+  "Flocks on the ground" table — age, live, mortality %, weight vs standard,
+  feed on farm, last entry and a NEXT ACTION per flock (Close & bill / No
+  entry for N days / Daily entry due / Order feed / On track), worst first.
+  Empty farms listed under the table. Phones: two figures per row, flocks as
+  cards.
+- Backend: core/control_room.py adds the figures to /api/dashboard/ from the
+  already-primed flocks (no extra per-flock queries).
+- Shared UI pieces: components/ui.jsx (StatTile, Sparkline, Panel, Chip,
+  Meter), utils/format.js (fmtNum, fmtDate).
+- BUG-028: a farm's rest period (Who Gets the Next Chicks) and the owner
+  dashboard's "closed in period" took the bill's date from its UTC time, so a
+  bill settled between 00:00 and 05:30 IST counted from the day before. Now the
+  Indian date. Tests also failed in that window (they worked out "today"
+  before Django set the clock to IST); conftest sets IST first.
+- Tests: test_control_room (4), e2e dashboard.spec (2); all suites pass.
