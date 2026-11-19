@@ -33,7 +33,7 @@ test('Feed Audit off: card, page and bag counts disappear for everyone; data com
   await page.goto('/feed-audit');
   await expect(page.getByRole('status')).toContainText('Feed Audit is turned off');
 
-  await loginAs(page, 'sup_a', `/flocks/${flock}`);
+  await loginAs(page, 'sup_a', `/flocks/${flock}?tab=feed`);
   await expect(page.getByRole('heading', { name: 'Lakshmi Farm — Flock' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Feed Bag Counts' })).toHaveCount(0);
   expect((await api(request, 'sup_a', 'GET', `/feed-counts/?flock=${flock}`)).status).toBe(403);
@@ -41,7 +41,7 @@ test('Feed Audit off: card, page and bag counts disappear for everyone; data com
   await loginAs(page, 'admin', '/settings');
   await flip(page, 'Feed Audit (bag counts)');
   await expect(sw(page, 'Feed Audit (bag counts)')).toBeChecked();
-  await page.goto(`/flocks/${flock}`);
+  await page.goto(`/flocks/${flock}?tab=feed`);
   await expect(page.locator('.bag-counts table')).toContainText('180');           // saved count kept
 });
 

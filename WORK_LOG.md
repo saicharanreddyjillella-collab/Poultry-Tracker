@@ -951,3 +951,18 @@ settings admin-only; plant user = feed only.
   kept in the address (?status=&region=&q=), so the top-bar search and
   bookmarks open the same view. Phones: one card per farm.
 - Tests: e2e farms-table.spec (2).
+
+### UI redesign 2/3c — Flock page with tabs  ✅ DONE
+- Breadcrumb (Farms / farm / flock placed …), status chip next to the title
+  (Active · day N / Sold out · bill due / Closed), actions on the right.
+- Tabs, kept in the address (?tab=): Overview · Daily entries · Sales · Feed ·
+  Health · Documents, with counts. After saving an entry, sale, medicine or
+  feed order the matching tab opens, so the new row is in view.
+- Overview: four key figures (live birds, mortality with trend, FCR + EPEF,
+  weight vs target), body-weight vs Cobb standard and mortality charts,
+  and a side column with the summary, performance score and chick quality.
+  Feed tab: flock stock, schedule progress, feed-by-type chart, bag counts.
+  Health tab: water warnings and medicines. Charts restyled to the theme.
+- No change to forms, saving, billing or permissions.
+- Tests: tabs e2e; flock, feed-audit, settings and recycle-bin tests open
+  the right tab. 127 browser tests pass.

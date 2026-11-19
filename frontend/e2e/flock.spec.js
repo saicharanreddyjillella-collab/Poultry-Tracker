@@ -91,6 +91,7 @@ test('more feed than is in stock is refused', async ({ page }) => {
 test('edit an entry', async ({ page, request }) => {
   const before = (await api(request, 'admin', 'GET', `/daily-entries/?flock=${flock}`)).body
     .find(r => r.date === daysAgo(17));
+  await page.getByRole('tab', { name: /Daily entries/ }).click();
   await page.locator('tr', { hasText: daysAgo(17) }).getByRole('button', { name: 'Edit' }).click();
   const f = entryForm(page);
   await field(f, 'Mortality').fill('7');
@@ -101,6 +102,7 @@ test('edit an entry', async ({ page, request }) => {
 });
 
 test('delete an entry (with a Recycle Bin note)', async ({ page, request }) => {
+  await page.getByRole('tab', { name: /Daily entries/ }).click();
   const row = page.locator('tr', { hasText: daysAgo(19) });
   await row.getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByText(/An admin can restore it from the Recycle Bin/)).toBeVisible();
@@ -150,4 +152,19 @@ test('record a medicine', async ({ page, request }) => {
 test('the excel export downloads', async ({ page }) => {
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export' }).click()]);
   expect(download.suggestedFilename()).toMatch(/\.xlsx$/);
+});
+
+test('tabs: saving an entry shows the Daily entries tab; the tab is kept in the address', async ({ page }) => {
+  await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: /Health/ }).click();
+  await expect(page).toHaveURL(/tab=health/);
+  await page.reload();
+  await expect(page.getByRole('tab', { name: /Health/ })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: '+ Daily Entry' }).click();
+  const f = entryForm(page);
+  await field(f, 'Date *').fill(daysAgo(1));
+  await field(f, 'Mortality').fill('1');
+  await f.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('tab', { name: /Daily entries/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('tr', { hasText: daysAgo(1) })).toHaveCount(1);
 });
