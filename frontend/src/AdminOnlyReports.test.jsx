@@ -34,7 +34,7 @@ const as = (role, path) => {
 
 beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));
 
-test.each(['/owner-dashboard', '/break-even', '/feed-forecast', '/insights', '/feed-audit', '/hatcheries', '/lift-planner'])('supervisor opening %s is sent to the dashboard', async (path) => {
+test.each(['/owner-dashboard', '/break-even', '/feed-forecast', '/insights', '/feed-audit', '/hatcheries', '/lift-planner', '/grower-ranking'])('supervisor opening %s is sent to the dashboard', async (path) => {
   as('supervisor', path);
   await screen.findAllByRole('link', { name: 'Farms' });
   // their dashboard: /feeds on main, / on the Feeds-only release
@@ -54,7 +54,7 @@ test('admin reaches every analysis page from Insights', async () => {
   expect(await screen.findByRole('link', { name: 'Insights' })).toBeInTheDocument();
   window.history.pushState({}, '', '/insights');
   window.dispatchEvent(new PopStateEvent('popstate'));
-  for (const name of [/Feed Audit/, /Best Day to Lift/, /Heat Stress/, /Chick Quality/, /Owner View/, /Break-even/, /Feed Forecast/]) {
+  for (const name of [/Feed Audit/, /Best Day to Lift/, /Who Gets the Next Chicks/, /Heat Stress/, /Chick Quality/, /Owner View/, /Break-even/, /Feed Forecast/]) {
     expect(await screen.findByRole('link', { name })).toBeInTheDocument();
   }
 });

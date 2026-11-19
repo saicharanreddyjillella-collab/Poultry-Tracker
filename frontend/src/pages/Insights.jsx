@@ -8,6 +8,8 @@ const INSIGHTS = [
     text: 'Bag counts vs paper stock and feeding vs the age standard — find where feed is leaving the farm.' },
   { to: '/lift-planner', feature: 'lift_planner', title: 'Best Day to Lift', tag: 'Decide better',
     text: 'Sell now or hold? Value of lifting each flock today vs the next 10 days, from growth, feed cost and the market rate.' },
+  { to: '/grower-ranking', feature: 'placement_planner', title: 'Who Gets the Next Chicks', tag: 'Decide better',
+    text: 'Growers ranked on settled flocks (FCR, mortality, consistency) and a plan for placing the chicks you have.' },
   { to: '/heat-stress', title: 'Heat Stress', tag: 'Prevent losses',
     text: 'Next 5 days of heat risk per farm from the weather forecast, by bird age and shed type — with what to do.' },
   { to: '/hatcheries', title: 'Chick Quality', tag: 'Prevent losses',

@@ -22,6 +22,13 @@ FEATURES = {
         'when_off': 'The Best Day to Lift page is hidden. Market rates already saved are kept.',
         'default': True,
     },
+    'placement_planner': {
+        'name': 'Who Gets the Next Chicks',
+        'description': 'Ranks growers on their settled flocks (feed efficiency, mortality, consistency) and '
+                       'plans which free farms get the next chicks.',
+        'when_off': 'The grower ranking page is hidden. Nothing is stored by this feature.',
+        'default': True,
+    },
 }
 
 
