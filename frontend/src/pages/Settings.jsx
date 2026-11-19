@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { featureAPI, getErrorMessage } from '../api/client';
 import { setFeatureLocally } from '../utils/features';
 import '../styles/insights.css';
@@ -27,7 +28,10 @@ export default function Settings() {
 
   return (
     <div className="page">
-      <h1>Settings</h1>
+      <div className="page-header">
+        <h1>Settings</h1>
+        <Link to="/system-health" className="btn btn-secondary">System Health →</Link>
+      </div>
       <h2>Features</h2>
       <p className="muted">Switch optional features on or off for everyone. Turning one off hides its screens; data
         already saved is kept and comes back when you turn it on again.</p>

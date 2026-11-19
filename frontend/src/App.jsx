@@ -22,6 +22,7 @@ import Hatcheries from './pages/Hatcheries';
 import LiftPlanner from './pages/LiftPlanner';
 import Settings from './pages/Settings';
 import GrowerRanking from './pages/GrowerRanking';
+import SystemHealth from './pages/SystemHealth';
 import OwnerDashboard from './pages/OwnerDashboard';
 import BreakEven from './pages/BreakEven';
 import BillView from './pages/BillView';
@@ -161,6 +162,7 @@ function AppRoutes() {
           <Route path="/lift-planner" element={<AdminRoute><LiftPlanner /></AdminRoute>} />
           <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
           <Route path="/grower-ranking" element={<AdminRoute><GrowerRanking /></AdminRoute>} />
+          <Route path="/system-health" element={<AdminRoute><SystemHealth /></AdminRoute>} />
           <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />
           <Route path="/break-even" element={<AdminRoute><BreakEven /></AdminRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

@@ -46,3 +46,11 @@ def feature_setting(request, key):
     s.save()
     saved = {x.key: x for x in FeatureSetting.objects.select_related('updated_by')}
     return Response(_row(key, all_states(), saved))
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def system_health(request):
+    """Admin: backups, errors, missing entries, weather, features, who is active."""
+    from ..system_health import health_report
+    return Response(health_report())

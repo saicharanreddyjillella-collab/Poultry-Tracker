@@ -45,3 +45,18 @@
 .switch input:checked + .switch-slider::before { transform: translateX(22px); }
 .switch input:focus-visible + .switch-slider { outline: 2px solid var(--primary-light); outline-offset: 2px; }
 .switch input:disabled + .switch-slider { opacity: 0.6; }
+/* System Health */
+.health-overall { padding: 0.75rem 1rem; border-radius: var(--radius); font-weight: 600; margin-bottom: 1rem; }
+.health-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+.health-check { display: flex; gap: 0.75rem; align-items: flex-start; background: var(--surface); border: 1px solid var(--border);
+  border-left-width: 4px; border-radius: var(--radius); padding: 0.75rem 1rem; }
+.health-check p { margin: 0.2rem 0 0; font-size: 0.875rem; color: var(--text-muted); line-height: 1.4; }
+.health-icon { flex: 0 0 1.5rem; height: 1.5rem; border-radius: 50%; display: inline-flex; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 0.85rem; color: #fff; }
+.health-ok.health-check { border-left-color: #2e7d55; } .health-ok .health-icon { background: #2e7d55; }
+.health-warn.health-check { border-left-color: #c98a00; } .health-warn .health-icon { background: #c98a00; }
+.health-error.health-check { border-left-color: #c0392b; } .health-error .health-icon { background: #c0392b; }
+.health-info.health-check { border-left-color: #8a8780; } .health-info .health-icon { background: #8a8780; }
+.health-overall.health-ok { background: #e3f2ea; color: #1f5c40; }
+.health-overall.health-warn { background: #fff3d6; color: #8a5a00; }
+.health-overall.health-error { background: #fde8e6; color: #a5281b; }
