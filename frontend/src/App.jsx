@@ -23,6 +23,7 @@ import FeedAudit from './pages/FeedAudit';
 import HeatStress from './pages/HeatStress';
 import Hatcheries from './pages/Hatcheries';
 import LiftPlanner from './pages/LiftPlanner';
+import Settings from './pages/Settings';
 import OwnerDashboard from './pages/OwnerDashboard';
 import BreakEven from './pages/BreakEven';
 import BillView from './pages/BillView';
@@ -140,6 +141,7 @@ function NavBar() {
           <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
           {user.first_name || user.username}
         </div>
+        {isAdmin && <Link to="/settings" className="nav-mobile-link" onClick={closeMenu}>Settings</Link>}
         <Link to="/change-password" className="nav-mobile-link" onClick={closeMenu}>Change Password</Link>
         <button className="nav-mobile-logout" onClick={handleLogout}>Logout</button>
         <div className="nav-user-menu">
@@ -148,6 +150,7 @@ function NavBar() {
             {user.first_name || user.username} ▾
           </span>
           <div className="nav-dropdown">
+            {isAdmin && <Link to="/settings" className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>}
             <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
             <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
           </div>
@@ -159,7 +162,7 @@ function NavBar() {
 }
 
 function ChickenNav() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   if (!user) return null;
@@ -199,6 +202,7 @@ function ChickenNav() {
             {user.first_name || user.username} ▾
           </span>
           <div className="nav-dropdown">
+            {isAdmin && <Link to="/settings" className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>}
             <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
             <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
           </div>
@@ -210,7 +214,7 @@ function ChickenNav() {
 }
 
 function LayerNav() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   if (!user) return null;
@@ -245,6 +249,7 @@ function LayerNav() {
             {user.first_name || user.username} ▾
           </span>
           <div className="nav-dropdown">
+            {isAdmin && <Link to="/settings" className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>}
             <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
             <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
           </div>
@@ -295,6 +300,7 @@ function AppRoutes() {
           <Route path="/heat-stress" element={<ProtectedRoute><HeatStress /></ProtectedRoute>} />
           <Route path="/hatcheries" element={<AdminRoute><Hatcheries /></AdminRoute>} />
           <Route path="/lift-planner" element={<AdminRoute><LiftPlanner /></AdminRoute>} />
+          <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
           <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />
           <Route path="/break-even" element={<AdminRoute><BreakEven /></AdminRoute>} />
           <Route path="/reports/monthly" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

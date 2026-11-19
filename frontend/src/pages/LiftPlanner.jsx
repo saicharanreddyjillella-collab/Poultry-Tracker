@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsAPI, marketRateAPI, getErrorMessage } from '../api/client';
 import { todayISO } from '../utils/dates';
+import FeatureOff from '../components/FeatureOff';
+import { useFeatures } from '../utils/features';
 import '../styles/insights.css';
 
 const rs = (n) => `₹${Math.round(Number(n || 0)).toLocaleString('en-IN')}`;
@@ -49,6 +51,12 @@ function MarketRates({ onSaved, highlight }) {
 
 /** Admin: for each flock old enough to lift — sell now, or hold and gain? */
 export default function LiftPlanner() {
+  const { loaded, isOn } = useFeatures();
+  if (loaded && !isOn('lift_planner')) return <FeatureOff name="Best Day to Lift" />;
+  return <LiftPlannerPage />;
+}
+
+function LiftPlannerPage() {
   const [trend, setTrend] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');

@@ -822,3 +822,21 @@ settings admin-only; plant user = feed only.
   10 pages; every primed figure equals its un-primed value (incl. a flock with
   no data, a Recycle-Bin entry, a closed billed flock); primed figures need 0
   queries; a saved entry shows up at once on detail and list.
+
+### Settings → Features: switch Feed Audit and Best Day to Lift on/off  ✅ DONE
+- New admin **Settings** page (user menu, top right → Settings). "Features"
+  lists each switchable feature with what it does and what turning it off
+  does, an on/off switch, and who changed it last.
+- Switchable now: **Feed Audit (bag counts)** and **Best Day to Lift**. Both
+  start on. Adding another feature = one entry in `core/features.py`.
+- Off means: screens hidden for everyone (Insights card, the page shows "turned
+  off" with a link to Settings for the admin, bag counts gone from the flock
+  page) and the API refuses (403 "… is turned off. An admin can turn it on in
+  Settings → Features."). Data already saved (bag counts, market rates) is
+  kept and comes back when switched on. Every switch is in the audit log.
+- BUG-023 (browser tests): switching user inside one test could leave the
+  previous user in browser storage (their page was still loading and wrote it
+  back), so the admin was briefly treated as a supervisor and redirected →
+  random failures. `loginAs` now clears storage first (32/32 repeated runs).
+- Tests: backend test_features.py (7), vitest Settings.test.jsx (3), e2e
+  settings.spec.js (4).

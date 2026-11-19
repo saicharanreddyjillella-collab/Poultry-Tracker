@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from ..access import NotPlant, is_admin, visible_farm_ids, visible_farms
 from ..feed_audit import CLOSED_LOOKBACK_DAYS, book_stock_for, run_audit
+from ..features import feature_required
 from ..models import Flock, FeedStockCount
 from ..pagination import GuardedListMixin
 from ..permissions import CanEditFlockData, IsAdmin
@@ -67,7 +68,7 @@ class FeedStockCountViewSet(GuardedListMixin, viewsets.ModelViewSet):
     change or delete a count (it is evidence for the feed audit)."""
     queryset = FeedStockCount.objects.select_related('flock', 'flock__farm', 'counted_by').all()
     serializer_class = FeedStockCountSerializer
-    permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
+    permission_classes = [IsAuthenticated, NotPlant, feature_required('feed_audit'), CanEditFlockData]
 
     def get_queryset(self):
         qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))
@@ -98,7 +99,7 @@ class FeedStockCountViewSet(GuardedListMixin, viewsets.ModelViewSet):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAdmin])   # business-sensitive: admin only
+@permission_classes([IsAuthenticated, IsAdmin, feature_required('feed_audit')])   # admin only
 def feed_audit_report(request):
     """Active flocks and flocks closed in the last CLOSED_LOOKBACK_DAYS days.
     ?region=… narrows to one region."""

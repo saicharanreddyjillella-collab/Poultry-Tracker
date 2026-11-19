@@ -2,12 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsAPI, getErrorMessage } from '../api/client';
 import { GapText } from '../components/BagCountSection';
+import FeatureOff from '../components/FeatureOff';
+import { useFeatures } from '../utils/features';
 import '../styles/insights.css';
 
 const rupees = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
 /** Admin: where feed may be leaking — bag counts vs paper, feeding vs the age standard. */
 export default function FeedAudit() {
+  const { loaded, isOn } = useFeatures();
+  if (loaded && !isOn('feed_audit')) return <FeatureOff name="Feed Audit" />;
+  return <FeedAuditPage />;
+}
+
+function FeedAuditPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [region, setRegion] = useState('');

@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from ..features import feature_required
 from ..lift import NoPrice, lift_plan
 from ..models import Flock, MarketRate
 from ..permissions import IsAdmin
@@ -34,7 +35,7 @@ class MarketRateViewSet(viewsets.ModelViewSet):
     """Admin only. Saving a rate for a date that already has one corrects it."""
     queryset = MarketRate.objects.all()
     serializer_class = MarketRateSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin, feature_required('lift_planner')]
     pagination_class = None
 
     def get_queryset(self):
@@ -51,7 +52,7 @@ class MarketRateViewSet(viewsets.ModelViewSet):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAdmin])   # business-sensitive: admin only
+@permission_classes([IsAuthenticated, IsAdmin, feature_required('lift_planner')])   # admin only
 def lift_planner(request):
     """?trend=0 keeps today's price flat (default: follow half the recent trend)."""
     trend = request.query_params.get('trend', '1') != '0'

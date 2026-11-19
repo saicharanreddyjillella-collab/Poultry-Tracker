@@ -891,6 +891,17 @@ class MarketRate(models.Model):
         return f"{self.date}: ₹{self.rate_per_kg}/kg"
 
 
+class FeatureSetting(models.Model):
+    """On/off switch for a feature listed in core/features.py (admin: Settings → Features)."""
+    key = models.CharField(max_length=60, unique=True)
+    enabled = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.key}: {'on' if self.enabled else 'off'}"
+
+
 class BillConfig(models.Model):
     """Configurable billing rates — only one active config at a time."""
     chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)
