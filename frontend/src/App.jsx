@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import AlertBell from './components/AlertBell';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
@@ -32,6 +30,8 @@ import './styles/print.css';
 import './styles/bill.css';
 import './styles/components.css';
 import './styles/business.css';
+import './styles/theme.css';
+import AppShell from './components/AppShell';
 import brand from './config/brand';
 
 const PLANT_PATHS = ['/feed', '/change-password'];
@@ -59,71 +59,26 @@ function AdminRoute({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
 
-function NavBar() {
-  const { user, logout, isAdmin, isPlant } = useAuth();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  if (!user) return null;
-
-  const handleLogout = () => {
-    logout();
-    setMenuOpen(false);
-    navigate('/login', { replace: true });
-  };
-
-  const closeMenu = () => setMenuOpen(false);
-
+function FeedsShell({ children }) {
+  const { isAdmin, isPlant } = useAuth();
+  const ops = isPlant ? [] : [
+    { to: '/feeds', label: 'Today', icon: 'today', end: true },
+    { to: '/farms', label: 'Farms', icon: 'farms' },
+  ];
+  ops.push({ to: '/feed', label: 'Feed', icon: 'feed', end: true });
+  const analysis = isPlant ? [] : [{ to: '/reports', label: 'Reports', icon: 'reports' }];
+  if (isAdmin) analysis.push({ to: '/insights', label: 'Insights', icon: 'insights' });
+  const admin = !isAdmin ? [] : [
+    { to: '/users', label: 'Users', icon: 'users' },
+    { to: '/settings', label: 'Settings', icon: 'settings' },
+    { to: '/trash', label: 'Recycle Bin', icon: 'trash' },
+  ];
   return (
-    <nav className="navbar">
-      <Link to={isPlant ? '/feed' : '/'} className="nav-brand" onClick={closeMenu}>{brand.feedsLogo} {brand.feedsName}</Link>
-      <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-      </button>
-      <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
-        {!isPlant && (
-          <>
-            <Link to="/" onClick={closeMenu}>Today</Link>
-            <Link to="/farms" onClick={closeMenu}>Farms</Link>
-          </>
-        )}
-        <Link to="/feed" onClick={closeMenu}>Feed</Link>
-        {!isPlant && (
-          <>
-            <Link to="/reports" onClick={closeMenu}>Reports</Link>
-          </>
-        )}
-        {isAdmin && (
-          <>
-            <Link to="/insights" onClick={closeMenu}>Insights</Link>
-          </>
-        )}
-        {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
-        {isAdmin && <Link to="/trash" onClick={closeMenu}>Recycle Bin</Link>}
-        {!isPlant && <AlertBell />}
-        <div className="nav-mobile-user">
-          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-          {user.first_name || user.username}
-        </div>
-        {isAdmin && <Link to="/settings" className="nav-mobile-link" onClick={closeMenu}>Settings</Link>}
-        <Link to="/change-password" className="nav-mobile-link" onClick={closeMenu}>Change Password</Link>
-        <button className="nav-mobile-logout" onClick={handleLogout}>Logout</button>
-        <div className="nav-user-menu">
-          <span className="nav-user-trigger">
-            <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-            {user.first_name || user.username} ▾
-          </span>
-          <div className="nav-dropdown">
-            {isAdmin && <Link to="/settings" className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>}
-            <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
-            <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-      </div>
-      {menuOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
-    </nav>
+    <AppShell brandName={brand.feedsName} logo={brand.feedsLogo} home={isPlant ? '/feed' : '/feeds'}
+              showSearch={!isPlant} showAlerts={!isPlant}
+              groups={[{ label: 'Operations', links: ops }, { label: 'Analysis', links: analysis }, { label: 'Admin', links: admin }]}>
+      {children}
+    </AppShell>
   );
 }
 
@@ -134,10 +89,7 @@ function AppRoutes() {
   const isAuthPage = path === '/login' || path === '/setup';
   const showNav = user && !isAuthPage;
 
-  return (
-    <>
-      {showNav && <NavBar />}
-      <main className="main-content">
+  const routes = (
         <ErrorBoundary resetKey={location.pathname}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -173,9 +125,10 @@ function AppRoutes() {
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         </Routes>
         </ErrorBoundary>
-      </main>
-    </>
   );
+
+  if (showNav) return <FeedsShell>{routes}</FeedsShell>;
+  return <main className="main-content main-plain">{routes}</main>;
 }
 
 function App() {

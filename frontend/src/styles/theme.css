@@ -1,0 +1,119 @@
+/* ── Design system (Style B "control room"). Loaded last: overrides the older look. ──
+   Brand colour: VITE_BRAND_PRIMARY_COLOR → --brand-primary (config/brand.js). */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+:root {
+  --primary: var(--brand-primary, #0F766E);
+  --primary-light: #0B5F58;          /* hover / pressed (darker, keeps white text readable) */
+  --primary-weak: #E6F4F2;
+  --primary-ring: rgba(15, 118, 110, 0.18);
+  --bg: #EEF2F5;
+  --surface: #FFFFFF;
+  --surface-alt: #F6F8FA;
+  --text: #102030;
+  --text-muted: #546679;             /* 5.6:1 on white */
+  --border: #D8E0E8;
+  --border-strong: #C9D3DD;
+  --danger: #B42318;
+  --danger-weak: #FDECEA;
+  --warning: #9A4A07;
+  --warning-weak: #FFF1E6;
+  --info: #1D4ED8;
+  --info-weak: #EAF0FD;
+  --ok: #0F6B42;
+  --ok-weak: #E5F4EC;
+  --shadow: 0 1px 2px rgba(16, 32, 48, 0.04);
+  --radius: 8px;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --sidebar-w: 224px;
+  --nav-bg: #0F1E2E;
+  --nav-text: #C9D6E2;
+  --nav-muted: #8DA2B8;
+  --nav-line: #22344A;
+  --nav-hover: #172A3E;
+  --nav-active: #1B3047;
+}
+
+body {
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Page header */
+.page-header { align-items: center; margin-bottom: 1.25rem; }
+.page-header h1, .page > h1, .main-content h1 { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.005em; line-height: 1.3; }
+.main-content h2 { font-weight: 600; }
+.section-title { font-size: 0.75rem; letter-spacing: 0.08em; font-weight: 600; color: var(--text-muted); }
+.back-link { color: var(--primary); font-weight: 500; }
+.farm-meta, .muted { color: var(--text-muted); }
+
+/* Key figures */
+.stats-grid { gap: 0.875rem; }
+.stat-card {
+  border-radius: var(--radius); border: 1px solid var(--border); box-shadow: none; padding: 0.875rem 1rem;
+  gap: 0.25rem; background: var(--surface);
+}
+.stat-label { font-size: 0.6875rem; letter-spacing: 0.06em; font-weight: 600; color: var(--text-muted); margin-bottom: 0; }
+.stat-value { font-family: var(--mono); font-weight: 500; font-size: 1.375rem; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.stat-sub { font-size: 0.75rem; color: var(--text-muted); }
+.stat-alert .stat-value { color: var(--danger); }
+
+/* Panels / cards */
+.form-card, .farm-card, .flock-card, .documents-section {
+  border-radius: var(--radius); border: 1px solid var(--border); box-shadow: none; background: var(--surface);
+}
+.farm-card:hover, .flock-card:hover { transform: none; border-color: var(--border-strong); box-shadow: 0 2px 8px rgba(16, 32, 48, 0.06); }
+
+/* Tables */
+.table-wrapper { border-radius: var(--radius); box-shadow: none; background: var(--surface); }
+table { font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+thead { background: var(--surface-alt); }
+th { font-size: 0.6875rem; letter-spacing: 0.06em; color: var(--text-muted); padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+td { padding: 0.6rem 0.75rem; border-top: 1px solid #E4EAF0; }
+tbody tr:hover td { background: #F9FBFC; }
+
+/* Forms */
+.form-group label { font-size: 0.75rem; letter-spacing: 0.02em; color: var(--text-muted); }
+.form-group input, .form-group select, .form-group textarea { border-radius: 6px; border-color: var(--border-strong); font-family: inherit; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+/* Buttons */
+.btn { border-radius: 6px; font-weight: 600; font-family: inherit; min-height: 36px; letter-spacing: 0; }
+.btn:active { transform: none; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-light); }
+.btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); }
+.btn-secondary:hover { background: var(--surface-alt); border-color: #AFBCC9; }
+.btn-danger { background: var(--surface); color: var(--danger); border: 1px solid #E8B4AE; }
+.btn-danger:hover { background: var(--danger-weak); }
+
+/* Messages */
+.alert-banner { border-radius: var(--radius); }
+.alert-banner-warning { background: var(--warning-weak); color: #7A3A05; border: 1px solid #F3C9A6; }
+.alert-banner-danger { background: var(--danger-weak); color: #8F1D14; border: 1px solid #F1B5AE; }
+.error-msg { background: var(--danger-weak); color: #8F1D14; border-radius: 6px; }
+
+/* Status chips (use: <span class="chip chip-ok">Free</span>) */
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; line-height: 1.5;
+  padding: 1px 8px; border-radius: 10px; white-space: nowrap; background: var(--surface-alt); color: var(--text-muted); }
+.chip-ok { background: var(--ok-weak); color: var(--ok); }
+.chip-warn { background: var(--warning-weak); color: var(--warning); }
+.chip-danger { background: var(--danger-weak); color: var(--danger); }
+.chip-info { background: var(--info-weak); color: var(--info); }
+
+/* Panel: titled box  (<section class="panel"><div class="panel-head"><h2>…</h2>…</div>…</section>) */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0.75rem 1rem; border-bottom: 1px solid #E4EAF0; flex-wrap: wrap; }
+.panel-head h2 { font-size: 0.875rem; font-weight: 600; margin: 0; }
+.panel-body { padding: 0.875rem 1rem; }
+.panel .table-wrapper { border: 0; border-radius: 0 0 var(--radius) var(--radius); }
+
+.num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.loading { color: var(--text-muted); }
+
+/* Old top-bar classes are no longer used by the shell (kept for the print layout). */
+.navbar { display: none; }

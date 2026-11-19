@@ -345,6 +345,13 @@ class TestWaterFeedRatio:
         assert e.water_feed_ratio is None
         assert e.water_feed_status is None
 
+    def test_no_water_recorded_is_not_a_low_water_alarm(self, farm, make_flock):
+        # Supervisors often skip water; 0 means "not measured", not "the birds drank nothing".
+        f = make_flock(farm, status="active")
+        e = self._wentry(f, 1, water=0, bags=10)
+        assert e.water_feed_ratio is None and e.water_feed_status is None
+        assert f.water_alerts == []
+
     def test_normal_ratio(self, farm, make_flock):
         f = make_flock(farm, status="active")
         e = self._wentry(f, 1, water=850, bags=10)  # 500 kg -> 1.7

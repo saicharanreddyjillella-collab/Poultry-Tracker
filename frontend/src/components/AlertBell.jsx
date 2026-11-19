@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { dashboardAPI } from '../api/client';
+import Icon from './Icon';
 
 export default function AlertBell() {
   const [alerts, setAlerts] = useState([]);
@@ -33,8 +34,8 @@ export default function AlertBell() {
 
   return (
     <div className="alert-bell" ref={ref}>
-      <button className="alert-bell-btn" onClick={() => setOpen(!open)}>
-        🔔
+      <button className="alert-bell-btn" onClick={() => setOpen(!open)} aria-label={`Alerts (${alerts.length})`} aria-expanded={open}>
+        <Icon name="bell" size={18} />
         {alerts.length > 0 && (
           <span className={`alert-bell-count ${dangerCount > 0 ? 'alert-bell-danger' : ''}`}>
             {alerts.length}

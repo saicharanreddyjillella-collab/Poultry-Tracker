@@ -1,0 +1,113 @@
+/* ── App frame (Style B "control room"): navy sidebar, slim top bar, wide content ── */
+
+.app-layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  flex: 0 0 var(--sidebar-w); width: var(--sidebar-w);
+  background: var(--nav-bg); color: var(--nav-text);
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 16px 12px; box-sizing: border-box;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto; z-index: 120;
+}
+.side-brand {
+  display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px;
+  border-bottom: 1px solid var(--nav-line); color: #fff;
+}
+.side-logo {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 6px; background: var(--primary); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; letter-spacing: 0.02em;
+}
+.side-logo-img { background: #fff; object-fit: contain; padding: 2px; }
+.side-brand-name { font-weight: 600; font-size: 15px; line-height: 1.25; }
+
+.side-groups { display: flex; flex-direction: column; gap: 18px; }
+.side-group { display: flex; flex-direction: column; gap: 2px; }
+.side-group-label { font-size: 11px; letter-spacing: 0.08em; color: var(--nav-muted); padding: 0 10px 6px; text-transform: uppercase; }
+.side-link {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px;
+  color: var(--nav-text); font-size: 14px; line-height: 1.3;
+}
+.side-link:hover { background: var(--nav-hover); color: #fff; }
+.side-link.active { background: var(--nav-active); color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 var(--primary); }
+.side-link:focus-visible, .nav-user-trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.side-user { margin-top: auto; position: relative; border-top: 1px solid var(--nav-line); padding-top: 10px; }
+.nav-user-trigger {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px;
+  background: transparent; border: 0; color: var(--nav-text); font: inherit; cursor: pointer; text-align: left;
+}
+.nav-user-trigger:hover { background: var(--nav-hover); }
+.side-avatar {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: #2B4460; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px;
+}
+.side-user-text { display: flex; flex-direction: column; min-width: 0; }
+.side-user-name { color: #fff; font-weight: 600; font-size: 14px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-user-role { font-size: 12px; color: var(--nav-muted); text-transform: capitalize; }
+.nav-user-menu .nav-dropdown {
+  display: none; position: absolute; left: 0; right: 0; top: auto; bottom: calc(100% - 4px); width: auto; min-width: 0;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(15, 30, 46, 0.25); padding: 6px; z-index: 130;
+}
+.nav-user-menu:hover .nav-dropdown, .nav-user-menu:focus-within .nav-dropdown, .nav-user-menu.open .nav-dropdown { display: block; }
+.nav-user-menu .nav-dropdown-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 6px;
+  background: none; border: 0; font: inherit; font-size: 14px; color: var(--text); cursor: pointer; text-align: left;
+}
+.nav-user-menu .nav-dropdown-item:hover { background: var(--bg); }
+.nav-user-menu .nav-dropdown-logout { color: var(--danger); }
+
+.app-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 28px;
+  background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+}
+.topbar-menu, .topbar-brand { display: none; }
+.topbar-search {
+  margin-left: auto; display: flex; align-items: center; gap: 8px; width: 320px; max-width: 100%;
+  border: 1px solid var(--border-strong); border-radius: 6px; padding: 6px 10px; color: var(--text-muted); background: var(--surface);
+}
+.topbar-search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.topbar-search input { border: 0; outline: 0; font: inherit; font-size: 14px; flex: 1; min-width: 0; background: transparent; color: var(--text); padding: 0; }
+.topbar-alerts { display: flex; align-items: center; }
+.topbar-brand + .topbar-alerts { margin-left: auto; }   /* no search box (feed mill) */
+
+.app-body .main-content { max-width: 1280px; width: 100%; margin: 0; padding: 24px 28px 48px; box-sizing: border-box; }
+
+.side-overlay { display: none; }
+
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; height: 100vh; transform: translateX(-100%);
+    transition: transform 0.2s ease; box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+  }
+  .app-layout-open .sidebar { transform: translateX(0); }
+  .side-overlay { display: block; position: fixed; inset: 0; background: rgba(15, 30, 46, 0.45); z-index: 110; }
+  .topbar { padding: 0 12px; gap: 10px; background: var(--nav-bg); border-bottom-color: var(--nav-bg); color: #fff; }
+  .topbar-menu {
+    display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+    background: transparent; border: 0; color: #fff; cursor: pointer; border-radius: 8px;
+  }
+  .topbar-brand { display: block; color: #fff; font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .topbar-search { display: none; }
+  .topbar-alerts { margin-left: auto; }
+  .app-body .main-content { padding: 16px 14px 40px; }
+}
+
+/* The old top-bar CSS hid these on phones; the sidebar needs them. */
+.sidebar .nav-user-menu { display: block !important; }
+.sidebar .side-groups { display: flex !important; }
+
+/* Alert bell in the top bar */
+.topbar .alert-bell-btn {
+  width: 38px; height: 38px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text); display: inline-flex; align-items: center; justify-content: center; padding: 0;
+}
+.topbar .alert-bell-btn:hover { background: var(--surface-alt); }
+.topbar .alert-bell-count { top: -6px; right: -6px; background: var(--warning); }
+.topbar .alert-bell-danger { background: var(--danger); }
+.topbar .alert-bell-dropdown { border-radius: var(--radius); box-shadow: 0 12px 36px rgba(15, 30, 46, 0.18); }
+@media (max-width: 900px) {
+  .topbar .alert-bell-btn { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.25); }
+  .topbar .alert-bell-dropdown { position: fixed; left: 12px; right: 12px; top: 60px; width: auto; }
+}

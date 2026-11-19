@@ -77,7 +77,7 @@ export function field(scope, label) {
 }
 
 export const navLinks = async (page) =>
-  (await page.locator('nav .nav-links > a').allInnerTexts()).map(t => t.trim()).filter(Boolean);
+  (await page.locator('nav[aria-label="Main"] .side-link').allInnerTexts()).map(t => t.trim()).filter(Boolean);
 
 // Dates are India dates (the server runs on Asia/Kolkata), whatever zone the test machine is in.
 const IST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
