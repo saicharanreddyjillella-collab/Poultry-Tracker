@@ -267,3 +267,10 @@ export const regionLocationAPI = {
   list: () => API.get('/region-locations/'),
   save: (region, latitude, longitude) => API.post('/region-locations/', { region, latitude, longitude }),
 };
+
+// ─── Settings → Features (switch optional features on/off) ───
+export const featureAPI = {
+  states: () => API.get('/features/'),
+  list: () => API.get('/settings/features/'),
+  set: (key, enabled) => API.patch(`/settings/features/${key}/`, { enabled }),
+};

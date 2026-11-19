@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { feedCountAPI, getErrorMessage } from '../api/client';
 import { todayISO } from '../utils/dates';
+import { useFeatures } from '../utils/features';
 import '../styles/insights.css';
 
 const FEEDS = [['bpsc_bags', 'BPSC'], ['bsc_bags', 'BSC'], ['bfp_bags', 'BFP']];
@@ -13,7 +14,12 @@ export function GapText({ gap }) {
 }
 
 /** Physical feed-bag counts for one flock, compared with paper stock (feed leakage check). */
-export default function BagCountSection({ flock, canEdit, isAdmin }) {
+export default function BagCountSection(props) {
+  const { isOn } = useFeatures();
+  return isOn('feed_audit') ? <BagCounts {...props} /> : null;
+}
+
+function BagCounts({ flock, canEdit, isAdmin }) {
   const [counts, setCounts] = useState([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);

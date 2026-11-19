@@ -27,6 +27,9 @@ export async function apiLogin(request, username, password = PASSWORD) {
 /** Sign in without the form (fast) and open `to`. */
 export async function loginAs(page, username, to = '/feeds', password = PASSWORD) {
   const data = await apiLogin(page.request, username, password);
+  // Switching user on the same page: sign the old one out first, so its still-loading
+  // screen can't write the old account back into storage after we set the new one.
+  if (page.url().startsWith('http')) await page.evaluate(() => localStorage.clear());
   await page.goto('/login');
   await page.evaluate((d) => {
     localStorage.setItem('access_token', d.access);
