@@ -30,11 +30,11 @@ export function StatTile({ label, value, unit, note, tone, trend, trendColor, ch
   );
 }
 
-/** Titled box. */
-export function Panel({ title, actions, children, className = '', id }) {
-  const headingId = id || (title ? `p-${String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : undefined);
+/** Titled box. Without a title, pass `label` so the box still has an accessible name. */
+export function Panel({ title, label, actions, children, className = '', id }) {
+  const headingId = title ? (id || `p-${String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`) : undefined;
   return (
-    <section className={`panel ${className}`} aria-labelledby={headingId}>
+    <section className={`panel ${className}`} aria-labelledby={headingId} aria-label={title ? undefined : label}>
       {(title || actions) && (
         <div className="panel-head">
           {title && <h2 id={headingId}>{title}</h2>}

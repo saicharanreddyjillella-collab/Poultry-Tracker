@@ -179,3 +179,22 @@ a.alert-farm:hover { color: var(--primary); }
   .cards-on-phone .cell-action { grid-column: 2; grid-row: 1; justify-content: flex-end; }
   .cards-on-phone tbody tr:hover td { background: none; }
 }
+
+/* Segmented filter (All / Running / Empty) and filter controls in a panel head */
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; font-size: 0.8125rem; }
+.seg-btn { background: var(--surface); border: 0; padding: 5px 12px; font: inherit; font-weight: 500; color: var(--text-muted); cursor: pointer; min-height: 32px; }
+.seg-btn + .seg-btn { border-left: 1px solid var(--border-strong); }
+.seg-btn.on { background: var(--primary-weak); color: var(--primary); font-weight: 600; }
+.seg-count { font-family: var(--mono); font-size: 0.75rem; opacity: 0.8; margin-left: 2px; }
+.filter-select { height: 34px; border: 1px solid var(--border-strong); border-radius: 6px; padding: 0 8px; font: inherit; font-size: 0.8125rem; background: var(--surface); color: var(--text); }
+.filter-search { margin: 0; width: 260px; max-width: 100%; }
+.filter-search input { height: 34px; padding: 0 30px 0 10px; font-size: 0.8125rem; border-radius: 6px; }
+.cell-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+@media (max-width: 640px) {
+  .panel-actions { width: 100%; flex-wrap: wrap; }
+  .filter-search { width: 100%; flex: 1 1 100%; }
+  .cards-on-phone .cell-main { display: block; }
+  .cards-on-phone .cell-action { align-items: flex-start; }
+}
+.panel-head > .panel-actions:only-child { width: 100%; }
+.head-spacer { flex: 1 1 auto; }

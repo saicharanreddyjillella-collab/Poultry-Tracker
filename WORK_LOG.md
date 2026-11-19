@@ -941,3 +941,13 @@ settings admin-only; plant user = feed only.
   Indian date. Tests also failed in that window (they worked out "today"
   before Django set the clock to IST); conftest sets IST first.
 - Tests: test_control_room (4), e2e dashboard.spec (2); all suites pass.
+
+### UI redesign 2/3b — Farms as a table  ✅ DONE
+- Farms page is now one table: farm (name, code, owner, place), region, shed,
+  capacity, status chip (Running · day N → opens the flock; Sold out · bill
+  due; Empty), live birds, mortality %, batches, supervisors.
+- Filters: All / Running / Empty with counts, region (when there is more than
+  one), search across code, name, owner, region, place and supervisor. All
+  kept in the address (?status=&region=&q=), so the top-bar search and
+  bookmarks open the same view. Phones: one card per farm.
+- Tests: e2e farms-table.spec (2).
