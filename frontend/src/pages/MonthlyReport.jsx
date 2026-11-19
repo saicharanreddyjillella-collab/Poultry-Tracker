@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
 import { reportAPI } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function MonthlyReport() {
+  const { isAdmin } = useAuth();   // company costs: admin only
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -90,9 +92,9 @@ export default function MonthlyReport() {
                   <th>Feed (kg)</th>
                   <th>Feed (bags)</th>
                   <th>FCR</th>
-                  <th>Feed Cost (₹)</th>
-                  <th>Cost/kg (₹)</th>
-                  <th>Sale Amt (₹)</th>
+                  {isAdmin && <th>Feed Cost (₹)</th>}
+                  {isAdmin && <th>Cost/kg (₹)</th>}
+                  {isAdmin && <th>Sale Amt (₹)</th>}
                 </tr>
               </thead>
               <tbody>
@@ -110,9 +112,9 @@ export default function MonthlyReport() {
                     <td>{fmtDec(f.total_feed_kg)}</td>
                     <td>{f.total_feed_bags}</td>
                     <td className="report-highlight">{f.fcr ?? '—'}</td>
-                    <td>{fmtDec(f.feed_cost)}</td>
-                    <td className="report-highlight">{f.cost_per_kg_production != null ? fmtDec(f.cost_per_kg_production) : '—'}</td>
-                    <td>{fmtDec(f.total_sale_amount)}</td>
+                    {isAdmin && <td>{fmtDec(f.feed_cost)}</td>}
+                    {isAdmin && <td className="report-highlight">{f.cost_per_kg_production != null ? fmtDec(f.cost_per_kg_production) : '—'}</td>}
+                    {isAdmin && <td>{fmtDec(f.total_sale_amount)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -130,9 +132,9 @@ export default function MonthlyReport() {
                   <td><strong>{fmtDec(data.summary.total_feed_kg)}</strong></td>
                   <td><strong>{(data.summary.total_feed_kg / 50).toFixed(1)}</strong></td>
                   <td className="report-highlight"><strong>{data.summary.fcr ?? '—'}</strong></td>
-                  <td><strong>₹{fmtDec(data.summary.total_feed_cost)}</strong></td>
-                  <td className="report-highlight"><strong>{data.summary.cost_per_kg_production != null ? fmtDec(data.summary.cost_per_kg_production) : '—'}</strong></td>
-                  <td><strong>₹{fmtDec(data.summary.total_sale_amount)}</strong></td>
+                  {isAdmin && <td><strong>₹{fmtDec(data.summary.total_feed_cost)}</strong></td>}
+                  {isAdmin && <td className="report-highlight"><strong>{data.summary.cost_per_kg_production != null ? fmtDec(data.summary.cost_per_kg_production) : '—'}</strong></td>}
+                  {isAdmin && <td><strong>₹{fmtDec(data.summary.total_sale_amount)}</strong></td>}
                 </tr>
               </tfoot>
             </table>

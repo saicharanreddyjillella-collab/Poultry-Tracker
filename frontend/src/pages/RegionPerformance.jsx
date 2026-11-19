@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
 import { reportAPI } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function RegionPerformance() {
+  const { isAdmin } = useAuth();   // company costs: admin only
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -60,9 +62,9 @@ export default function RegionPerformance() {
                   <th>Avg Wt</th>
                   <th>Feed (kg)</th>
                   <th>FCR</th>
-                  <th>Feed Cost</th>
-                  <th>Cost/kg</th>
-                  <th>Sale Amt</th>
+                  {isAdmin && <th>Feed Cost</th>}
+                  {isAdmin && <th>Cost/kg</th>}
+                  {isAdmin && <th>Sale Amt</th>}
                 </tr>
               </thead>
               <tbody>
@@ -81,9 +83,9 @@ export default function RegionPerformance() {
                     <td>{r.avg_bird_weight_kg ?? '—'}</td>
                     <td>{fmtDec(r.total_feed_kg)}</td>
                     <td className="report-highlight">{r.fcr ?? '—'}</td>
-                    <td>₹{fmtDec(r.total_feed_cost)}</td>
-                    <td className="report-highlight">{r.cost_per_kg_production != null ? `₹${fmtDec(r.cost_per_kg_production)}` : '—'}</td>
-                    <td>₹{fmtDec(r.total_sale_amount)}</td>
+                    {isAdmin && <td>₹{fmtDec(r.total_feed_cost)}</td>}
+                    {isAdmin && <td className="report-highlight">{r.cost_per_kg_production != null ? `₹${fmtDec(r.cost_per_kg_production)}` : '—'}</td>}
+                    {isAdmin && <td>₹{fmtDec(r.total_sale_amount)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -115,13 +117,13 @@ export default function RegionPerformance() {
                       const w = data.data.reduce((s, r) => s + r.total_sold_weight_kg, 0);
                       return w ? (f / w).toFixed(3) : '—';
                     })()}</strong></td>
-                    <td><strong>₹{fmtDec(data.data.reduce((s, r) => s + r.total_feed_cost, 0))}</strong></td>
-                    <td className="report-highlight"><strong>{(() => {
+                    {isAdmin && <td><strong>₹{fmtDec(data.data.reduce((s, r) => s + r.total_feed_cost, 0))}</strong></td>}
+                    {isAdmin && <td className="report-highlight"><strong>{(() => {
                       const fc = data.data.reduce((s, r) => s + r.total_feed_cost, 0);
                       const w = data.data.reduce((s, r) => s + r.total_sold_weight_kg, 0);
                       return w ? `₹${(fc / w).toFixed(2)}` : '—';
-                    })()}</strong></td>
-                    <td><strong>₹{fmtDec(data.data.reduce((s, r) => s + r.total_sale_amount, 0))}</strong></td>
+                    })()}</strong></td>}
+                    {isAdmin && <td><strong>₹{fmtDec(data.data.reduce((s, r) => s + r.total_sale_amount, 0))}</strong></td>}
                   </tr>
                 </tfoot>
               )}
@@ -147,10 +149,10 @@ export default function RegionPerformance() {
                         <span className="region-metric-label">Mortality</span>
                         <span className={`region-metric-value ${r.mortality_pct > 5 ? 'text-danger' : ''}`}>{r.mortality_pct}%</span>
                       </div>
-                      <div className="region-metric">
+                      {isAdmin && <div className="region-metric">
                         <span className="region-metric-label">Cost/kg</span>
                         <span className="region-metric-value">{r.cost_per_kg_production != null ? `₹${r.cost_per_kg_production}` : '—'}</span>
-                      </div>
+                      </div>}
                       <div className="region-metric">
                         <span className="region-metric-label">Avg Wt</span>
                         <span className="region-metric-value">{r.avg_bird_weight_kg ?? '—'} kg</span>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
 import { reportAPI } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function TillDateReport() {
+  const { isAdmin } = useAuth();   // company costs: admin only
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,10 +57,10 @@ export default function TillDateReport() {
       {/* SALES */}
       <h2 className="section-title" style={{ marginTop: '2rem' }}>Sales</h2>
       <div className="stats-grid stats-grid-wide">
-        <div className="stat-card stat-success">
+        {isAdmin && <div className="stat-card stat-success">
           <span className="stat-label">Total Sale Amount</span>
           <span className="stat-value">₹{fmtDec(data.total_sale_amount)}</span>
-        </div>
+        </div>}
         <div className="stat-card">
           <span className="stat-label">Avg Bird Weight</span>
           <span className="stat-value">{data.total_sold_birds > 0 ? (data.total_sold_weight_kg / data.total_sold_birds).toFixed(3) : '—'} kg</span>
@@ -98,6 +100,7 @@ export default function TillDateReport() {
           <span className="stat-value">{data.fcr ?? '—'}</span>
           <span className="stat-sub">Total feed ÷ Total weight sold</span>
         </div>
+        {isAdmin && <>
         <div className="stat-card stat-info">
           <span className="stat-label">Feed Cost / kg Production</span>
           <span className="stat-value">{data.cost_per_kg_production != null ? `₹${fmtDec(data.cost_per_kg_production)}` : '—'}</span>
@@ -107,6 +110,7 @@ export default function TillDateReport() {
           <span className="stat-label">Total Feed Cost</span>
           <span className="stat-value">₹{fmtDec(data.total_feed_cost)}</span>
         </div>
+        </>}
         <div className="stat-card">
           <span className="stat-label">Livability</span>
           <span className="stat-value">{data.total_birds_placed > 0 ? (100 - data.mortality_percentage).toFixed(2) : '—'}%</span>

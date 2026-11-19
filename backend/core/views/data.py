@@ -650,8 +650,12 @@ def export_monthly_report(request):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = f"Monthly {year}-{month:02d}"
+    from ..access import is_admin
+    show_cost = is_admin(request.user)          # cost per kg is a company cost: admin only
     headers = ['Farm Code', 'Farm Name', 'Owner', 'Region', 'Shed', 'Placed', 'Chicks',
-               'Age', 'Mortality', 'Mort%', 'Birds Sold', 'Weight Sold', 'Avg Wt', 'Feed Bags', 'Feed Kg', 'FCR', 'Cost/Kg']
+               'Age', 'Mortality', 'Mort%', 'Birds Sold', 'Weight Sold', 'Avg Wt', 'Feed Bags', 'Feed Kg', 'FCR']
+    if show_cost:
+        headers.append('Cost/Kg')
     ws.append(headers)
 
     for b in batches:
@@ -660,8 +664,8 @@ def export_monthly_report(request):
             b['placement_date'], b['chick_count'], b['age_days'],
             b['total_mortality'], b['mortality_pct'],
             b['total_sold_birds'], b['total_sold_weight_kg'], b['avg_bird_weight_kg'],
-            b['total_feed_bags'], b['total_feed_kg'], b['fcr'], b['cost_per_kg_production'],
-        ])
+            b['total_feed_bags'], b['total_feed_kg'], b['fcr'],
+        ] + ([b['cost_per_kg_production']] if show_cost else []))
 
     output = BytesIO()
     wb.save(output)

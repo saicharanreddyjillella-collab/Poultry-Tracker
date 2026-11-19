@@ -876,3 +876,28 @@ settings admin-only; plant user = feed only.
 - Sign-in now records "last login" (wasn't recorded before).
 - Tests: backend test_system_health.py (15), vitest access, e2e
   system-health.spec.js (3).
+
+### Access audit #2 + company costs / PAN admin-only (BUG-024 … BUG-026)  ✅ DONE
+- Probed every API endpoint (185 on main, 99 on release) as admin, Zone-A
+  supervisor, feed-mill user and signed out (reads), plus a POST to every list
+  endpoint (writes). No other-region data, nothing for signed-out users,
+  every admin page / Settings / Insights refused for non-admins, and writes
+  limited to each role's own work. Decided with Sai:
+- BUG-024 Supervisors saw company costs → now hidden for everyone but the
+  admin, from every API response in one place (core/redaction.py middleware):
+  bill production cost + chick/feed/medicine/admin cost + avg selling price +
+  config snapshot; feed prices, total feed cost, total sale amount and cost
+  per kg in dashboard/reports/farm history; Cost/Kg column in the monthly
+  Excel. Kept: the grower's payment (growing charges, incentive, recoveries,
+  TDS, net payable), birds/feed/weights/FCR, their own sale rates and
+  medicine costs. The Feed rates list is refused for supervisors (admin and
+  the feed mill keep it). Screens hide those columns/cards instead of showing
+  blanks; Feed Stock no longer loads prices for supervisors (it would have
+  broken the page).
+- BUG-025 Grower PAN visible to supervisors → admin only (screens + API);
+  "has a valid PAN" yes/no kept.
+- BUG-026 A supervisor saving a farm sent PAN too → now ignored for
+  non-admins, so they can't change or clear it.
+- Kept as is (Sai's call): region names list visible to supervisors.
+- Tests: backend test_company_costs.py (7, incl. "no hidden field anywhere in
+  15 supervisor pages"), access matrix updated, e2e company-costs.spec.js (4).

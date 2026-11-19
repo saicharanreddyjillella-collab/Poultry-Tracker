@@ -20,6 +20,15 @@ ALLOWED_WHILE_TEMPORARY = (
 ADMIN_ONLY_PREFIXES = ('/api/chicken/', '/api/layer/', '/api/accounting/', '/api/inventory/')
 
 
+# Company feed prices: admin and the feed mill only — not supervisors.
+COMPANY_PRICE_PREFIXES = ('/api/feed-rates/',)
+
+
+class CompanyPricesHidden(PermissionDenied):
+    default_detail = 'Feed prices are visible to the admin only.'
+    default_code = 'company_prices_hidden'
+
+
 class OtherBusinessAdminOnly(PermissionDenied):
     default_detail = 'Only an admin can access this business.'
     default_code = 'business_admin_only'
@@ -42,4 +51,6 @@ class JWTAuthenticationWithPasswordCheck(JWTAuthentication):
         if request.path.startswith(ADMIN_ONLY_PREFIXES) and not (
                 (profile is not None and profile.is_admin) or (profile is None and user.is_superuser)):
             raise OtherBusinessAdminOnly()
+        if request.path.startswith(COMPANY_PRICE_PREFIXES) and profile is not None and profile.role == 'supervisor':
+            raise CompanyPricesHidden()
         return user, token

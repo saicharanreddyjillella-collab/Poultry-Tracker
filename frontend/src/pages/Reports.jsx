@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
 import { reportAPI } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function Reports() {
+  const { isAdmin } = useAuth();   // company costs: admin only
   const [view, setView] = useState('monthly'); // monthly, tilldate, region
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -105,7 +107,7 @@ export default function Reports() {
                       <tr>
                         <th>Farm</th><th>Owner</th><th>Region</th><th>Placed</th><th>Chicks</th>
                         <th>Age</th><th>Mort%</th><th>Sold</th><th>Weight</th><th>Avg Wt</th>
-                        <th>Feed kg</th><th>FCR</th><th>Cost/kg</th>
+                        <th>Feed kg</th><th>FCR</th>{isAdmin && <th>Cost/kg</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -121,9 +123,9 @@ export default function Reports() {
                           <td>{f.avg_bird_weight_kg ? `${f.avg_bird_weight_kg} kg` : '—'}</td>
                           <td>{fmt(f.total_feed_kg)}</td>
                           <td>{f.fcr ?? '—'}</td>
-                          <td className={f.cost_per_kg_production > 95 ? 'text-danger' : f.cost_per_kg_production ? 'text-ok' : ''}>
+                          {isAdmin && <td className={f.cost_per_kg_production > 95 ? 'text-danger' : f.cost_per_kg_production ? 'text-ok' : ''}>
                             {f.cost_per_kg_production ? `₹${fmtDec(f.cost_per_kg_production)}` : '—'}
-                          </td>
+                          </td>}
                         </tr>
                       ))}
                     </tbody>
@@ -143,9 +145,11 @@ export default function Reports() {
               <div className="stat-card"><span className="stat-label">Weight Sold</span><span className="stat-value">{fmtDec(data.total_sold_weight_kg)} kg</span></div>
               <div className="stat-card"><span className="stat-label">Total Feed</span><span className="stat-value">{fmt(data.total_feed_kg)} kg ({fmt(data.total_feed_bags)} bags)</span></div>
               <div className="stat-card"><span className="stat-label">FCR</span><span className="stat-value">{data.fcr ?? '—'}</span></div>
+              {isAdmin && <>
               <div className="stat-card"><span className="stat-label">Feed Cost</span><span className="stat-value">₹{fmt(data.total_feed_cost)}</span></div>
               <div className="stat-card"><span className="stat-label">Cost per kg</span><span className="stat-value">{data.cost_per_kg_production ? `₹${fmtDec(data.cost_per_kg_production)}` : '—'}</span></div>
               <div className="stat-card"><span className="stat-label">Sale Amount</span><span className="stat-value">₹{fmt(data.total_sale_amount)}</span></div>
+              </>}
             </div>
           )}
 

@@ -222,6 +222,15 @@ class FarmSerializer(serializers.ModelSerializer):
         fields = '__all__'
         list_serializer_class = PrimedFarmList
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        profile = getattr(user, 'profile', None)
+        if user is not None and not (profile.is_admin if profile is not None else user.is_superuser):
+            attrs.pop('pan', None)      # PAN is admin-only: a supervisor's save can't change or clear it
+        return attrs
+
     def validate_pan(self, value):
         import re
         if value:

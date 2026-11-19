@@ -122,15 +122,15 @@ export default function BillView() {
                 <tr><td>Birds Sold</td><td>{bill.total_sold_birds.toLocaleString()}</td></tr>
                 <tr><td>Weight Sold</td><td>{fmt(bill.total_sold_weight_kg)} kg</td></tr>
                 <tr><td>Avg Bird Weight</td><td>{bill.avg_bird_weight_kg ? `${bill.avg_bird_weight_kg} kg` : '—'}</td></tr>
-                <tr><td>Avg Selling Price</td><td>₹{fmt(bill.avg_selling_price)}/kg</td></tr>
+                {isAdmin && <tr><td>Avg Selling Price</td><td>₹{fmt(bill.avg_selling_price)}/kg</td></tr>}
                 <tr><td>Feed Consumed</td><td>{fmt(bill.total_feed_kg)} kg ({fmt(bill.total_feed_bags)} bags)</td></tr>
                 <tr><td>FCR</td><td>{bill.fcr ?? '—'}</td></tr>
               </tbody>
             </table>
           </div>
 
-          {/* RIGHT — Production Cost */}
-          <div className="bill-col">
+          {/* RIGHT — Production Cost (company cost: admin only) */}
+          {isAdmin && <div className="bill-col">
             <h4>Production Cost</h4>
             <table className="bill-t">
               <tbody>
@@ -142,7 +142,7 @@ export default function BillView() {
                 <tr className="bill-t-highlight"><td>Cost per kg</td><td>₹{fmt(bill.production_cost_per_kg)}</td></tr>
               </tbody>
             </table>
-          </div>
+          </div>}
         </div>
 
         {/* GROWING CHARGES + INCENTIVE + RECOVERIES — compact */}

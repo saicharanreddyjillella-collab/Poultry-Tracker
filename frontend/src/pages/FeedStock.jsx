@@ -27,7 +27,7 @@ export default function FeedStock() {
         feedStockAPI.list(),
         feedOrderAPI.list({ status: filter !== 'all' ? filter : undefined }),
         farmAPI.list(),
-        feedRateAPI.list(),
+        (isAdmin || isPlant) ? feedRateAPI.list() : Promise.resolve({ data: [] }),   // prices: admin + mill
         feedTransferAPI.list(),
       ]);
       setStock(stockRes.data);
@@ -250,7 +250,8 @@ export default function FeedStock() {
         </form>
       )}
 
-      {/* CURRENT RATES */}
+      {/* CURRENT RATES — company prices: admin and the feed mill only */}
+      {(isAdmin || isPlant) && <>
       <h2 className="section-title">Current Feed Rates</h2>
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card feed-card-bpsc">
@@ -291,6 +292,7 @@ export default function FeedStock() {
           </div>
         </details>
       )}
+      </>}
 
       {/* STOCK TABLE */}
       <h2 className="section-title">Current Stock (bags at farm)</h2>
