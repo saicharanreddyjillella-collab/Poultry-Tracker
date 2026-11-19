@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import AlertBell from './components/AlertBell';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
@@ -60,6 +58,8 @@ import './styles/print.css';
 import './styles/bill.css';
 import './styles/components.css';
 import './styles/business.css';
+import './styles/theme.css';
+import AppShell from './components/AppShell';
 import brand from './config/brand';
 
 const PLANT_PATHS = ['/feed', '/change-password'];
@@ -94,172 +94,73 @@ function AdminRoute({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
 
-function NavBar() {
-  const { user, logout, isAdmin, isPlant } = useAuth();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  if (!user) return null;
-
-  const handleLogout = () => {
-    logout();
-    setMenuOpen(false);
-    navigate('/login', { replace: true });
-  };
-
-  const closeMenu = () => setMenuOpen(false);
-
+function FeedsShell({ children }) {
+  const { isAdmin, isPlant } = useAuth();
+  const ops = isPlant ? [] : [
+    { to: '/feeds', label: 'Today', icon: 'today', end: true },
+    { to: '/farms', label: 'Farms', icon: 'farms' },
+  ];
+  ops.push({ to: '/feed', label: 'Feed', icon: 'feed', end: true });
+  const analysis = isPlant ? [] : [{ to: '/reports', label: 'Reports', icon: 'reports' }];
+  if (isAdmin) analysis.push({ to: '/insights', label: 'Insights', icon: 'insights' });
+  const admin = !isAdmin ? [] : [
+    { to: '/users', label: 'Users', icon: 'users' },
+    { to: '/settings', label: 'Settings', icon: 'settings' },
+    { to: '/trash', label: 'Recycle Bin', icon: 'trash' },
+    { to: '/', label: 'Switch Business', icon: 'switch', end: true },
+  ];
   return (
-    <nav className="navbar">
-      <Link to={isPlant ? '/feed' : '/feeds'} className="nav-brand" onClick={closeMenu}>{brand.feedsLogo} {brand.feedsName}</Link>
-      <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-      </button>
-      <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
-        {!isPlant && (
-          <>
-            <Link to="/feeds" onClick={closeMenu}>Today</Link>
-            <Link to="/farms" onClick={closeMenu}>Farms</Link>
-          </>
-        )}
-        <Link to="/feed" onClick={closeMenu}>Feed</Link>
-        {!isPlant && (
-          <>
-            <Link to="/reports" onClick={closeMenu}>Reports</Link>
-          </>
-        )}
-        {isAdmin && (
-          <>
-            <Link to="/insights" onClick={closeMenu}>Insights</Link>
-          </>
-        )}
-        {isAdmin && <Link to="/users" onClick={closeMenu}>Users</Link>}
-        {isAdmin && <Link to="/trash" onClick={closeMenu}>Recycle Bin</Link>}
-        {isAdmin && <Link to="/" onClick={closeMenu}>Switch Business</Link>}
-        {!isPlant && <AlertBell />}
-        <div className="nav-mobile-user">
-          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-          {user.first_name || user.username}
-        </div>
-        {isAdmin && <Link to="/settings" className="nav-mobile-link" onClick={closeMenu}>Settings</Link>}
-        <Link to="/change-password" className="nav-mobile-link" onClick={closeMenu}>Change Password</Link>
-        <button className="nav-mobile-logout" onClick={handleLogout}>Logout</button>
-        <div className="nav-user-menu">
-          <span className="nav-user-trigger">
-            <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-            {user.first_name || user.username} ▾
-          </span>
-          <div className="nav-dropdown">
-            {isAdmin && <Link to="/settings" className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>}
-            <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
-            <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-      </div>
-      {menuOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
-    </nav>
+    <AppShell brandName={brand.feedsName} logo={brand.feedsLogo} home={isPlant ? '/feed' : '/feeds'}
+              showSearch={!isPlant} showAlerts={!isPlant}
+              groups={[{ label: 'Operations', links: ops }, { label: 'Analysis', links: analysis }, { label: 'Admin', links: admin }]}>
+      {children}
+    </AppShell>
   );
 }
 
-function ChickenNav() {
-  const { user, logout, isAdmin } = useAuth();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  if (!user) return null;
-  const closeMenu = () => setMenuOpen(false);
-  const handleLogout = () => { logout(); closeMenu(); navigate('/login', { replace: true }); };
-  return (
-    <nav className="navbar navbar-chicken">
-      <Link to="/chicken" className="nav-brand" onClick={closeMenu}>{brand.chickenLogo} {brand.chickenName}</Link>
-      <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-      </button>
-      <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
-        <Link to="/chicken" onClick={closeMenu}>Home</Link>
-        <Link to="/chicken/new" onClick={closeMenu}>New Entry</Link>
-        <Link to="/chicken/transactions" onClick={closeMenu}>Transactions</Link>
-        <Link to="/chicken/parties" onClick={closeMenu}>Parties</Link>
-        <Link to="/chicken/ledgers" onClick={closeMenu}>Ledgers</Link>
-        <Link to="/chicken/outstanding" onClick={closeMenu}>Outstanding</Link>
-        <Link to="/chicken/pending-bills" onClick={closeMenu}>Receivables</Link>
-        <Link to="/chicken/reports" onClick={closeMenu}>Reports</Link>
-        <Link to="/chicken/daybook" onClick={closeMenu}>Daybook</Link>
-        <Link to="/chicken/sales-summary" onClick={closeMenu}>Sales Summary</Link>
-        <Link to="/chicken/items" onClick={closeMenu}>Items</Link>
-        <Link to="/chicken/opening" onClick={closeMenu}>Opening</Link>
-        <Link to="/chicken/day-close" onClick={closeMenu}>Day Close</Link>
-        <Link to="/" onClick={closeMenu}>Switch Business</Link>
-        <div className="nav-mobile-user">
-          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-          {user.first_name || user.username}
-        </div>
-        <button className="nav-mobile-logout" onClick={handleLogout}>Logout</button>
-        <div className="nav-user-menu">
-          <span className="nav-user-trigger">
-            <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-            {user.first_name || user.username} ▾
-          </span>
-          <div className="nav-dropdown">
-            {isAdmin && <Link to="/settings" className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>}
-            <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
-            <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-      </div>
-      {menuOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
-    </nav>
-  );
+function ChickenShell({ children }) {
+  const groups = [
+    { label: 'Trading', links: [
+      { to: '/chicken', label: 'Home', icon: 'today', end: true },
+      { to: '/chicken/new', label: 'New Entry', icon: 'plus' },
+      { to: '/chicken/transactions', label: 'Transactions', icon: 'entry' },
+      { to: '/chicken/parties', label: 'Parties', icon: 'users' },
+      { to: '/chicken/items', label: 'Items', icon: 'feed' },
+    ] },
+    { label: 'Accounts', links: [
+      { to: '/chicken/ledgers', label: 'Ledgers', icon: 'ledger' },
+      { to: '/chicken/outstanding', label: 'Outstanding', icon: 'sale' },
+      { to: '/chicken/pending-bills', label: 'Receivables', icon: 'sale' },
+      { to: '/chicken/daybook', label: 'Daybook', icon: 'ledger' },
+      { to: '/chicken/sales-summary', label: 'Sales Summary', icon: 'reports' },
+      { to: '/chicken/reports', label: 'Reports', icon: 'reports' },
+    ] },
+    { label: 'Close', links: [
+      { to: '/chicken/opening', label: 'Opening', icon: 'entry' },
+      { to: '/chicken/day-close', label: 'Day Close', icon: 'entry' },
+      { to: '/', label: 'Switch Business', icon: 'switch', end: true },
+    ] },
+  ];
+  return <AppShell brandName={brand.chickenName} logo={brand.chickenLogo} home="/chicken" groups={groups}>{children}</AppShell>;
 }
 
-function LayerNav() {
-  const { user, logout, isAdmin } = useAuth();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  if (!user) return null;
-  const closeMenu = () => setMenuOpen(false);
-  const handleLogout = () => { logout(); closeMenu(); navigate('/login', { replace: true }); };
-  return (
-    <nav className="navbar navbar-layer">
-      <Link to="/layer" className="nav-brand" onClick={closeMenu}>{brand.layerLogo} {brand.layerName}</Link>
-      <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-        <span className={`hamburger-line ${menuOpen ? 'open' : ''}`}></span>
-      </button>
-      <div className={`nav-links ${menuOpen ? 'nav-links-open' : ''}`}>
-        <Link to="/layer" onClick={closeMenu}>Home</Link>
-        <Link to="/layer/new" onClick={closeMenu}>New Entry</Link>
-        <Link to="/layer/flocks" onClick={closeMenu}>Flocks</Link>
-        <Link to="/layer/feed" onClick={closeMenu}>Feed Mill</Link>
-        <Link to="/layer/transactions" onClick={closeMenu}>Transactions</Link>
-        <Link to="/layer/masters" onClick={closeMenu}>Masters</Link>
-        <Link to="/layer/reports" onClick={closeMenu}>Reports</Link>
-        <Link to="/layer/day-close" onClick={closeMenu}>Day Close</Link>
-        <Link to="/" onClick={closeMenu}>Switch Business</Link>
-        <div className="nav-mobile-user">
-          <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-          {user.first_name || user.username}
-        </div>
-        <button className="nav-mobile-logout" onClick={handleLogout}>Logout</button>
-        <div className="nav-user-menu">
-          <span className="nav-user-trigger">
-            <span className={`role-badge role-badge-${user.role}`}>{user.role}</span>
-            {user.first_name || user.username} ▾
-          </span>
-          <div className="nav-dropdown">
-            {isAdmin && <Link to="/settings" className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>}
-            <Link to="/change-password" className="nav-dropdown-item" onClick={closeMenu}>Change Password</Link>
-            <button className="nav-dropdown-item nav-dropdown-logout" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-      </div>
-      {menuOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
-    </nav>
-  );
+function LayerShell({ children }) {
+  const groups = [
+    { label: 'Farm', links: [
+      { to: '/layer', label: 'Home', icon: 'today', end: true },
+      { to: '/layer/new', label: 'New Entry', icon: 'plus' },
+      { to: '/layer/flocks', label: 'Flocks', icon: 'egg' },
+      { to: '/layer/feed', label: 'Feed Mill', icon: 'feed' },
+    ] },
+    { label: 'Accounts', links: [
+      { to: '/layer/transactions', label: 'Transactions', icon: 'entry' },
+      { to: '/layer/masters', label: 'Masters', icon: 'ledger' },
+      { to: '/layer/reports', label: 'Reports', icon: 'reports' },
+      { to: '/layer/day-close', label: 'Day Close', icon: 'entry' },
+      { to: '/', label: 'Switch Business', icon: 'switch', end: true },
+    ] },
+  ];
+  return <AppShell brandName={brand.layerName} logo={brand.layerLogo} home="/layer" groups={groups}>{children}</AppShell>;
 }
 
 function AppRoutes() {
@@ -274,12 +175,7 @@ function AppRoutes() {
   // landing/auth pages.
   const showFeedsNav = user && !isChicken && !isLayer && !isLanding && !isAuthPage;
 
-  return (
-    <>
-      {showFeedsNav && <NavBar />}
-      {user && isChicken && <ChickenNav />}
-      {user && isLayer && <LayerNav />}
-      <main className="main-content">
+  const routes = (
         <ErrorBoundary resetKey={location.pathname}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -343,9 +239,12 @@ function AppRoutes() {
           <Route path="/layer/day-close" element={<AdminRoute><LayerDayClose /></AdminRoute>} />
         </Routes>
         </ErrorBoundary>
-      </main>
-    </>
   );
+
+  if (showFeedsNav) return <FeedsShell>{routes}</FeedsShell>;
+  if (user && isChicken) return <ChickenShell>{routes}</ChickenShell>;
+  if (user && isLayer) return <LayerShell>{routes}</LayerShell>;
+  return <main className="main-content main-plain">{routes}</main>;
 }
 
 function App() {

@@ -901,3 +901,23 @@ settings admin-only; plant user = feed only.
 - Kept as is (Sai's call): region names list visible to supervisors.
 - Tests: backend test_company_costs.py (7, incl. "no hidden field anywhere in
   15 supervisor pages"), access matrix updated, e2e company-costs.spec.js (4).
+
+### UI redesign 1/3 — Style B foundation: sidebar app frame + design system (+ BUG-027)  ✅ DONE
+- Sai picked Style B ("control room") from the mockups.
+- New app frame (components/AppShell.jsx, styles/shell.css): navy sidebar
+  with grouped navigation (Operations / Analysis / Admin — only what the
+  role can use), user menu at the bottom (Settings for admin, Change
+  Password, Logout; opens on hover or tap), slim top bar with farm search
+  (opens Farms filtered, ?q=) and the alert bell. Phones: the sidebar slides
+  in from the menu button. Chicken Center and Layer Farm (main) use the same
+  frame with their own groups. Line icons (components/Icon.jsx) replace emoji.
+- Design system (styles/theme.css, loaded last): IBM Plex Sans + Plex Mono
+  for figures, teal accent (white-label: VITE_BRAND_PRIMARY_COLOR), cool
+  grey ground, flat bordered panels, compact tables, status chips
+  (.chip-ok/warn/danger/info), .panel/.panel-head. Every existing page picks
+  it up; key screens get redesigned next.
+- BUG-027: "Water:feed ratio low" was shown on every flock where water
+  wasn't recorded (0 L counted as "drank nothing"). Water 0 = not measured:
+  no ratio, no alarm.
+- Tests: vitest AppShell (4), water test, e2e helpers read the sidebar; all
+  browser tests pass on the new frame.

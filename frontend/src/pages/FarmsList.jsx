@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { FarmsListSkeleton } from '../components/Skeletons';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { farmAPI } from '../api/client';
 
 export default function FarmsList() {
   const [farms, setFarms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  // The search lives in the address (?q=…) so the top bar's search box can open it.
+  const [params, setParams] = useSearchParams();
+  const search = params.get('q') || '';
+  const setSearch = (v) => setParams(v ? { q: v } : {}, { replace: true });
 
   useEffect(() => {
     farmAPI.list().then(res => {

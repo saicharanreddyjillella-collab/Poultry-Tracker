@@ -674,9 +674,11 @@ class DailyEntry(SoftDeleteModel):
 
     @property
     def water_feed_ratio(self):
-        """Litres of water per kg of feed for this day. None if no feed."""
+        """Litres of water per kg of feed for this day. None if no feed, or no water was
+        recorded (0 means "not measured" — supervisors often skip it; it must not raise a
+        false "low water" alarm)."""
         feed_kg = self.total_feed_kg
-        if not feed_kg:
+        if not feed_kg or not self.water_consumed_liters:
             return None
         return round(float(self.water_consumed_liters) / feed_kg, 2)
 
