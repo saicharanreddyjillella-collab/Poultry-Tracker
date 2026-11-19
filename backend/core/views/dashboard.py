@@ -17,14 +17,17 @@ from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, v
 def dashboard(request):
     today = date.today()
     farms = visible_farms(request.user)
-    active_flocks = Flock.objects.filter(status='active', farm__in=farms).select_related('farm')
+    from ..prime import prime_flocks
+    active_flocks = prime_flocks(Flock.objects.filter(status='active', farm__in=farms).select_related('farm'))
+    today_entries = {e.flock_id: e for e in DailyEntry.objects.filter(date=today,
+                                                                      flock_id__in=[f.id for f in active_flocks])}
 
     total_live_birds = 0
     mortality_today = 0
 
     for flock in active_flocks:
         total_live_birds += flock.live_birds
-        today_entry = DailyEntry.objects.filter(flock=flock, date=today).first()
+        today_entry = today_entries.get(flock.id)
         if today_entry:
             mortality_today += today_entry.mortality_count
 
@@ -41,7 +44,7 @@ def dashboard(request):
 
     data = {
         'total_farms': farms.count(),
-        'total_active_flocks': active_flocks.count(),
+        'total_active_flocks': len(active_flocks),
         'total_live_birds': total_live_birds,
         'mortality_today': mortality_today,
         'latest_feed_rates': latest_rates,
@@ -58,8 +61,8 @@ def dashboard(request):
 
     # ─── ALERTS ───
     alerts = []
-    for flock in active_flocks.select_related('farm'):
-        today_entry = DailyEntry.objects.filter(flock=flock, date=today).first()
+    for flock in active_flocks:
+        today_entry = today_entries.get(flock.id)
 
         # High mortality today
         if today_entry and today_entry.mortality_count > 0:
@@ -97,18 +100,26 @@ def dashboard(request):
                 'message': 'No daily entry recorded today',
             })
 
-    # Low feed stock — only active feed type
+    # Low feed stock — only active feed type (farm totals, loaded for all farms at once)
+    first_active = {}
+    for f in sorted(active_flocks, key=lambda f: f.id):
+        first_active.setdefault(f.farm_id, f)
+    farm_ids = list(first_active)
+    delivered_by = {(r['farm_id'], r['feed_type']): r['t'] for r in
+                    FeedOrder.objects.filter(farm_id__in=farm_ids, status='delivered')
+                    .values('farm_id', 'feed_type').annotate(t=Sum('quantity_bags'))}
+    consumed_by = {r['flock__farm_id']: r for r in
+                   DailyEntry.objects.filter(flock__farm_id__in=farm_ids).values('flock__farm_id')
+                   .annotate(bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'))}
     for farm in farms:
-        active_flock = farm.flocks.filter(status='active').first()
+        active_flock = first_active.get(farm.id)
         if not active_flock:
             continue
         fs = active_flock.feed_schedule_status
         current_type = fs.get('current_feed_type', 'BFP')
-        delivered = FeedOrder.objects.filter(farm=farm, status='delivered', feed_type=current_type).aggregate(t=Sum('quantity_bags'))['t'] or 0
+        delivered = delivered_by.get((farm.id, current_type)) or 0
         consumed_map = {'BPSC': 'bpsc', 'BSC': 'bsc', 'BFP': 'bfp'}
-        consumed = DailyEntry.objects.filter(flock__farm=farm).aggregate(
-            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-        )
+        consumed = consumed_by.get(farm.id) or {'bpsc': None, 'bsc': None, 'bfp': None}
         consumed_bags = float(consumed[consumed_map[current_type]] or 0)
         stock = float(delivered) - consumed_bags
         if stock <= 2:

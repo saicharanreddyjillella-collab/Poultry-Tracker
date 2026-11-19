@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from .prime import prime_flocks, unprime
 from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, BillVersion, Document, AuditLog
 
 
@@ -65,7 +66,37 @@ class ChickQualityFields(serializers.Serializer):
         return attrs
 
 
-class FlockSerializer(ChickQualityFields, serializers.ModelSerializer):
+class PrimedFlocks:
+    """Page speed: load every flock's totals in a few queries before serializing, then
+    drop them (so a flock instance never keeps stale totals after the response)."""
+
+    def to_representation(self, instance):
+        primed_here = getattr(instance, '_stats', None) is None
+        if primed_here:
+            prime_flocks([instance])
+        try:
+            return super().to_representation(instance)
+        finally:
+            if primed_here:
+                unprime([instance])
+
+
+class PrimedFlockList(serializers.ListSerializer):
+    def to_representation(self, data):
+        items = list(data.all() if hasattr(data, 'all') else data)
+        if items and hasattr(items[0], 'farm_id'):
+            from django.db.models import prefetch_related_objects
+            prefetch_related_objects([f for f in items if 'farm' not in f._state.fields_cache], 'farm')
+            prefetch_related_objects([f for f in items if 'supervisor' not in f._state.fields_cache], 'supervisor')
+        fresh = [f for f in items if getattr(f, '_stats', None) is None]
+        prime_flocks(fresh)
+        try:
+            return super().to_representation(items)
+        finally:
+            unprime(fresh)
+
+
+class FlockSerializer(PrimedFlocks, ChickQualityFields, serializers.ModelSerializer):
     hatchery_name = serializers.CharField(source='hatchery.name', read_only=True, default=None)
     age_days = serializers.ReadOnlyField()
     total_mortality = serializers.ReadOnlyField()
@@ -96,9 +127,10 @@ class FlockSerializer(ChickQualityFields, serializers.ModelSerializer):
     class Meta:
         model = Flock
         fields = '__all__'
+        list_serializer_class = PrimedFlockList
 
 
-class FlockListSerializer(ChickQualityFields, serializers.ModelSerializer):
+class FlockListSerializer(PrimedFlocks, ChickQualityFields, serializers.ModelSerializer):
     age_days = serializers.ReadOnlyField()
     total_mortality = serializers.ReadOnlyField()
     total_feed_kg = serializers.ReadOnlyField()
@@ -127,6 +159,7 @@ class FlockListSerializer(ChickQualityFields, serializers.ModelSerializer):
     class Meta:
         model = Flock
         fields = '__all__'
+        list_serializer_class = PrimedFlockList
 
     def get_supervisor_name(self, obj):
         if obj.supervisor:
@@ -140,6 +173,32 @@ class FarmNameSerializer(serializers.ModelSerializer):
         model = Farm
         fields = ['id', 'farm_code', 'name', 'region']
         read_only_fields = fields
+
+
+class PrimedFarmList(serializers.ListSerializer):
+    """Page speed: fetch the flocks (and supervisors) of all listed farms at once."""
+
+    def to_representation(self, data):
+        farms = list(data.all() if hasattr(data, 'all') else data)
+        if farms:
+            from django.db.models import prefetch_related_objects
+            by_farm = {f.pk: {'active': [], 'closed': []} for f in farms}
+            flocks = list(Flock.objects.filter(farm_id__in=by_farm, status__in=('active', 'closed'))
+                          .select_related('farm', 'supervisor').order_by('id'))
+            for fl in flocks:
+                by_farm[fl.farm_id][fl.status].append(fl)
+            prefetch_related_objects(farms, 'assigned_supervisors__user')
+            prime_flocks(flocks)
+            for f in farms:
+                f._flocks_by_status = by_farm[f.pk]
+        else:
+            flocks = []
+        try:
+            return super().to_representation(farms)
+        finally:
+            unprime(flocks)
+            for f in farms:
+                f._flocks_by_status = None
 
 
 class FarmSerializer(serializers.ModelSerializer):
@@ -161,6 +220,7 @@ class FarmSerializer(serializers.ModelSerializer):
     class Meta:
         model = Farm
         fields = '__all__'
+        list_serializer_class = PrimedFarmList
 
     def validate_pan(self, value):
         import re
@@ -172,16 +232,23 @@ class FarmSerializer(serializers.ModelSerializer):
                 )
         return value
 
+    def _flocks(self, obj, status):
+        cached = getattr(obj, '_flocks_by_status', None)
+        if cached is not None:
+            return cached[status]
+        return obj.flocks.filter(status=status).select_related('farm', 'supervisor')
+
     def get_active_flocks(self, obj):
-        flocks = obj.flocks.filter(status='active')
-        return FlockListSerializer(flocks, many=True).data
+        return FlockListSerializer(self._flocks(obj, 'active'), many=True).data
 
     def get_closed_flocks(self, obj):
-        flocks = obj.flocks.filter(status='closed')
-        return FlockListSerializer(flocks, many=True).data
+        return FlockListSerializer(self._flocks(obj, 'closed'), many=True).data
 
     def get_supervisor_names(self, obj):
-        supervisors = obj.assigned_supervisors.filter(role='supervisor').select_related('user')
+        if getattr(obj, '_flocks_by_status', None) is not None:      # list page: prefetched
+            supervisors = [p for p in obj.assigned_supervisors.all() if p.role == 'supervisor']
+        else:
+            supervisors = obj.assigned_supervisors.filter(role='supervisor').select_related('user')
         return ', '.join(
             f"{s.user.first_name} {s.user.last_name}".strip() or s.user.username
             for s in supervisors

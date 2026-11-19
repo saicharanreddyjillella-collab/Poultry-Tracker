@@ -20,7 +20,7 @@ def _can_manage_farm(user, farm):
 
 
 class FeedOrderViewSet(viewsets.ModelViewSet):
-    queryset = FeedOrder.objects.select_related('farm', 'ordered_by').all()
+    queryset = FeedOrder.objects.select_related('farm', 'ordered_by', 'flock').all()
     serializer_class = FeedOrderSerializer
     permission_classes = [IsAuthenticated]
 
@@ -120,26 +120,33 @@ def feed_stock(request):
     if farm_id:
         farms_qs = farms_qs.filter(id=farm_id)
 
+    # Page speed: every total for all farms in five grouped queries (not five per farm).
+    farms = list(farms_qs)
+    ids = [f.id for f in farms]
+
+    def by_farm(qs, key):
+        out = {}
+        for r in qs.values(key, 'feed_type').annotate(total=Sum('quantity_bags')):
+            out.setdefault(r[key], {})[r['feed_type']] = float(r['total'])
+        return out
+    delivered_all = by_farm(FeedOrder.objects.filter(farm_id__in=ids, status='delivered'), 'farm_id')
+    pending_all = by_farm(FeedOrder.objects.filter(farm_id__in=ids, status__in=['pending', 'sent']), 'farm_id')
+    in_all = by_farm(FeedTransfer.objects.filter(to_farm_id__in=ids), 'to_farm_id')
+    out_all = by_farm(FeedTransfer.objects.filter(from_farm_id__in=ids), 'from_farm_id')
+    consumed_all = {r['flock__farm_id']: r for r in DailyEntry.objects.filter(flock__farm_id__in=ids)
+                    .values('flock__farm_id').annotate(bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'),
+                                                       bfp=Sum('feed_bfp_bags'))}
+
     result = []
-    for farm in farms_qs:
-        delivered = FeedOrder.objects.filter(farm=farm, status='delivered').values('feed_type').annotate(total=Sum('quantity_bags'))
-        delivered_map = {d['feed_type']: float(d['total']) for d in delivered}
-
-        consumed = DailyEntry.objects.filter(flock__farm=farm).aggregate(
-            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-        )
-        consumed_bpsc = float(consumed['bpsc'] or 0)
-        consumed_bsc = float(consumed['bsc'] or 0)
-        consumed_bfp = float(consumed['bfp'] or 0)
-
-        pending = FeedOrder.objects.filter(farm=farm, status__in=['pending', 'sent']).values('feed_type').annotate(total=Sum('quantity_bags'))
-        pending_map = {p['feed_type']: float(p['total']) for p in pending}
-
-        transfers_in = FeedTransfer.objects.filter(to_farm=farm).values('feed_type').annotate(total=Sum('quantity_bags'))
-        in_map = {t['feed_type']: float(t['total']) for t in transfers_in}
-
-        transfers_out = FeedTransfer.objects.filter(from_farm=farm).values('feed_type').annotate(total=Sum('quantity_bags'))
-        out_map = {t['feed_type']: float(t['total']) for t in transfers_out}
+    for farm in farms:
+        delivered_map = delivered_all.get(farm.id, {})
+        consumed = consumed_all.get(farm.id, {})
+        consumed_bpsc = float(consumed.get('bpsc') or 0)
+        consumed_bsc = float(consumed.get('bsc') or 0)
+        consumed_bfp = float(consumed.get('bfp') or 0)
+        pending_map = pending_all.get(farm.id, {})
+        in_map = in_all.get(farm.id, {})
+        out_map = out_all.get(farm.id, {})
 
         stock_bpsc = delivered_map.get('BPSC', 0) + in_map.get('BPSC', 0) - out_map.get('BPSC', 0) - consumed_bpsc
         stock_bsc = delivered_map.get('BSC', 0) + in_map.get('BSC', 0) - out_map.get('BSC', 0) - consumed_bsc

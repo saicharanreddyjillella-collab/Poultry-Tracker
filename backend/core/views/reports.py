@@ -285,32 +285,26 @@ def till_date_report(request):
     total_med_cost = Decimal('0')
     total_live_birds = 0
 
-    for flock in all_flocks:
+    from ..prime import prime_flocks
+    flocks = prime_flocks(all_flocks)                    # page speed: totals for all flocks in a few queries
+    for flock in flocks:
         total_placed += flock.chick_count
-        entries = DailyEntry.objects.filter(flock=flock)
-        mort = entries.aggregate(t=Sum('mortality_count'))['t'] or 0
-        total_mortality += mort
-
-        feed = entries.aggregate(
-            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-        )
-        total_bpsc += feed['bpsc'] or 0
-        total_bsc += feed['bsc'] or 0
-        total_bfp += feed['bfp'] or 0
-
-        sales = Sale.objects.filter(flock=flock)
-        sold_birds = sales.aggregate(t=Sum('bird_count'))['t'] or 0
-        sold_weight = sales.aggregate(t=Sum('total_weight_kg'))['t'] or Decimal('0')
-        total_sold_birds += sold_birds
-        total_sold_weight += sold_weight
-
-        for s in sales.filter(rate_per_kg__isnull=False):
-            total_sale_amount += s.total_weight_kg * s.rate_per_kg
-
+        total_mortality += flock.total_mortality
+        consumed = flock._stats['consumed']
+        total_bpsc += consumed['BPSC'] or 0
+        total_bsc += consumed['BSC'] or 0
+        total_bfp += consumed['BFP'] or 0
+        total_sold_birds += flock.total_sold_birds
+        total_sold_weight += flock.total_sold_weight_kg or Decimal('0')
         total_med_cost += Decimal(str(flock.total_medication_cost))
 
-    for flock in active_flocks:
-        total_live_birds += flock.live_birds
+    for weight, rate in Sale.objects.filter(flock_id__in=[f.id for f in flocks], rate_per_kg__isnull=False) \
+            .values_list('total_weight_kg', 'rate_per_kg'):
+        total_sale_amount += weight * rate
+
+    for flock in flocks:
+        if flock.status == 'active':
+            total_live_birds += flock.live_birds
 
     total_feed_bags = total_bpsc + total_bsc + total_bfp
     total_feed_kg = total_feed_bags * BAG_KG
@@ -371,7 +365,8 @@ def feed_forecast(request):
     daily_mort_rate = total_mort_pct / 42.0
 
     today = date.today()
-    active = Flock.objects.filter(status='active').select_related('farm')
+    from ..prime import prime_flocks
+    active = prime_flocks(Flock.objects.filter(status='active').select_related('farm'))
 
     # buckets[week_index][phase] = kg
     buckets = [{'BPSC': 0.0, 'BSC': 0.0, 'BFP': 0.0} for _ in range(weeks)]
@@ -452,8 +447,12 @@ def owner_dashboard(request):
     period_days = max(7, min(period_days, 730))
     since = date.today() - timedelta(days=period_days)
 
+    from ..prime import prime_flocks
     active = list(Flock.objects.filter(status='active').select_related('farm'))
-    closed = list(Flock.objects.filter(status='closed').select_related('farm'))
+    # Only closed flocks billed around/after the period start are ever used below (exact cut-off kept in Python).
+    closed = list(Flock.objects.filter(status='closed', bill__generated_at__gte=since - timedelta(days=1))
+                  .select_related('farm', 'bill'))
+    prime_flocks(active + closed)                           # page speed: totals in a few queries
 
     # ── 1. Active-cycle overview ──
     active_rows = []
@@ -526,7 +525,7 @@ def owner_dashboard(request):
     today = date.today()
     for f in active:
         # stale data: no entry in 2+ days
-        last = f.daily_entries.order_by('-date').first()
+        last = f._stats['entries'][0] if f._stats['entries'] else None   # newest first
         if last is None or (today - last.date).days >= 2:
             alerts.append({'type': 'warning', 'flock_id': f.id, 'farm_code': f.farm.farm_code,
                            'farm_name': f.farm.name, 'category': 'stale_data',
@@ -608,7 +607,8 @@ def break_even_projection(request):
     pool_feed_kg = Decimal('0')
     pool_birds = 0
     pool_chicks = 0
-    for f in Flock.objects.filter(status='active').select_related('farm'):
+    from ..prime import prime_flocks
+    for f in prime_flocks(Flock.objects.filter(status='active').select_related('farm')):
         chicks = f.chick_count
         if chicks <= 0:
             continue
