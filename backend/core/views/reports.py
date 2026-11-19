@@ -1,4 +1,5 @@
 """Monthly / region / till-date reports and Excel exports."""
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from ..permissions import IsAdmin
@@ -474,7 +475,7 @@ def owner_dashboard(request):
         })
 
     # ── 2. Region / period summary (closed flocks billed in the period) ──
-    period_closed = [f for f in closed if hasattr(f, 'bill') and f.bill and f.bill.generated_at.date() >= since]
+    period_closed = [f for f in closed if hasattr(f, 'bill') and f.bill and timezone.localdate(f.bill.generated_at) >= since]
     region_map = {}
     for f in period_closed:
         r = f.farm.region or 'Unassigned'

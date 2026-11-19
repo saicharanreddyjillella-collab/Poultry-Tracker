@@ -130,6 +130,8 @@ def dashboard(request):
             })
 
     data['alerts'] = alerts
+    from ..control_room import control_room          # next actions, trends, regions (no extra per-flock queries)
+    data.update(control_room(active_flocks, list(farms), today))
     return Response(data)
 
 
