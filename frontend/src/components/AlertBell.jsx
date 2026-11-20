@@ -59,7 +59,7 @@ export default function AlertBell() {
               {alerts.map((a, i) => (
                 <Link
                   key={i}
-                  to={a.flock_id ? `/flocks/${a.flock_id}` : `/farms`}
+                  to={a.link || (a.flock_id ? `/flocks/${a.flock_id}` : `/farms`)}
                   className={`alert-bell-item alert-bell-item-${a.type}`}
                   onClick={() => setOpen(false)}
                 >
@@ -67,7 +67,7 @@ export default function AlertBell() {
                     {a.type === 'danger' ? '🔴' : a.type === 'warning' ? '🟡' : 'ℹ️'}
                   </span>
                   <div className="alert-bell-content">
-                    <span className="alert-bell-farm">{a.farm_code} — {a.farm_name}</span>
+                    <span className="alert-bell-farm">{a.farm_code ? `${a.farm_code} — ` : ""}{a.farm_name}</span>
                     <span className="alert-bell-msg">{a.message}</span>
                   </div>
                 </Link>

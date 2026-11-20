@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import feed_audit, hatchery, heat, lift, placement, settings as settings_views
+from .views import approvals, feed_audit, hatchery, heat, lift, placement, settings as settings_views
 
 router = DefaultRouter()
 router.register(r'farms', views.FarmViewSet)
@@ -74,4 +74,8 @@ urlpatterns += [
     path('settings/features/', settings_views.feature_settings),
     path('settings/features/<str:key>/', settings_views.feature_setting),
     path('settings/health/', settings_views.system_health),
+    path('settings/rules/', settings_views.rule_settings),
+    path('change-requests/', approvals.change_requests),
+    path('change-requests/<int:pk>/approve/', approvals.approve_change),
+    path('change-requests/<int:pk>/reject/', approvals.reject_change),
 ]

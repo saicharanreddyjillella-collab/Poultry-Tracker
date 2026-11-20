@@ -99,7 +99,8 @@ export default function Dashboard() {
                 <li key={i}>
                   <span className={`dot dot-${ALERT_TONE[a.type] || 'info'}`} aria-hidden="true" />
                   <div>
-                    {a.flock_id ? <Link to={`/flocks/${a.flock_id}`} className="alert-farm">{a.farm_name}</Link> : <span className="alert-farm">{a.farm_name}</span>}
+                    {a.link ? <Link to={a.link} className="alert-farm">{a.farm_name}</Link>
+                      : a.flock_id ? <Link to={`/flocks/${a.flock_id}`} className="alert-farm">{a.farm_name}</Link> : <span className="alert-farm">{a.farm_name}</span>}
                     <span className="alert-msg">{a.message}</span>
                   </div>
                 </li>

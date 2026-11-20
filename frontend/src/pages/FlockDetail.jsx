@@ -3,7 +3,10 @@ import ConfirmModal from '../components/ConfirmModal';
 import UnsavedPrompt from '../components/UnsavedPrompt';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI, getErrorMessage } from '../api/client';
+import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI, changeRequestAPI, getErrorMessage } from '../api/client';
+import ReasonDialog from '../components/ReasonDialog';
+import PendingChanges from '../components/PendingChanges';
+import useApprovalSave from '../utils/useApprovalSave';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import BillCardPicker from '../components/BillCardPicker';
@@ -38,7 +41,19 @@ export default function FlockDetail() {
   const [showFeedOrderForm, setShowFeedOrderForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [billCard, setBillCard] = useState(null);           // admin's choice; null = card for the placement date
+  const [billCard, setBillCard] = useState(null);
+  const [pendingChanges, setPendingChanges] = useState([]);
+  const [notice, setNotice] = useState('');
+  const { run: saveWithApproval, dialogProps: reasonDialog } = useApprovalSave();
+  // After a save: closes the form; if it went for approval, says so instead of showing a new row.
+  const afterSave = (result, close, tab) => {
+    if (result.cancelled) return false;
+    close();
+    if (result.pending) setNotice('Sent to an admin for approval — it is outside the edit window. Nothing changes until it is approved.');
+    else { setNotice(''); showTab(tab); }
+    load();
+    return true;
+  };           // admin's choice; null = card for the placement date
   const [closeFlags, setCloseFlags] = useState({
     recovery_excess_mortality: true,
     recovery_negligence: false,
@@ -71,6 +86,7 @@ export default function FlockDetail() {
       const [flockRes, cumRes] = await Promise.all([flockAPI.get(id), flockAPI.cumulative(id)]);
       setFlock(flockRes.data);
       setCumulative(cumRes.data);
+      changeRequestAPI.list({ flock: id, status: 'pending' }).then(r => setPendingChanges(r.data)).catch(() => {});
       try {
         const stockRes = await feedStockAPI.list(flockRes.data.farm);
         if (stockRes.data.length > 0) setFarmStock(stockRes.data[0]);
@@ -162,48 +178,45 @@ export default function FlockDetail() {
       notes: entryForm.notes,
     };
     try {
-      if (editingEntry) {
-        await dailyEntryAPI.update(editingEntry.id, data);
-      } else {
-        await dailyEntryAPI.create(data);
-      }
-      setShowEntryForm(false);
-      showTab('entries');                       // show what was just saved
-      resetEntryForm();
-      load();
+      const result = await saveWithApproval(extra => (editingEntry
+        ? dailyEntryAPI.update(editingEntry.id, { ...data, ...extra })
+        : dailyEntryAPI.create({ ...data, ...extra })));
+      afterSave(result, () => { setShowEntryForm(false); resetEntryForm(); }, 'entries');
     } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleSale = async (e) => {
     e.preventDefault(); setError('');
     try {
-      await saleAPI.create({
+      const result = await saveWithApproval(extra => saleAPI.create({
         flock: id, date: saleForm.date,
         bird_count: parseInt(saleForm.bird_count),
         total_weight_kg: parseFloat(saleForm.total_weight_kg),
         rate_per_kg: saleForm.rate_per_kg ? parseFloat(saleForm.rate_per_kg) : null,
         trader_name: saleForm.trader_name,
         notes: saleForm.notes,
-      });
-      setShowSaleForm(false);
-      showTab('sales');                       // show what was just saved
-      setSaleForm({ date: todayISO(), bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '' });
-      load();
+        ...extra,
+      }));
+      afterSave(result, () => {
+        setShowSaleForm(false);
+        setSaleForm({ date: todayISO(), bird_count: '', total_weight_kg: '', rate_per_kg: '', trader_name: '', notes: '' });
+      }, 'sales');
     } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleMed = async (e) => {
     e.preventDefault(); setError('');
     try {
-      await medicationAPI.create({
+      const result = await saveWithApproval(extra => medicationAPI.create({
         flock: id, date: medForm.date, name: medForm.name,
         dose: medForm.dose, route: medForm.route,
         cost: parseFloat(medForm.cost) || 0, reason: medForm.reason,
-      });
-      setShowMedForm(false);
-      showTab('health');                       // show what was just saved
-      setMedForm({ date: todayISO(), name: '', dose: '', route: '', cost: '', reason: '' });
-      load();
+        ...extra,
+      }));
+      afterSave(result, () => {
+        setShowMedForm(false);
+        setMedForm({ date: todayISO(), name: '', dose: '', route: '', cost: '', reason: '' });
+      }, 'health');
     } catch (err) { setError(getErrorMessage(err)); }
   };
 
@@ -301,6 +314,8 @@ export default function FlockDetail() {
       )}
 
       {error && <div className="error-msg">{error}</div>}
+      {notice && <div className="alert-banner alert-banner-success" role="status">{notice}</div>}
+      <PendingChanges rows={pendingChanges} onDecided={load} />
 
       {/* === ALL FORMS — appear right below buttons === */}
 
@@ -653,8 +668,13 @@ export default function FlockDetail() {
                             message: `Delete daily entry for ${e.date}? Its mortality, feed and weight data will be removed from this flock. An admin can restore it from the Recycle Bin.`,
                             onConfirm: async () => {
                               setConfirm({ ...confirm, open: false });
-                              await dailyEntryAPI.delete(e.id);
-                              load();
+                              try {
+                                const result = await saveWithApproval(extra => dailyEntryAPI.delete(e.id, extra.change_reason ? extra : null));
+                                if (!result.cancelled) {
+                                  setNotice(result.pending ? 'Delete sent to an admin for approval — it is outside the edit window.' : '');
+                                  load();
+                                }
+                              } catch (err) { setError(getErrorMessage(err)); }
                             }
                           })}>Delete</button>
                         </td>
@@ -852,6 +872,7 @@ export default function FlockDetail() {
         </div>
       )}
 
+      <ReasonDialog {...reasonDialog} />
       <ConfirmModal
         open={confirm.open}
         title={confirm.title}

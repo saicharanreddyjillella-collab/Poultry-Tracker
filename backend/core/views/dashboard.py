@@ -133,6 +133,12 @@ def dashboard(request):
                 'message': f'{current_type} stock low: {round(stock, 1)} bags',
             })
 
+    if is_admin(request.user):                       # decisions waiting for the admin come first
+        from ..models import ChangeRequest
+        n = ChangeRequest.objects.filter(status='pending').count()
+        if n:
+            alerts.insert(0, {'type': 'warning', 'farm_name': 'Approvals', 'link': '/approvals',
+                              'message': f"{n} change{'s' if n > 1 else ''} outside the edit window waiting for approval"})
     data['alerts'] = alerts
     data.update(scope_info(request))
     from ..control_room import control_room          # next actions, trends, regions (no extra per-flock queries)

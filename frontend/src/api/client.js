@@ -155,14 +155,14 @@ export const dailyEntryAPI = {
   list: (flockId) => API.get(`/daily-entries/?flock=${flockId}`),
   create: (data) => API.post('/daily-entries/', data),
   update: (id, data) => API.put(`/daily-entries/${id}/`, data),
-  delete: (id) => API.delete(`/daily-entries/${id}/`),
+  delete: (id, data) => API.delete(`/daily-entries/${id}/`, data ? { data } : undefined),
 };
 
 export const saleAPI = {
   list: (flockId) => API.get(`/sales/?flock=${flockId}`),
   create: (data) => API.post('/sales/', data),
   update: (id, data) => API.put(`/sales/${id}/`, data),
-  delete: (id) => API.delete(`/sales/${id}/`),
+  delete: (id, data) => API.delete(`/sales/${id}/`, data ? { data } : undefined),
 };
 
 export const feedRateAPI = {
@@ -192,6 +192,17 @@ export const feedStockAPI = {
 export const medicationAPI = {
   list: (flockId) => API.get(`/medications/?flock=${flockId}`),
   create: (data) => API.post('/medications/', data),
+};
+
+export const changeRequestAPI = {
+  list: (params) => API.get('/change-requests/', { params }),
+  approve: (id, note) => API.post(`/change-requests/${id}/approve/`, { note }),
+  reject: (id, note) => API.post(`/change-requests/${id}/reject/`, { note }),
+};
+
+export const rulesAPI = {
+  list: () => API.get('/settings/rules/'),
+  save: (values) => API.put('/settings/rules/', values),
 };
 
 export const dashboardAPI = {

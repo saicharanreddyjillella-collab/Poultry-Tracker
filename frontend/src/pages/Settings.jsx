@@ -1,3 +1,4 @@
+import RulesSection from '../components/RulesSection';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { featureAPI, getErrorMessage } from '../api/client';
@@ -32,6 +33,7 @@ export default function Settings() {
         <h1>Settings</h1>
         <Link to="/system-health" className="btn btn-secondary">System Health →</Link>
       </div>
+      <RulesSection />
       <section className="settings-link-card">
         <div>
           <h2>Billing Rates</h2>

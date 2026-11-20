@@ -64,6 +64,13 @@ def world(settings, tmp_path):
     }
 
 
+@pytest.fixture(autouse=True)
+def no_edit_window(db):
+    """Access only here; the edit window (dates) has its own tests (test_edit_window.py)."""
+    from core.models import AppSetting
+    AppSetting.objects.create(key="edit_window_days", value=0)
+
+
 # url template, expected status for (admin, supA, plant, anon)
 READS = [
     ("/api/farms/{B.id}/",                      (200, 200, 200, 401)),   # plant: name only

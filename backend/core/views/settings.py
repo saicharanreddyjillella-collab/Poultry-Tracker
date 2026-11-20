@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from ..features import FEATURES, all_states
 from ..models import FeatureSetting
 from ..permissions import IsAdmin
+from ..access import is_admin
 
 
 @api_view(['GET'])
@@ -54,3 +55,33 @@ def system_health(request):
     """Admin: backups, errors, missing entries, weather, features, who is active."""
     from ..system_health import health_report
     return Response(health_report())
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def rule_settings(request):
+    """Admin rules (core/app_settings.py). GET: everyone signed in may read (screens need the
+    edit window); PUT {key: value, …}: admin only."""
+    from .. import app_settings
+    from ..models import AppSetting
+    if request.method == 'PUT':
+        if not is_admin(request.user):
+            return Response({'error': 'Admin only'}, status=403)
+        errors, cleaned = {}, {}
+        for key, value in request.data.items():
+            if key not in app_settings.SETTINGS:
+                errors[key] = 'Unknown setting.'
+                continue
+            try:
+                cleaned[key] = app_settings.clean(key, value)
+            except ValueError as e:
+                errors[key] = str(e)
+        if errors:
+            return Response(errors, status=400)
+        for key, value in cleaned.items():
+            row, _ = AppSetting.objects.get_or_create(key=key, defaults={'value': value})
+            row.value, row.updated_by = value, request.user
+            row.save()
+    values = app_settings.all_values()
+    return Response([{**{k: v for k, v in spec.items()}, 'key': key, 'value': values[key]}
+                     for key, spec in app_settings.SETTINGS.items()])

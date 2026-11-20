@@ -20,6 +20,7 @@ import Hatcheries from './pages/Hatcheries';
 import LiftPlanner from './pages/LiftPlanner';
 import Settings from './pages/Settings';
 import RateCards from './pages/RateCards';
+import Approvals from './pages/Approvals';
 import GrowerRanking from './pages/GrowerRanking';
 import SystemHealth from './pages/SystemHealth';
 import OwnerDashboard from './pages/OwnerDashboard';
@@ -70,6 +71,7 @@ function FeedsShell({ children }) {
   const analysis = isPlant ? [] : [{ to: '/reports', label: 'Reports', icon: 'reports' }];
   if (isAdmin) analysis.push({ to: '/insights', label: 'Insights', icon: 'insights' });
   const admin = !isAdmin ? [] : [
+    { to: '/approvals', label: 'Approvals', icon: 'approve' },
     { to: '/users', label: 'Users', icon: 'users' },
     { to: '/settings', label: 'Settings', icon: 'settings' },
     { to: '/trash', label: 'Recycle Bin', icon: 'trash' },
@@ -115,6 +117,7 @@ function AppRoutes() {
           <Route path="/lift-planner" element={<AdminRoute><LiftPlanner /></AdminRoute>} />
           <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
           <Route path="/settings/rate-cards" element={<AdminRoute><RateCards /></AdminRoute>} />
+          <Route path="/approvals" element={<AdminRoute><Approvals /></AdminRoute>} />
           <Route path="/grower-ranking" element={<AdminRoute><GrowerRanking /></AdminRoute>} />
           <Route path="/system-health" element={<AdminRoute><SystemHealth /></AdminRoute>} />
           <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />

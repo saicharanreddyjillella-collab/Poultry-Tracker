@@ -3,7 +3,11 @@
 import { test, expect } from '@playwright/test';
 import { reseed, loginAs, flockIdOf, field, daysAgo, api } from './helpers';
 
-test.beforeAll(() => reseed());
+test.beforeAll(async ({ request }) => {
+  reseed();
+  // These tests change entries from weeks back; the edit window has its own spec.
+  await api(request, 'admin', 'PUT', '/settings/rules/', { edit_window_days: 0 });
+});
 
 let flock;
 test.beforeEach(async ({ page, request }) => {

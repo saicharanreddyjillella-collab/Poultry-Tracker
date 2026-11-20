@@ -14,6 +14,7 @@ from ..serializers import (
     DailyEntrySerializer, SaleSerializer, FeedRateSerializer,
     MedicationSerializer
 )
+from ..edit_window import EditWindowMixin
 from ..permissions import IsAdminOrReadOnly, CanEditFarm, CanEditFlock, CanEditFlockData
 
 
@@ -113,7 +114,8 @@ class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
         serializer.save()
 
 
-class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
+class DailyEntryViewSet(EditWindowMixin, GuardedListMixin, viewsets.ModelViewSet):
+    model_label = 'DailyEntry'
     queryset = DailyEntry.objects.select_related('flock', 'flock__farm', 'entered_by', 'edited_by').all()
     serializer_class = DailyEntrySerializer
     permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
@@ -206,7 +208,8 @@ class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
         serializer.save(edited_by=self.request.user)
 
 
-class SaleViewSet(GuardedListMixin, viewsets.ModelViewSet):
+class SaleViewSet(EditWindowMixin, GuardedListMixin, viewsets.ModelViewSet):
+    model_label = 'Sale'
     queryset = Sale.objects.select_related('flock', 'flock__farm', 'entered_by', 'edited_by').all()
     serializer_class = SaleSerializer
     permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
@@ -261,7 +264,8 @@ class FeedRateViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=200)
 
 
-class MedicationViewSet(GuardedListMixin, viewsets.ModelViewSet):
+class MedicationViewSet(EditWindowMixin, GuardedListMixin, viewsets.ModelViewSet):
+    model_label = 'Medication'
     queryset = Medication.objects.select_related('flock', 'flock__farm', 'entered_by', 'edited_by').all()
     serializer_class = MedicationSerializer
     permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]

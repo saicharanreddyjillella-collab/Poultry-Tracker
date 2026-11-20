@@ -265,3 +265,14 @@ a.alert-farm:hover { color: var(--primary); }
 .bill-rule { font-size: 0.75rem; text-align: right; }
 .cell-by { white-space: nowrap; font-size: 0.8125rem; } .cell-by .cell-sub { display: block; }
 .form-hint { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 8px; max-width: 640px; }
+
+/* Changes waiting for approval */
+.pending-changes { margin-bottom: 1rem; border-color: #F3C9A6; }
+.pending-changes .panel-head h2 { display: flex; align-items: center; gap: 8px; }
+.pc-list { list-style: none; margin: 0; padding: 0; }
+.pc-list li { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; padding: 0.625rem 1rem; }
+.pc-list li + li { border-top: 1px solid #F0F3F6; }
+.pc-what { font-size: 0.8125rem; margin: 2px 0; }
+.pc-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+@media (max-width: 640px) { .pc-list li { flex-direction: column; } }
+.rules-card { align-items: flex-end; } .rule-row input { max-width: 120px; }

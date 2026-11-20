@@ -903,6 +903,46 @@ class MarketRate(models.Model):
         return f"{self.date}: ₹{self.rate_per_kg}/kg"
 
 
+class AppSetting(models.Model):
+    """A value for a rule listed in core/app_settings.py (admin: Settings → Rules)."""
+    key = models.CharField(max_length=60, unique=True)
+    value = models.JSONField()
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.key} = {self.value}"
+
+
+class ChangeRequest(models.Model):
+    """A supervisor's add / change / delete of an entry, sale or medicine dated outside the
+    edit window. Nothing changes until an admin approves; then it is applied as the supervisor's."""
+    MODELS = [('DailyEntry', 'Daily entry'), ('Sale', 'Sale'), ('Medication', 'Medicine')]
+    ACTIONS = [('create', 'Add'), ('update', 'Change'), ('delete', 'Delete')]
+    STATUSES = [('pending', 'Waiting for approval'), ('approved', 'Approved'), ('rejected', 'Rejected')]
+    model = models.CharField(max_length=20, choices=MODELS)
+    action = models.CharField(max_length=10, choices=ACTIONS)
+    object_id = models.PositiveIntegerField(null=True, blank=True, help_text="The record changed or deleted")
+    flock = models.ForeignKey('Flock', on_delete=models.CASCADE, related_name='change_requests')
+    record_date = models.DateField(help_text="Date of the entry / sale / medicine")
+    payload = models.JSONField(default=dict, blank=True, help_text="The values asked for")
+    before = models.JSONField(default=dict, blank=True, help_text="The record as it was when asked")
+    reason = models.TextField()
+    status = models.CharField(max_length=10, choices=STATUSES, default='pending', db_index=True)
+    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    decided_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True, default='')
+    result_object_id = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f"{self.get_action_display()} {self.get_model_display()} {self.record_date} ({self.status})"
+
+
 class FeatureSetting(models.Model):
     """On/off switch for a feature listed in core/features.py (admin: Settings → Features)."""
     key = models.CharField(max_length=60, unique=True)
