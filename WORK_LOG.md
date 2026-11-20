@@ -1012,3 +1012,24 @@ settings admin-only; plant user = feed only.
 - Tests: test_entered_by (3), access matrix rewritten for the new rule
   (lists show every farm; dashboards/reports scoped; farm details still
   region-only), regions.spec rewritten (covering, scope switch, who entered).
+
+### Edit window + admin approval of older changes  ✅ DONE
+- Asked for: supervisors may change only recent records; older changes need an
+  admin's approval with a reason; window configurable by admin (default 3 days).
+- Settings → Rules (new, core/app_settings.py + AppSetting): "Edit window
+  (days)", default 3 (today + 2 days before), 0 = no limit. Admin only to change.
+- Daily entries, sales, medicines (core/edit_window.py, EditWindowMixin): a
+  supervisor's add / change / delete dated before the window (or moving a
+  record into it) returns "give a reason"; with a reason it becomes a
+  ChangeRequest (values asked for + the record as it was) and nothing changes.
+  Mistakes are shown at once, not at approval. Admins are never limited.
+- Approve applies it as the supervisor's change through the same viewset
+  checks (stock, live birds, bill lock); if it no longer fits, approval is
+  refused with the reason and the request stays pending. Reject leaves the
+  record. Each request records who asked, why, who decided and a note.
+- Screens: reason dialog on the flock page (entries, sales, medicines, entry
+  delete); "Waiting for admin approval" box on the flock; Approvals page in
+  the admin menu (approve/reject, changes shown as "Mortality 3 → 9",
+  recently decided list); dashboard alert + bell for the admin.
+- Tests: test_edit_window (9), e2e edit-window.spec (4). Access-matrix and two
+  e2e files that edit weeks-old entries turn the window off for themselves.

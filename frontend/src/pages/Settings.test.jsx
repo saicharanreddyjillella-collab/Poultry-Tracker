@@ -6,6 +6,10 @@ import { vi, test, expect, beforeEach } from 'vitest';
 const { rows, setCalls, states } = vi.hoisted(() => ({ rows: { current: [] }, setCalls: [], states: { current: {} } }));
 vi.mock('../api/client', () => ({
   getErrorMessage: () => 'failed',
+  rulesAPI: {
+    list: () => Promise.resolve({ data: [{ key: 'edit_window_days', name: 'Edit window (days)', description: 'd', type: 'int', min: 0, max: 365, value: 3 }] }),
+    save: (v) => Promise.resolve({ data: [{ key: 'edit_window_days', name: 'Edit window (days)', description: 'd', type: 'int', min: 0, max: 365, value: Number(v.edit_window_days) }] }),
+  },
   featureAPI: {
     list: () => Promise.resolve({ data: rows.current }),
     states: () => Promise.resolve({ data: states.current }),

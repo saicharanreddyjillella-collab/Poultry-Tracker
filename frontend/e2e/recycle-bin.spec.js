@@ -3,7 +3,11 @@ import { test, expect } from '@playwright/test';
 import { reseed, loginAs, flockIdOf, api, daysAgo } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
-test.beforeAll(() => reseed());
+test.beforeAll(async ({ request }) => {
+  reseed();
+  // These tests change entries from weeks back; the edit window has its own spec.
+  await api(request, 'admin', 'PUT', '/settings/rules/', { edit_window_days: 0 });
+});
 
 test('delete a daily entry → it appears in the bin → restore brings it back', async ({ page, request }) => {
   const flock = await flockIdOf(request, 'A1');
