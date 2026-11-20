@@ -22,6 +22,7 @@ import HeatStress from './pages/HeatStress';
 import Hatcheries from './pages/Hatcheries';
 import LiftPlanner from './pages/LiftPlanner';
 import Settings from './pages/Settings';
+import RateCards from './pages/RateCards';
 import GrowerRanking from './pages/GrowerRanking';
 import SystemHealth from './pages/SystemHealth';
 import OwnerDashboard from './pages/OwnerDashboard';
@@ -199,6 +200,7 @@ function AppRoutes() {
           <Route path="/hatcheries" element={<AdminRoute><Hatcheries /></AdminRoute>} />
           <Route path="/lift-planner" element={<AdminRoute><LiftPlanner /></AdminRoute>} />
           <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+          <Route path="/settings/rate-cards" element={<AdminRoute><RateCards /></AdminRoute>} />
           <Route path="/grower-ranking" element={<AdminRoute><GrowerRanking /></AdminRoute>} />
           <Route path="/system-health" element={<AdminRoute><SystemHealth /></AdminRoute>} />
           <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />

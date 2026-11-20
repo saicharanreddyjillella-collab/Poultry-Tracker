@@ -966,3 +966,26 @@ settings admin-only; plant user = feed only.
 - No change to forms, saving, billing or permissions.
 - Tests: tabs e2e; flock, feed-audit, settings and recycle-bin tests open
   the right tab. 127 browser tests pass.
+
+### Billing rate cards (no code change when rates change)  ✅ DONE
+- Asked for: the bill formula was hardcoded; the new Jangaon card (effective
+  1 Nov 2026) uses a different growing-charge rule. Make rates a setting.
+- Rate cards: BillConfig is now a list of named, dated cards (name, effective
+  from, notes). Settings → Billing Rates: add a card (copied from the latest),
+  edit, copy, make default, delete (not the default, not one used by a bill).
+  A live "check" shows the growing charge at ₹90/93/95/98/102 cost.
+- Two growing-charge methods, chosen per card:
+  - Standard (new card): standard charge ± % of (standard cost − actual
+    cost) — separate up/down %, minimum, optional maximum; same for all
+    grades. ₹8.50, ₹95, 50%/50%, min ₹5.50: cost 93 → 9.50, 98 → 7.00,
+    102 → 5.50.
+  - Margin & grade (old cards): selling price − cost, ± % by grade. Unchanged.
+- New card fields: medicine at actual for every farm, standard avg body weight.
+- Billing: the card in effect on the flock's placement date is used by
+  default; an admin can pick any card in Close & Generate Bill and sees a
+  preview (growing charge, incentive, recoveries, net payable, after TDS)
+  before anything is saved (/bill-preview/, rolled back). Supervisors always
+  get the placement-date card. The bill records its card (rate_card + name,
+  method and rule in the snapshot) and shows "Rate card" and the rule.
+- Existing card renamed "Original rates" by the migration; old bills unchanged.
+- Tests: test_rate_cards (14), e2e rate-cards.spec (3); all suites pass.

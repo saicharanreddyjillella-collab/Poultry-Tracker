@@ -1,6 +1,8 @@
 import logging
 
 from django.db import transaction
+from django.db.models import F
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -28,6 +30,136 @@ def bill_config_view(request):
     return Response(serializer.errors, status=400)
 
 
+RATE_CARD_COPY_SKIP = {'id', 'is_active', 'created_at', 'updated_at', 'name', 'effective_from', 'notes'}
+
+
+def _card_data(card):
+    data = BillConfigSerializer(card).data
+    data['label'] = card.label
+    data['bills_count'] = card.bills.count()
+    return data
+
+
+@api_view(['GET', 'POST'])
+def rate_cards(request):
+    """Billing rate cards (admin). POST creates one, copying every rate from `copy_from`
+    (default: the newest card) and then applying the fields sent."""
+    if not is_admin(request.user):
+        return Response({'error': 'Admin only'}, status=403)
+    if request.method == 'GET':
+        BillConfig.get_active()                                   # always at least one card
+        cards = BillConfig.objects.order_by(F('effective_from').desc(nulls_last=True), '-id')
+        return Response([_card_data(c) for c in cards])
+    src_id = request.data.get('copy_from')
+    src = (BillConfig.objects.filter(pk=src_id).first() if src_id
+           else BillConfig.objects.order_by(F('effective_from').desc(nulls_last=True), '-id').first())
+    base = {}
+    if src:
+        base = {f.name: getattr(src, f.name) for f in BillConfig._meta.concrete_fields if f.name not in RATE_CARD_COPY_SKIP}
+    data = {k: v for k, v in request.data.items() if k not in ('copy_from', 'is_active', 'id')}
+    ser = BillConfigSerializer(data={**{k: (str(v) if v is not None else None) for k, v in base.items()}, **data})
+    if not ser.is_valid():
+        return Response(ser.errors, status=400)
+    with transaction.atomic():
+        card = ser.save(is_active=not BillConfig.objects.exists())
+    return Response(_card_data(card), status=201)
+
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+def rate_card_detail(request, card_id):
+    if not is_admin(request.user):
+        return Response({'error': 'Admin only'}, status=403)
+    card = BillConfig.objects.filter(pk=card_id).first()
+    if card is None:
+        return Response({'error': 'Rate card not found'}, status=404)
+    if request.method == 'GET':
+        return Response(_card_data(card))
+    if request.method == 'DELETE':
+        if card.is_active:
+            return Response({'error': 'This is the default card. Make another card the default first.'}, status=400)
+        if card.bills.exists():
+            return Response({'error': f'{card.label} was used for {card.bills.count()} bill(s) and is kept for the record.'},
+                            status=400)
+        card.delete()
+        return Response(status=204)
+    data = {k: v for k, v in request.data.items() if k not in ('is_active', 'id')}
+    ser = BillConfigSerializer(card, data=data, partial=True)
+    if not ser.is_valid():
+        return Response(ser.errors, status=400)
+    ser.save()
+    return Response(_card_data(card))
+
+
+@api_view(['POST'])
+def rate_card_make_default(request, card_id):
+    if not is_admin(request.user):
+        return Response({'error': 'Admin only'}, status=403)
+    card = BillConfig.objects.filter(pk=card_id).first()
+    if card is None:
+        return Response({'error': 'Rate card not found'}, status=404)
+    with transaction.atomic():
+        for other in BillConfig.objects.filter(is_active=True).exclude(pk=card.pk):
+            other.is_active = False
+            other.save(update_fields=['is_active', 'updated_at'])     # save() so the change is audited
+        card.is_active = True
+        card.save(update_fields=['is_active', 'updated_at'])
+    return Response(_card_data(card))
+
+
+FARM_BILL_FLAGS = [
+    'recovery_excess_mortality', 'recovery_negligence', 'recovery_shortage',
+    'recovery_fcr', 'recovery_ifft', 'medicine_use_actual', 'fcr_benchmark_enabled',
+]
+
+
+def _chosen_card(request, flock):
+    """Admins may pick a card; everyone else gets the card in effect on the placement date."""
+    card_id = request.data.get('rate_card')
+    if card_id and is_admin(request.user):
+        card = BillConfig.objects.filter(pk=card_id).first()
+        if card is None:
+            raise ValidationError({'rate_card': 'Rate card not found'})
+        return card
+    return BillConfig.for_date(flock.placement_date)
+
+
+class _Preview(Exception):
+    pass
+
+
+@api_view(['POST'])
+def bill_preview(request, flock_id):
+    """What the bill would come to with a given card and recovery choices. Nothing is saved."""
+    from ..billing import generate_bill
+    if not is_admin(request.user):
+        return Response({'error': 'Admin only'}, status=403)
+    flock = get_visible_flock(request.user, flock_id)
+    if hasattr(flock, 'bill'):
+        return Response({'error': 'This flock already has a bill.'}, status=400)
+    card = _chosen_card(request, flock)
+    suggested = BillConfig.for_date(flock.placement_date)
+    farm = flock.farm
+    for field in FARM_BILL_FLAGS:
+        if field in request.data:
+            setattr(farm, field, bool(request.data[field]))      # in memory only
+    result = {}
+    try:
+        with transaction.atomic():
+            bill = generate_bill(flock, request.user, config=card)
+            result = BillSerializer(bill).data
+            raise _Preview
+    except _Preview:
+        pass
+    keep = ('growing_charges_per_kg', 'growing_charges_total', 'rate_incentive_per_kg', 'rate_incentive_total',
+            'production_cost_per_kg', 'farmer_grade', 'total_recoveries', 'gross_payable', 'net_payable',
+            'tds_amount', 'amount_paid', 'total_sold_weight_kg', 'avg_selling_price', 'fcr_benchmark_adjustment')
+    return Response({
+        'rate_card': card.pk, 'rate_card_name': card.label, 'growing_method': card.growing_method,
+        'suggested_card': suggested.pk, 'suggested_card_name': suggested.label,
+        **{k: result.get(k) for k in keep},
+    })
+
+
 @api_view(['POST'])
 def close_flock_and_generate_bill(request, flock_id):
     from ..billing import generate_bill
@@ -39,7 +171,7 @@ def close_flock_and_generate_bill(request, flock_id):
     if flock.status == 'closed':
         if hasattr(flock, 'bill'):
             return Response(BillSerializer(flock.bill).data)
-        bill = generate_bill(flock, request.user)
+        bill = generate_bill(flock, request.user, config=_chosen_card(request, flock))
         return Response(BillSerializer(bill).data)
 
     if not request.user.profile.can_edit_farm(flock.farm):
@@ -47,12 +179,8 @@ def close_flock_and_generate_bill(request, flock_id):
 
     # Apply recovery flags from request to farm before billing
     farm = flock.farm
-    flag_fields = [
-        'recovery_excess_mortality', 'recovery_negligence', 'recovery_shortage',
-        'recovery_fcr', 'recovery_ifft', 'medicine_use_actual',
-        'fcr_benchmark_enabled',
-    ]
-    for field in flag_fields:
+    card = _chosen_card(request, flock)
+    for field in FARM_BILL_FLAGS:
         if field in request.data:
             setattr(farm, field, request.data[field])
     farm.save()
@@ -62,7 +190,7 @@ def close_flock_and_generate_bill(request, flock_id):
     flock.save()
 
     # Generate bill
-    bill = generate_bill(flock, request.user)
+    bill = generate_bill(flock, request.user, config=card)
     return Response(BillSerializer(bill).data, status=201)
 
 

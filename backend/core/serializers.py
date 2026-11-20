@@ -325,10 +325,18 @@ class BillSerializer(serializers.ModelSerializer):
     placement_date = serializers.DateField(source='flock.placement_date', read_only=True)
     fcr = serializers.SerializerMethodField()
     avg_bird_weight_kg = serializers.SerializerMethodField()
+    rate_card_name = serializers.SerializerMethodField()
+    growing_method = serializers.SerializerMethodField()
 
     class Meta:
         model = Bill
         fields = '__all__'
+
+    def get_rate_card_name(self, obj):
+        return (obj.config_snapshot or {}).get('rate_card_name') or (obj.rate_card.label if obj.rate_card else None)
+
+    def get_growing_method(self, obj):
+        return (obj.config_snapshot or {}).get('growing_method') or 'margin_grade'
 
     def get_fcr(self, obj):
         if obj.total_sold_weight_kg and obj.total_sold_weight_kg > 0:

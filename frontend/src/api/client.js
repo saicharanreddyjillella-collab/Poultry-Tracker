@@ -207,10 +207,19 @@ export const reportAPI = {
   breakEven: (finishAge) => API.get(`/reports/break-even/${finishAge ? `?finish_age=${finishAge}` : ''}`),
 };
 
+export const rateCardAPI = {
+  list: () => API.get('/rate-cards/'),
+  create: (data) => API.post('/rate-cards/', data),
+  update: (id, data) => API.patch(`/rate-cards/${id}/`, data),
+  remove: (id) => API.delete(`/rate-cards/${id}/`),
+  makeDefault: (id) => API.post(`/rate-cards/${id}/make-default/`),
+};
+
 export const billAPI = {
   config: () => API.get('/bill-config/'),
   updateConfig: (data) => API.put('/bill-config/', data),
   closeAndBill: (flockId, flags) => API.post(`/flocks/${flockId}/close-and-bill/`, flags || {}),
+  preview: (flockId, body) => API.post(`/flocks/${flockId}/bill-preview/`, body || {}),
   get: (flockId) => API.get(`/flocks/${flockId}/bill/`),
   list: () => API.get('/bills/'),
   reopen: (flockId, reason) => API.post(`/flocks/${flockId}/reopen-bill/`, { reason }),

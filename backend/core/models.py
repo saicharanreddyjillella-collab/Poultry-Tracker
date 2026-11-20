@@ -921,7 +921,32 @@ class ErrorEvent(models.Model):
 
 
 class BillConfig(models.Model):
-    """Configurable billing rates — only one active config at a time."""
+    """A rate card: the costs, standards and rules a grower bill is worked out with.
+
+    Several cards are kept (one per rate change). `is_active` marks the default card
+    (used for forecasts and when no card's date fits). A flock is billed with the card
+    in effect on its placement date unless the admin picks another when closing it.
+    """
+    METHOD_MARGIN_GRADE = 'margin_grade'
+    METHOD_STANDARD = 'standard'
+    GROWING_METHODS = [
+        (METHOD_MARGIN_GRADE, 'Selling price − production cost, ± % by grade'),
+        (METHOD_STANDARD, 'Standard charge ± % of the gap from standard production cost'),
+    ]
+    name = models.CharField(max_length=80, blank=True, default='', help_text="e.g. 'Nov 2026 card'")
+    effective_from = models.DateField(null=True, blank=True,
+                                      help_text="Flocks placed on or after this date default to this card")
+    notes = models.TextField(blank=True, default='')
+    growing_method = models.CharField(max_length=20, choices=GROWING_METHODS, default=METHOD_MARGIN_GRADE)
+    gc_increase_pct = models.DecimalField(max_digits=5, decimal_places=2, default=50.00,
+                                          help_text="Standard method: paise added per ₹1 cost below standard, as % (50 = 50 paise)")
+    gc_decrease_pct = models.DecimalField(max_digits=5, decimal_places=2, default=50.00,
+                                          help_text="Standard method: paise taken off per ₹1 cost above standard, as %")
+    max_growing_charges = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                              help_text="Optional ceiling on the growing charge (₹/kg)")
+    medicine_always_actual = models.BooleanField(default=False,
+                                                 help_text="Medicine billed at actual use for every farm")
+    standard_avg_weight_kg = models.DecimalField(max_digits=5, decimal_places=2, default=2.00)
     chick_cost_per_bird = models.DecimalField(max_digits=10, decimal_places=2, default=34.00)
     feed_cost_per_kg = models.DecimalField(max_digits=10, decimal_places=2, default=44.00)
     admin_cost_per_chick = models.DecimalField(max_digits=10, decimal_places=2, default=6.00)
@@ -982,12 +1007,25 @@ class BillConfig(models.Model):
     def __str__(self):
         return f"Bill Config (chick ₹{self.chick_cost_per_bird}, feed ₹{self.feed_cost_per_kg}/kg)"
 
+    @property
+    def label(self):
+        return self.name or (f"Card from {self.effective_from:%d %b %Y}" if self.effective_from else f"Card #{self.pk}")
+
     @classmethod
     def get_active(cls):
         config = cls.objects.filter(is_active=True).first()
         if not config:
-            config = cls.objects.create()
+            config = cls.objects.create(name='Original rates')
         return config
+
+    @classmethod
+    def for_date(cls, day):
+        """The card in effect on `day` (latest effective_from on or before it), else the default card."""
+        if day:
+            card = cls.objects.filter(effective_from__lte=day).order_by('-effective_from', '-id').first()
+            if card:
+                return card
+        return cls.get_active()
 
 
 class Bill(models.Model):
@@ -1049,6 +1087,8 @@ class Bill(models.Model):
 
     # Config snapshot
     config_snapshot = models.JSONField(default=dict)
+    rate_card = models.ForeignKey('BillConfig', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='bills', help_text="Rate card this bill was worked out with")
     notes = models.TextField(blank=True)
 
     # E5: 1 for the first settlement; +1 each time the flock is reopened and re-billed
