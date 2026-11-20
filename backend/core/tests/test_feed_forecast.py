@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from core.standards import get_daily_feed_intake, get_feed_phase
+from core.standards import get_daily_feed_intake
 
 pytestmark = pytest.mark.django_db
 
@@ -22,10 +22,15 @@ class TestIntakeCurve:
         v = get_daily_feed_intake(21)
         assert v > 0
 
-    def test_feed_phase_by_age(self):
-        assert get_feed_phase(5) == 'BPSC'
-        assert get_feed_phase(15) == 'BSC'
-        assert get_feed_phase(30) == 'BFP'
+    def test_feed_split_by_per_bird_amounts_not_age(self):
+        """Feed types follow each type's kg per bird (BPSC 0.5, BSC 1.0, BFP the rest)."""
+        from core.feedtypes import split_by_budget, ensure_defaults
+        ensure_defaults()
+        assert split_by_budget(0.0, 0.2) == {'BPSC': 0.2}
+        got = split_by_budget(0.4, 0.7)                       # crosses from BPSC into BSC at 0.5 kg
+        assert round(got['BPSC'], 3) == 0.1 and round(got['BSC'], 3) == 0.2
+        got = split_by_budget(1.4, 1.6)                       # BSC ends at 1.5 kg, then BFP
+        assert round(got['BSC'], 3) == 0.1 and round(got['BFP'], 3) == 0.1
 
 
 class TestFeedForecastApi:
@@ -50,11 +55,11 @@ class TestFeedForecastApi:
         assert resp.data["totals"]["total_kg"] == 0
 
     def test_phase_attribution_young_flock(self, auth_admin, farm, make_flock):
-        # placed today -> early days are BPSC, so week 1 has BPSC demand
+        # a young flock has eaten little, so week 1 still needs the first feed (BPSC)
         make_flock(farm, chicks=1000, status="active", placed_days_ago=0)
         resp = auth_admin.get("/api/reports/feed-forecast/")
         wk1 = resp.data["weekly"][0]
-        assert wk1["bpsc_kg"] > 0
+        assert wk1["by_type"]["BPSC"]["kg"] > 0
 
     def test_weeks_param(self, auth_admin, farm, make_flock):
         make_flock(farm, chicks=1000, status="active", placed_days_ago=5)

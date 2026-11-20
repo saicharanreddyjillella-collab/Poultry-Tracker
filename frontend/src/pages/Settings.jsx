@@ -36,6 +36,14 @@ export default function Settings() {
       <RulesSection />
       <section className="settings-link-card">
         <div>
+          <h2>Feed Types</h2>
+          <p className="muted">The feeds you make (e.g. BPSC, BSC, BFP1, BFP2), their order and kg per bird. Add, rename,
+            reorder or retire them; past records keep working.</p>
+        </div>
+        <Link to="/settings/feed-types" className="btn btn-primary">Open feed types →</Link>
+      </section>
+      <section className="settings-link-card">
+        <div>
           <h2>Billing Rates</h2>
           <p className="muted">Feed, chick and admin costs, standards, growing charge rule and rate incentive used on grower
             bills. Add a new card when rates change; older bills keep the card they used.</p>

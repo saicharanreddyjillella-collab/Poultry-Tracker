@@ -40,7 +40,7 @@ def plain(farm):
 def sold_flock(farm, placed, rate='125', status='closed'):
     """1000 chicks, 60 bags (3000 kg) fed, all sold: 2000 kg at `rate`."""
     fl = Flock.objects.create(farm=farm, placement_date=placed, chick_count=1000, status=status)
-    DailyEntry.objects.create(flock=fl, date=placed + datetime.timedelta(days=1), feed_bfp_bags=60)
+    DailyEntry.objects.create(flock=fl, date=placed + datetime.timedelta(days=1), feed_bags={'BFP': 60})
     Sale.objects.create(flock=fl, date=placed + datetime.timedelta(days=40), bird_count=1000,
                         total_weight_kg=D('2000'), rate_per_kg=D(rate), trader_name='t')
     return fl

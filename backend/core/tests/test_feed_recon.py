@@ -12,7 +12,7 @@ pytestmark = pytest.mark.django_db
 def _consume(flock, day, bpsc=0, bsc=0, bfp=0):
     return DailyEntry.objects.create(
         flock=flock, date=flock.placement_date + datetime.timedelta(days=day),
-        feed_bpsc_bags=bpsc, feed_bsc_bags=bsc, feed_bfp_bags=bfp,
+        feed_bags={'BPSC': bpsc, 'BSC': bsc, 'BFP': bfp},
     )
 
 

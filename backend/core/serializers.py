@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .prime import prime_flocks, unprime
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, BillPayment, BillVersion, Document, AuditLog
+from .models import FeedType, Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, BillPayment, BillVersion, Document, AuditLog
 
 
 def person(user):
@@ -25,6 +25,47 @@ class EnteredByMixin(serializers.Serializer):
 ENTERED_BY_READ_ONLY = ('entered_by', 'edited_by')
 
 
+def validate_feed_type_key(value, instance=None):
+    """A stored feed type key that exists; retired ones only if the record already had it."""
+    from .models import FeedType
+    t = FeedType.objects.filter(key=value).first()
+    if t is None:
+        raise serializers.ValidationError(f'Unknown feed type "{value}".')
+    if not t.active and getattr(instance, 'feed_type', None) != value:
+        raise serializers.ValidationError(f'{t.code} is retired and can no longer be used.')
+    return value
+
+
+class FeedTypeKeyMixin:
+    def validate_feed_type(self, value):
+        return validate_feed_type_key(value, getattr(self, 'instance', None))
+
+
+class FeedBagsField(serializers.DictField):
+    """{feed type key: whole bags ≥ 0}. Unknown types are refused; retired types only
+    where the record already had them; zeros are dropped."""
+    def __init__(self, **kwargs):
+        super().__init__(child=serializers.IntegerField(min_value=0), **kwargs)
+
+    def to_internal_value(self, data):
+        bags = super().to_internal_value(data)
+        from .models import FeedType
+        types = {t.key: t for t in FeedType.objects.all()}
+        parent = getattr(self, 'parent', None)
+        before = set()
+        if parent is not None and getattr(parent, 'instance', None) is not None:
+            old = getattr(parent.instance, 'feed_bags', None) if hasattr(parent.instance, 'feeds') \
+                else getattr(parent.instance, 'bags', None)
+            before = set((old or {}).keys())
+        for key in bags:
+            t = types.get(key)
+            if t is None:
+                raise serializers.ValidationError(f'Unknown feed type "{key}".')
+            if not t.active and key not in before:
+                raise serializers.ValidationError(f'{t.code} is retired and can no longer be used.')
+        return {k: v for k, v in bags.items() if v}
+
+
 class DailyEntrySerializer(EnteredByMixin, serializers.ModelSerializer):
     total_feed_bags = serializers.ReadOnlyField()
 
@@ -40,9 +81,21 @@ class DailyEntrySerializer(EnteredByMixin, serializers.ModelSerializer):
                 raise serializers.ValidationError({'date': f'An entry for {day} already exists for this flock.'})
         return super().validate(attrs)
     total_feed_kg = serializers.ReadOnlyField()
-    feed_bpsc_kg = serializers.ReadOnlyField()
-    feed_bsc_kg = serializers.ReadOnlyField()
-    feed_bfp_kg = serializers.ReadOnlyField()
+    feed_bags = FeedBagsField(required=False)
+
+    def create(self, validated):
+        bags = validated.pop('feed_bags', None)
+        entry = super().create(validated)
+        if bags is not None:
+            entry.set_feed_bags(bags)
+        return entry
+
+    def update(self, instance, validated):
+        bags = validated.pop('feed_bags', None)
+        entry = super().update(instance, validated)
+        if bags is not None:
+            entry.set_feed_bags(bags)
+        return entry
 
     class Meta:
         model = DailyEntry
@@ -60,7 +113,7 @@ class SaleSerializer(EnteredByMixin, serializers.ModelSerializer):
         read_only_fields = ENTERED_BY_READ_ONLY
 
 
-class FeedRateSerializer(serializers.ModelSerializer):
+class FeedRateSerializer(FeedTypeKeyMixin, serializers.ModelSerializer):
     class Meta:
         model = FeedRate
         fields = '__all__'
@@ -289,7 +342,7 @@ class FarmSerializer(serializers.ModelSerializer):
         ) or None
 
 
-class FeedOrderSerializer(serializers.ModelSerializer):
+class FeedOrderSerializer(FeedTypeKeyMixin, serializers.ModelSerializer):
     farm_name = serializers.CharField(source='farm.name', read_only=True)
     farm_code = serializers.CharField(source='farm.farm_code', read_only=True)
     flock_info = serializers.SerializerMethodField()
@@ -310,7 +363,7 @@ class FeedOrderSerializer(serializers.ModelSerializer):
         return None
 
 
-class FeedTransferSerializer(serializers.ModelSerializer):
+class FeedTransferSerializer(FeedTypeKeyMixin, serializers.ModelSerializer):
     from_farm_code = serializers.CharField(source='from_farm.farm_code', read_only=True)
     from_farm_name = serializers.CharField(source='from_farm.name', read_only=True)
     to_farm_code = serializers.CharField(source='to_farm.farm_code', read_only=True)
@@ -446,3 +499,29 @@ class AuditLogSerializer(serializers.ModelSerializer):
         fields = ['id', 'timestamp', 'actor', 'actor_username', 'action',
                   'model', 'object_id', 'object_repr', 'changes']
         read_only_fields = fields
+
+
+class FeedTypeSerializer(serializers.ModelSerializer):
+    in_use = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FeedType
+        fields = ['id', 'key', 'code', 'name', 'colour', 'sort_order', 'per_bird_kg', 'active', 'in_use']
+        read_only_fields = ['key']
+
+    def get_in_use(self, o):
+        from .models import DailyEntryFeed, FeedOrder, FeedRate, FeedTransfer
+        return (DailyEntryFeed.objects.filter(feed_type=o.key).exists() or FeedOrder.all_objects.filter(feed_type=o.key).exists()
+                or FeedTransfer.all_objects.filter(feed_type=o.key).exists() or FeedRate.objects.filter(feed_type=o.key).exists())
+
+    def validate_code(self, v):
+        v = v.strip().upper()
+        if not v or len(v) > 20 or not all(ch.isalnum() or ch in '-_' for ch in v):
+            raise serializers.ValidationError('Use letters, numbers, - or _ (up to 20), e.g. BFP2.')
+        return v
+
+    def validate_colour(self, v):
+        import re
+        if not re.fullmatch(r'#[0-9A-Fa-f]{6}', v or ''):
+            raise serializers.ValidationError('Use a colour like #0F766E.')
+        return v

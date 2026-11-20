@@ -10,7 +10,7 @@ each of the next HORIZON_DAYS days, from the company's side:
            same % of standard (no weight recorded → the standard itself)
   birds    live birds now, minus the flock's own recent daily death rate
            (last 7 days; the standard rate if no recent entries)
-  feed     standard intake for each day's age × birds, at the finisher (BFP)
+  feed     standard intake for each day's age × birds, at the finisher (last feed type)
            feed rate, or the bill-config feed cost
   price    the admin's market rate for today (or the latest within 7 days), else
            the weight-weighted rate of our own sales in the last 7 days. "Trend"
@@ -73,7 +73,8 @@ def assumed_daily_change(trend_per_day):
 
 def feed_cost_per_kg():
     from .models import BillConfig, FeedRate
-    r = FeedRate.objects.filter(feed_type='BFP').order_by('-week_start_date').first()
+    from .feedtypes import finisher_key
+    r = FeedRate.objects.filter(feed_type=finisher_key()).order_by('-week_start_date').first()
     return float(r.rate_per_kg) if r else float(BillConfig.get_active().feed_cost_per_kg)
 
 

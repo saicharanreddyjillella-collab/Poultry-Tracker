@@ -19,6 +19,7 @@ AUDITED_MODELS = (
     'Farm', 'Flock', 'Sale', 'DailyEntry', 'Medication',
     'FeedOrder', 'FeedTransfer', 'Bill', 'BillConfig', 'Document',
     'BillVersion', 'FeedStockCount', 'FeatureSetting', 'AppSetting', 'ChangeRequest', 'BillPayment',
+    'FeedType', 'DailyEntryFeed',
 )
 
 # Fields never worth diffing.

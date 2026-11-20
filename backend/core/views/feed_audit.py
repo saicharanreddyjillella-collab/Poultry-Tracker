@@ -12,6 +12,7 @@ from ..access import NotPlant, is_admin, visible_farm_ids, visible_farms
 from ..feed_audit import CLOSED_LOOKBACK_DAYS, book_stock_for, run_audit
 from ..features import feature_required
 from ..models import Flock, FeedStockCount
+from ..serializers import FeedBagsField
 from ..pagination import GuardedListMixin
 from ..permissions import CanEditFlockData, IsAdmin
 
@@ -19,11 +20,12 @@ from ..permissions import CanEditFlockData, IsAdmin
 class FeedStockCountSerializer(serializers.ModelSerializer):
     counted_by_name = serializers.SerializerMethodField()
     book = serializers.SerializerMethodField()
+    bags = FeedBagsField()
     gap_bags = serializers.SerializerMethodField()
 
     class Meta:
         model = FeedStockCount
-        fields = ['id', 'flock', 'date', 'bpsc_bags', 'bsc_bags', 'bfp_bags', 'notes',
+        fields = ['id', 'flock', 'date', 'bags', 'notes',
                   'counted_by', 'counted_by_name', 'created_at', 'book', 'gap_bags']
         read_only_fields = ['counted_by', 'created_at']
         validators = []          # duplicate day → a readable message below, not a raw constraint error
@@ -36,7 +38,7 @@ class FeedStockCountSerializer(serializers.ModelSerializer):
         cache = self.context.setdefault('_book', {})
         if obj.pk not in cache:
             b = book_stock_for(obj.flock, obj.date)
-            cache[obj.pk] = {k: b[k] for k in ('BPSC', 'BSC', 'BFP', 'total')}
+            cache[obj.pk] = {k: v for k, v in b.items() if k != 'received'}
         return cache[obj.pk]
 
     def get_book(self, obj):
@@ -44,7 +46,7 @@ class FeedStockCountSerializer(serializers.ModelSerializer):
 
     def get_gap_bags(self, obj):
         """Paper minus counted: positive = bags missing at the farm."""
-        return self._book(obj)['total'] - (obj.bpsc_bags + obj.bsc_bags + obj.bfp_bags)
+        return self._book(obj)['total'] - sum((obj.bags or {}).values())
 
     def validate(self, attrs):
         flock = attrs.get('flock') or self.instance.flock

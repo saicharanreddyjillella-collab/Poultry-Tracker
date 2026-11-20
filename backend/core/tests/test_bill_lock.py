@@ -29,7 +29,7 @@ REASON = "Trader weighbridge slip corrected — 40 kg was missed"
 def _billed_flock(farm, make_flock, user=None):
     f = make_flock(farm, chicks=1000)
     DailyEntry.objects.create(flock=f, date=f.placement_date + datetime.timedelta(days=1),
-                              mortality_count=5, feed_bfp_bags=60)
+                              mortality_count=5, feed_bags={'BFP': 60})
     Sale.objects.create(flock=f, date=f.placement_date + datetime.timedelta(days=40),
                         bird_count=995, total_weight_kg=Decimal("2000"),
                         rate_per_kg=Decimal("100"))

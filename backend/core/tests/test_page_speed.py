@@ -25,7 +25,7 @@ def make_farm(tag, i, age=30):
     FeedOrder.objects.create(farm=farm, flock=fl, feed_type="BSC", quantity_bags=10)
     for d in range(1, 4):
         DailyEntry.objects.create(flock=fl, date=fl.placement_date + D(days=d), mortality_count=2, cull_count=1,
-                                  feed_bfp_bags=Decimal("3"), avg_body_weight_grams=500,
+                                  feed_bags={'BFP': Decimal("3")}, avg_body_weight_grams=500,
                                   water_consumed_liters=Decimal("800" if d == 2 else "300"))
     DailyEntry.objects.create(flock=fl, date=T, mortality_count=30)
     Sale.objects.create(flock=fl, date=T, bird_count=10, total_weight_kg=Decimal("20"), rate_per_kg=Decimal("100"),

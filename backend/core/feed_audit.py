@@ -26,7 +26,6 @@ from django.utils import timezone
 from .standards import get_daily_feed_intake, get_standard_weight
 
 BAG_KG = 50
-FEED_TYPES = ('BPSC', 'BSC', 'BFP')
 SHORT_MIN_BAGS = 2          # a gap smaller than this is counting noise
 SHORT_PCT = 2.0             # … or smaller than this % of feed received
 OVER_STANDARD_PCT = 10.0    # recorded feed above standard by more than this
@@ -51,12 +50,16 @@ class FeedData:
     """Everything the audit needs for a set of flocks, in 6 queries."""
 
     def __init__(self, flocks):
-        from .models import DailyEntry, FeedOrder, FeedStockCount, FeedTransfer, Sale
+        from .models import DailyEntry, DailyEntryFeed, FeedOrder, FeedStockCount, FeedTransfer, Sale
         ids = [f.id for f in flocks]
+        feed = defaultdict(dict)                 # entry id → {feed type key: bags}
+        for line in DailyEntryFeed.objects.filter(entry__flock_id__in=ids, entry__deleted_at__isnull=True).values(
+                'entry_id', 'feed_type', 'bags'):
+            feed[line['entry_id']][line['feed_type']] = line['bags']
         self.entries = defaultdict(list)
         for e in DailyEntry.objects.filter(flock_id__in=ids).values(
-                'flock_id', 'date', 'mortality_count', 'cull_count',
-                'feed_bpsc_bags', 'feed_bsc_bags', 'feed_bfp_bags', 'avg_body_weight_grams'):
+                'id', 'flock_id', 'date', 'mortality_count', 'cull_count', 'avg_body_weight_grams'):
+            e['feed'] = feed.get(e['id'], {})
             self.entries[e['flock_id']].append(e)
         self.moves = defaultdict(list)            # (date or None, feed_type, +bags/-bags)
         for o in FeedOrder.objects.filter(flock_id__in=ids, status='delivered').values(
@@ -73,14 +76,14 @@ class FeedData:
             self.sales[s['flock_id']].append(s)
         self.counts = defaultdict(list)          # newest first
         for c in FeedStockCount.objects.filter(flock_id__in=ids).order_by('-date').values(
-                'id', 'flock_id', 'date', 'bpsc_bags', 'bsc_bags', 'bfp_bags'):
+                'id', 'flock_id', 'date', 'bags'):
             self.counts[c['flock_id']].append(c)
 
 
 def book_stock(data, flock_id, as_of=None):
     """Paper stock per feed type (bags) at the end of `as_of` (None = all time).
     Deliveries with no recorded delivery date count as already received."""
-    stock = dict.fromkeys(FEED_TYPES, 0)
+    stock = {}
     received = 0
     for day, ft, bags in data.moves[flock_id]:
         if as_of is None or day is None or day <= as_of:
@@ -88,10 +91,9 @@ def book_stock(data, flock_id, as_of=None):
             received += max(bags, 0)
     for e in data.entries[flock_id]:
         if as_of is None or e['date'] <= as_of:
-            stock['BPSC'] -= e['feed_bpsc_bags']
-            stock['BSC'] -= e['feed_bsc_bags']
-            stock['BFP'] -= e['feed_bfp_bags']
-    stock['total'] = sum(stock[ft] for ft in FEED_TYPES)
+            for ft, bags in e['feed'].items():
+                stock[ft] = stock.get(ft, 0) - bags
+    stock['total'] = sum(stock.values())
     stock['received'] = received
     return stock
 
@@ -138,12 +140,12 @@ def audit_flock(flock, data, today, feed_cost_per_kg):
     if counts:
         c = counts[0]
         book = book_stock(data, flock.id, c['date'])
-        counted = {'BPSC': c['bpsc_bags'], 'BSC': c['bsc_bags'], 'BFP': c['bfp_bags']}
+        counted = {k: v for k, v in (c['bags'] or {}).items() if v}
         counted['total'] = sum(counted.values())
         gap = book['total'] - counted['total']              # + = bags missing
         threshold = max(SHORT_MIN_BAGS, book['received'] * SHORT_PCT / 100.0)
         last_count = {'id': c['id'], 'date': c['date'].isoformat(), 'counted': counted,
-                      'book': {k: book[k] for k in (*FEED_TYPES, 'total')}, 'gap_bags': gap}
+                      'book': {k: v for k, v in book.items() if k != 'received'}, 'gap_bags': gap}
         when = c['date'].strftime('%d %b')
         if gap >= threshold:
             flags.append(_flag('COUNT_SHORT', 'high',
@@ -158,7 +160,7 @@ def audit_flock(flock, data, today, feed_cost_per_kg):
     if entries:
         last_day = max(e['date'] for e in entries)
         last_age = (last_day - flock.placement_date).days
-        recorded_kg = sum(e['feed_bpsc_bags'] + e['feed_bsc_bags'] + e['feed_bfp_bags'] for e in entries) * BAG_KG
+        recorded_kg = sum(sum(e['feed'].values()) for e in entries) * BAG_KG
         std_kg = standard_feed_kg(flock, entries, sales, last_day)
         weighed = [e for e in entries if e['avg_body_weight_grams']]
         weight_pct = None
@@ -207,7 +209,7 @@ def audit_flock(flock, data, today, feed_cost_per_kg):
         'flock_id': flock.id, 'farm_id': flock.farm_id, 'farm_name': flock.farm.name,
         'farm_code': flock.farm.farm_code, 'region': flock.farm.region, 'status': flock.status,
         'age_days': age, 'placement_date': flock.placement_date.isoformat(),
-        'book_stock': {k: book_now[k] for k in (*FEED_TYPES, 'total')},
+        'book_stock': {k: v for k, v in book_now.items() if k != 'received'},
         'received_bags': book_now['received'],
         'last_count': last_count, 'consumption': consumption,
         'flags': flags,

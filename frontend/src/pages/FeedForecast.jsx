@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { reportAPI } from '../api/client';
+import useFeedTypes from '../utils/useFeedTypes';
 
 export default function FeedForecast() {
   const [data, setData] = useState(null);
   const [weeks, setWeeks] = useState(4);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const feedTypes = useFeedTypes();
 
   const load = (w) => {
     setLoading(true); setError('');
@@ -18,6 +20,9 @@ export default function FeedForecast() {
   useEffect(() => { load(weeks); /* eslint-disable-next-line */ }, [weeks]);
 
   const fmt = (n) => Number(n).toLocaleString('en-IN');
+  const bagsOf = (row, key) => row?.by_type?.[key]?.bags || 0;
+  // columns: every active type, plus any other type the forecast happens to include
+  const cols = feedTypes.types.filter(t => t.active || data?.totals?.by_type?.[t.key]);
 
   return (
     <div className="page">
@@ -30,7 +35,9 @@ export default function FeedForecast() {
           </select>
         </div>
       </div>
-      <p className="muted">Projected feed demand across active flocks, by week and phase. Based on standard intake and mortality curves — a planning estimate, not a commitment.</p>
+      <p className="muted">Projected feed demand across active flocks, by week and feed type. Based on standard intake and mortality
+        curves; each type's share follows its kg per bird (Settings → Feed types) from what each flock has already eaten.
+        A planning estimate, not a commitment.</p>
 
       {error && <div className="alert-banner alert-banner-danger">{error}</div>}
       {loading ? <p className="muted">Loading…</p> : data && (
@@ -38,23 +45,21 @@ export default function FeedForecast() {
           <div className="stats-grid stats-grid-wide" style={{ marginBottom: '1rem' }}>
             <div className="stat-card"><span className="stat-label">Active Flocks</span><span className="stat-value">{data.active_flocks}</span></div>
             <div className="stat-card stat-info"><span className="stat-label">Total Feed ({data.weeks}w)</span><span className="stat-value">{fmt(data.totals.total_bags)} bags<br/><small>{fmt(data.totals.total_kg)} kg</small></span></div>
-            <div className="stat-card"><span className="stat-label">BPSC / BSC / BFP (bags)</span><span className="stat-value" style={{ fontSize: '1rem' }}>{fmt(data.totals.bpsc_bags)} / {fmt(data.totals.bsc_bags)} / {fmt(data.totals.bfp_bags)}</span></div>
+            <div className="stat-card"><span className="stat-label">{cols.map(t => t.code).join(' / ')} (bags)</span><span className="stat-value" style={{ fontSize: '1rem' }}>{cols.map(t => fmt(bagsOf(data.totals, t.key))).join(' / ')}</span></div>
           </div>
 
           <h2>By week</h2>
           <div className="table-wrapper">
             <table>
               <thead>
-                <tr><th>Week</th><th>Dates</th><th>BPSC</th><th>BSC</th><th>BFP</th><th>Total (bags)</th></tr>
+                <tr><th>Week</th><th>Dates</th>{cols.map(t => <th key={t.key}>{t.code}</th>)}<th>Total (bags)</th></tr>
               </thead>
               <tbody>
                 {data.weekly.map(w => (
                   <tr key={w.week}>
                     <td>W{w.week}</td>
                     <td>{w.start} → {w.end}</td>
-                    <td>{fmt(w.bpsc_bags)}</td>
-                    <td>{fmt(w.bsc_bags)}</td>
-                    <td>{fmt(w.bfp_bags)}</td>
+                    {cols.map(t => <td key={t.key}>{fmt(bagsOf(w, t.key))}</td>)}
                     <td><strong>{fmt(w.total_bags)}</strong></td>
                   </tr>
                 ))}
@@ -62,9 +67,7 @@ export default function FeedForecast() {
               <tfoot>
                 <tr className="bill-t-total">
                   <td colSpan={2}>Total</td>
-                  <td>{fmt(data.totals.bpsc_bags)}</td>
-                  <td>{fmt(data.totals.bsc_bags)}</td>
-                  <td>{fmt(data.totals.bfp_bags)}</td>
+                  {cols.map(t => <td key={t.key}>{fmt(bagsOf(data.totals, t.key))}</td>)}
                   <td><strong>{fmt(data.totals.total_bags)}</strong></td>
                 </tr>
               </tfoot>

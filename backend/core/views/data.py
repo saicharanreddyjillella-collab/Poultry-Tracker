@@ -5,6 +5,12 @@ from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, v
                       get_visible_farm, get_visible_flock, scoped_farms, report_scope, has_home)
 
 
+def total_bags_in(entries):
+    """Feed bags eaten across a DailyEntry queryset (every feed type)."""
+    from ..feedtypes import consumed_in
+    return sum(consumed_in(entries).values())
+
+
 def scope_info(request):
     """Tells the screen which scope it is showing and whether a 'My regions' switch applies."""
     return {'scope': report_scope(request), 'has_home': has_home(request.user)}
@@ -169,15 +175,6 @@ class DailyEntryViewSet(EditWindowMixin, GuardedListMixin, viewsets.ModelViewSet
                     'mortality_count': f'Mortality ({mortality}) cannot exceed live birds ({live_birds}).'
                 })
 
-        # Feed bags limit — no hard block, frontend confirms high values
-        bpsc = data.get('feed_bpsc_bags', 0) or 0
-        bsc = data.get('feed_bsc_bags', 0) or 0
-        bfp = data.get('feed_bfp_bags', 0) or 0
-
-        # Cannot be negative
-        if bpsc < 0 or bsc < 0 or bfp < 0:
-            raise ValidationError({'feed_bags': 'Feed bags cannot be negative.'})
-
         # Water and body weight cannot be negative
         water = data.get('water_consumed_liters', 0) or 0
         if float(water) < 0:
@@ -186,26 +183,22 @@ class DailyEntryViewSet(EditWindowMixin, GuardedListMixin, viewsets.ModelViewSet
         if body_wt is not None and float(body_wt) < 0:
             raise ValidationError({'avg_body_weight_grams': 'Body weight cannot be negative.'})
 
-        # Cannot exceed available stock for that feed type
-        stock = flock.flock_feed_stock
-        # Add back current entry's bags if editing
-        if instance:
-            stock['bpsc'] += instance.feed_bpsc_bags
-            stock['bsc'] += instance.feed_bsc_bags
-            stock['bfp'] += instance.feed_bfp_bags
-
-        if bpsc > 0 and bpsc > stock.get('bpsc', 0):
-            raise ValidationError({
-                'feed_bags': f'Only {stock.get("bpsc", 0)} BPSC bags in stock. Cannot use {bpsc}.'
-            })
-        if bsc > 0 and bsc > stock.get('bsc', 0):
-            raise ValidationError({
-                'feed_bags': f'Only {stock.get("bsc", 0)} BSC bags in stock. Cannot use {bsc}.'
-            })
-        if bfp > 0 and bfp > stock.get('bfp', 0):
-            raise ValidationError({
-                'feed_bags': f'Only {stock.get("bfp", 0)} BFP bags in stock. Cannot use {bfp}.'
-            })
+        # Feed: no more bags of a type than this flock has in stock (bags are whole, ≥ 0 — FeedBagsField)
+        bags = data.get('feed_bags')
+        if bags is None:
+            return
+        from ..feedtypes import codes
+        stock = dict(flock.flock_feed_stock['by_type'])
+        if instance:                                       # editing: this entry's own bags are back in stock
+            for k, v in instance.feed_bags.items():
+                stock[k] = stock.get(k, 0) + v
+        names = codes()
+        for key, used in bags.items():
+            have = stock.get(key, 0)
+            if used > 0 and used > have:
+                raise ValidationError({
+                    'feed_bags': f'Only {have} {names.get(key, key)} bags in stock. Cannot use {used}.'
+                })
 
     def perform_create(self, serializer):
         self._validate_entry(serializer.validated_data)
@@ -313,13 +306,12 @@ def dashboard(request):
         if today_entry:
             mortality_today += today_entry.mortality_count
 
-    today_feed = DailyEntry.objects.filter(date=today, flock__farm__in=farms).aggregate(
-        bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-    )
+    from ..feedtypes import consumed_in, keys as feed_keys
+    today_feed = consumed_in(DailyEntry.objects.filter(date=today, flock__farm__in=farms))
 
-    # Latest feed rates
+    # Latest feed rates {feed type key: ₹/kg}
     latest_rates = {}
-    for ft in ['BPSC', 'BSC', 'BFP']:
+    for ft in feed_keys():
         rate = FeedRate.objects.filter(feed_type=ft).first()
         if rate:
             latest_rates[ft] = str(rate.rate_per_kg)
@@ -331,11 +323,7 @@ def dashboard(request):
         'mortality_today': mortality_today,
         'latest_feed_rates': latest_rates,
 
-        'feed_today': {
-            'bpsc_bags': float(today_feed['bpsc'] or 0),
-            'bsc_bags': float(today_feed['bsc'] or 0),
-            'bfp_bags': float(today_feed['bfp'] or 0),
-        },
+        'feed_today': {'by_type': today_feed, 'total_bags': float(sum(today_feed.values()))},
 
         'feed_rates': FeedRateSerializer(FeedRate.objects.all()[:30], many=True).data,
         'farms': FarmSerializer(farms, many=True).data,
@@ -386,29 +374,21 @@ def dashboard(request):
     first_active = {}
     for f in sorted(active_flocks, key=lambda f: f.id):
         first_active.setdefault(f.farm_id, f)
-    farm_ids = list(first_active)
-    delivered_by = {(r['farm_id'], r['feed_type']): r['t'] for r in
-                    FeedOrder.objects.filter(farm_id__in=farm_ids, status='delivered')
-                    .values('farm_id', 'feed_type').annotate(t=Sum('quantity_bags'))}
-    consumed_by = {r['flock__farm_id']: r for r in
-                   DailyEntry.objects.filter(flock__farm_id__in=farm_ids).values('flock__farm_id')
-                   .annotate(bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'))}
+    from ..feedtypes import codes
+    names = codes()
     for farm in farms:
         active_flock = first_active.get(farm.id)
         if not active_flock:
             continue
-        fs = active_flock.feed_schedule_status
-        current_type = fs.get('current_feed_type', 'BFP')
-        delivered = delivered_by.get((farm.id, current_type)) or 0
-        consumed_map = {'BPSC': 'bpsc', 'BSC': 'bsc', 'BFP': 'bfp'}
-        consumed = consumed_by.get(farm.id) or {'bpsc': None, 'bsc': None, 'bfp': None}
-        consumed_bags = float(consumed[consumed_map[current_type]] or 0)
-        stock = float(delivered) - consumed_bags
+        current_type = active_flock.feed_schedule_status.get('current_feed_type')
+        if not current_type:
+            continue
+        stock = float(active_flock.flock_feed_stock['by_type'].get(current_type, 0))   # incl. transfers
         if stock <= 2:
             alerts.append({
                 'type': 'warning', 'farm_code': farm.farm_code,
                 'farm_name': farm.name, 'flock_id': active_flock.id,
-                'message': f'{current_type} stock low: {round(stock, 1)} bags',
+                'message': f'{names.get(current_type, current_type)} stock low: {round(stock, 1)} bags',
             })
 
     if is_admin(request.user):                       # decisions waiting for the admin come first
@@ -438,24 +418,23 @@ def flock_cumulative(request, flock_id):
 
     flock = get_visible_flock(request.user, flock_id)          # 404 if missing / other region
     from ..serializers import person
-    entries = DailyEntry.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by').order_by('date')
+    entries = (DailyEntry.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by')
+               .prefetch_related('feeds').order_by('date'))
     sales = Sale.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by').order_by('date')
 
     BAG_KG = 50
     cum_mortality = 0
     cum_culls = 0
-    cum_bpsc = 0
-    cum_bsc = 0
-    cum_bfp = 0
+    cum_by_type = {}                                   # {feed type key: bags}
     result_entries = []
 
     for entry in entries:
         cum_mortality += entry.mortality_count
         cum_culls += entry.cull_count
-        cum_bpsc += entry.feed_bpsc_bags
-        cum_bsc += entry.feed_bsc_bags
-        cum_bfp += entry.feed_bfp_bags
-        total_bags = cum_bpsc + cum_bsc + cum_bfp
+        day_bags = entry.feed_bags
+        for k, v in day_bags.items():
+            cum_by_type[k] = cum_by_type.get(k, 0) + v
+        total_bags = sum(cum_by_type.values())
         day_number = (entry.date - flock.placement_date).days
 
         result_entries.append({
@@ -467,10 +446,8 @@ def flock_cumulative(request, flock_id):
             'cumulative_culls': cum_culls,
             'cumulative_mortality': cum_mortality,
             'mortality_percentage': round((cum_mortality / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0,
-            'feed_bpsc_bags': entry.feed_bpsc_bags,
-            'feed_bsc_bags': entry.feed_bsc_bags,
-            'feed_bfp_bags': entry.feed_bfp_bags,
-            'daily_feed_bags': entry.feed_bpsc_bags + entry.feed_bsc_bags + entry.feed_bfp_bags,
+            'feed_bags': day_bags,
+            'daily_feed_bags': sum(day_bags.values()),
             'cumulative_feed_bags': total_bags,
             'cumulative_feed_kg': total_bags * BAG_KG,
             'water_liters': float(entry.water_consumed_liters),
@@ -504,7 +481,7 @@ def flock_cumulative(request, flock_id):
 
     total_sold_birds = sum(s.bird_count for s in sales)
     total_sold_weight = sum(float(s.total_weight_kg) for s in sales)
-    total_feed_bags = cum_bpsc + cum_bsc + cum_bfp
+    total_feed_bags = sum(cum_by_type.values())
     total_feed_kg = total_feed_bags * BAG_KG
     fcr = round(total_feed_kg / total_sold_weight, 3) if total_sold_weight > 0 else None
 
@@ -535,11 +512,7 @@ def flock_cumulative(request, flock_id):
         'total_sold_weight_kg': round(total_sold_weight, 2),
         'total_feed_bags': total_feed_bags,
         'total_feed_kg': total_feed_kg,
-        'feed_by_type': {
-            'bpsc_bags': cum_bpsc, 'bpsc_kg': cum_bpsc * BAG_KG,
-            'bsc_bags': cum_bsc, 'bsc_kg': cum_bsc * BAG_KG,
-            'bfp_bags': cum_bfp, 'bfp_kg': cum_bfp * BAG_KG,
-        },
+        'feed_by_type': {k: {'bags': v, 'kg': v * BAG_KG} for k, v in cum_by_type.items()},
         'feed_schedule_status': flock.feed_schedule_status,
         'flock_feed_stock': flock.flock_feed_stock,
         'fcr': fcr,
@@ -572,10 +545,7 @@ def farm_cumulative(request, farm_id):
         total_placed += flock.chick_count
         entries = DailyEntry.objects.filter(flock=flock)
         total_mortality += entries.aggregate(t=Sum('mortality_count'))['t'] or 0
-        feed = entries.aggregate(
-            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-        )
-        total_feed_bags += (feed['bpsc'] or 0) + (feed['bsc'] or 0) + (feed['bfp'] or 0)
+        total_feed_bags += total_bags_in(entries)
         sales = Sale.objects.filter(flock=flock)
         total_sold_birds += sales.aggregate(t=Sum('bird_count'))['t'] or 0
         total_sold_weight += sales.aggregate(t=Sum('total_weight_kg'))['t'] or Decimal('0')
@@ -616,10 +586,7 @@ def _compute_monthly_report(year, month, farm_ids=None):
 
         entries = DailyEntry.objects.filter(flock=flock)
         total_mort = entries.aggregate(t=Sum('mortality_count'))['t'] or 0
-        feed_agg = entries.aggregate(
-            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-        )
-        total_bags = (feed_agg['bpsc'] or 0) + (feed_agg['bsc'] or 0) + (feed_agg['bfp'] or 0)
+        total_bags = total_bags_in(entries)
         total_feed_kg = total_bags * BAG_KG
         sold_birds = sales.aggregate(t=Sum('bird_count'))['t'] or 0
         sold_weight = float(sales.aggregate(t=Sum('total_weight_kg'))['t'] or 0)
@@ -731,7 +698,9 @@ def export_flock_report(request, flock_id):
     from ..standards import get_standard_weight
 
     flock = get_visible_flock(request.user, flock_id)
-    entries = DailyEntry.objects.filter(flock=flock).order_by('date')
+    entries = DailyEntry.objects.filter(flock=flock).prefetch_related('feeds').order_by('date')
+    from ..feedtypes import codes
+    names = codes()
     sales = Sale.objects.filter(flock=flock).order_by('date')
     meds = Medication.objects.filter(flock=flock).order_by('date')
 
@@ -756,11 +725,12 @@ def export_flock_report(request, flock_id):
     cum_bags = 0
     for entry in entries:
         cum_mort += entry.mortality_count
-        day_bags = entry.feed_bpsc_bags + entry.feed_bsc_bags + entry.feed_bfp_bags
+        fb = entry.feed_bags
+        day_bags = sum(fb.values())
         cum_bags += day_bags
         day_num = (entry.date - flock.placement_date).days
-        feed_type = 'BPSC' if entry.feed_bpsc_bags > 0 else 'BSC' if entry.feed_bsc_bags > 0 else 'BFP' if entry.feed_bfp_bags > 0 else ''
-        bags = entry.feed_bpsc_bags or entry.feed_bsc_bags or entry.feed_bfp_bags or 0
+        feed_type = ', '.join(names.get(k, k) for k in fb)
+        bags = day_bags
         mort_pct = round((cum_mort / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0
         ws.append([
             day_num, str(entry.date), entry.mortality_count, cum_mort, mort_pct,
@@ -828,8 +798,7 @@ def region_performance(request):
             total_placed += flock.chick_count
             entries = DailyEntry.objects.filter(flock=flock)
             total_mort += entries.aggregate(t=Sum('mortality_count'))['t'] or 0
-            feed = entries.aggregate(bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'))
-            total_feed_kg += ((feed['bpsc'] or 0) + (feed['bsc'] or 0) + (feed['bfp'] or 0)) * BAG_KG
+            total_feed_kg += total_bags_in(entries) * BAG_KG
             sales = Sale.objects.filter(flock=flock)
             total_sold_birds += sales.aggregate(t=Sum('bird_count'))['t'] or 0
             total_sold_weight += sales.aggregate(t=Sum('total_weight_kg'))['t'] or Decimal('0')
@@ -870,9 +839,7 @@ def till_date_report(request):
     total_sold_birds = 0
     total_sold_weight = Decimal('0')
     total_sale_amount = Decimal('0')
-    total_bpsc = 0
-    total_bsc = 0
-    total_bfp = 0
+    by_type = {}                                       # {feed type key: bags}
     total_med_cost = Decimal('0')
     total_live_birds = 0
 
@@ -881,10 +848,8 @@ def till_date_report(request):
     for flock in flocks:
         total_placed += flock.chick_count
         total_mortality += flock.total_mortality
-        consumed = flock._stats['consumed']
-        total_bpsc += consumed['BPSC'] or 0
-        total_bsc += consumed['BSC'] or 0
-        total_bfp += consumed['BFP'] or 0
+        for k, v in flock._stats['consumed'].items():
+            by_type[k] = by_type.get(k, 0) + (v or 0)
         total_sold_birds += flock.total_sold_birds
         total_sold_weight += flock.total_sold_weight_kg or Decimal('0')
         total_med_cost += Decimal(str(flock.total_medication_cost))
@@ -897,14 +862,15 @@ def till_date_report(request):
         if flock.status == 'active':
             total_live_birds += flock.live_birds
 
-    total_feed_bags = total_bpsc + total_bsc + total_bfp
+    total_feed_bags = sum(by_type.values())
     total_feed_kg = total_feed_bags * BAG_KG
     fcr = round(float(total_feed_kg) / float(total_sold_weight), 3) if total_sold_weight > 0 else None
     total_feed_cost = Decimal(str(total_feed_kg)) * Decimal('44')
     cost_per_kg = round(float(total_feed_cost) / float(total_sold_weight), 2) if total_sold_weight > 0 else None
 
+    from ..feedtypes import keys as feed_keys
     latest_rates = {}
-    for ft in ['BPSC', 'BSC', 'BFP']:
+    for ft in feed_keys():
         rate = FeedRate.objects.filter(feed_type=ft).first()
         if rate:
             latest_rates[ft] = str(rate.rate_per_kg)
@@ -920,11 +886,7 @@ def till_date_report(request):
         'total_live_birds': total_live_birds,
         'total_feed_bags': total_feed_bags,
         'total_feed_kg': total_feed_kg,
-        'feed_by_type': {
-            'bpsc_bags': total_bpsc, 'bpsc_kg': total_bpsc * BAG_KG,
-            'bsc_bags': total_bsc, 'bsc_kg': total_bsc * BAG_KG,
-            'bfp_bags': total_bfp, 'bfp_kg': total_bfp * BAG_KG,
-        },
+        'feed_by_type': {k: {'bags': v, 'kg': v * BAG_KG} for k, v in by_type.items()},
         'fcr': fcr,
         'total_feed_cost': float(total_feed_cost),
         'cost_per_kg_production': cost_per_kg,
@@ -940,12 +902,16 @@ def feed_forecast(request):
 
     For each active flock and each future day in the horizon, estimate birds
     alive (declining by a standard daily mortality rate) x daily feed intake
-    per bird (standard curve), attributed to the feed phase for that age.
-    Bucketed by week and phase. Horizon defaults to 4 weeks (28 days).
+    per bird (standard curve). Each day's feed is split across the feed types
+    by their per-bird amounts (Settings → Feed types), continuing from what the
+    flock has already eaten — no ages decide the feed type.
+    Bucketed by week and feed type. Horizon defaults to 4 weeks (28 days).
     """
     from datetime import date, timedelta
     from ..models import Flock, BillConfig
-    from ..standards import get_daily_feed_intake, get_feed_phase
+    from ..standards import get_daily_feed_intake
+    from ..feedtypes import all_types, split_by_budget, total
+    types = all_types()
 
     weeks = int(request.query_params.get('weeks', 4))
     weeks = max(1, min(weeks, 12))
@@ -961,8 +927,7 @@ def feed_forecast(request):
     from ..prime import prime_flocks
     active = prime_flocks(Flock.objects.filter(status='active').select_related('farm'))
 
-    # buckets[week_index][phase] = kg
-    buckets = [{'BPSC': 0.0, 'BSC': 0.0, 'BFP': 0.0} for _ in range(weeks)]
+    buckets = [dict() for _ in range(weeks)]               # buckets[week][feed type key] = kg
     per_flock = []
 
     for flock in active:
@@ -971,6 +936,8 @@ def feed_forecast(request):
             continue
         flock_total_kg = 0.0
         birds = float(live)
+        # kg per bird eaten so far (placed birds), from the flock's own records
+        per_bird = total(flock._consumed_bags()) * BAG_KG / flock.chick_count if flock.chick_count else 0.0
         for d in range(horizon_days):
             day_date = today + timedelta(days=d)
             age = (day_date - flock.placement_date).days
@@ -978,12 +945,12 @@ def feed_forecast(request):
                 # not yet placed (shouldn't happen for active) or past typical cycle
                 birds = birds * (1 - daily_mort_rate)
                 continue
-            intake_g = get_daily_feed_intake(age)
-            kg = (birds * intake_g) / 1000.0
-            phase = get_feed_phase(age)
+            intake_kg = get_daily_feed_intake(age) / 1000.0
             wk = d // 7
-            buckets[wk][phase] += kg
-            flock_total_kg += kg
+            for key, kg_per_bird in split_by_budget(per_bird, per_bird + intake_kg, types).items():
+                buckets[wk][key] = buckets[wk].get(key, 0.0) + birds * kg_per_bird
+            per_bird += intake_kg
+            flock_total_kg += birds * intake_kg
             birds = birds * (1 - daily_mort_rate)
         if flock_total_kg > 0:
             per_flock.append({
@@ -995,34 +962,31 @@ def feed_forecast(request):
                 'forecast_bags': round(flock_total_kg / BAG_KG, 1),
             })
 
+    def shape(b):
+        return {k: {'kg': round(v, 1), 'bags': round(v / BAG_KG, 1)} for k, v in b.items()}
+
     week_rows = []
-    grand = {'BPSC': 0.0, 'BSC': 0.0, 'BFP': 0.0}
+    grand = {}
     for i, b in enumerate(buckets):
         start = today + timedelta(days=i * 7)
         end = today + timedelta(days=i * 7 + 6)
-        for ph in ('BPSC', 'BSC', 'BFP'):
-            grand[ph] += b[ph]
-        total_kg = b['BPSC'] + b['BSC'] + b['BFP']
+        for k, v in b.items():
+            grand[k] = grand.get(k, 0.0) + v
+        total_kg = sum(b.values())
         week_rows.append({
-            'week': i + 1,
-            'start': str(start),
-            'end': str(end),
-            'bpsc_kg': round(b['BPSC'], 1), 'bpsc_bags': round(b['BPSC'] / BAG_KG, 1),
-            'bsc_kg': round(b['BSC'], 1), 'bsc_bags': round(b['BSC'] / BAG_KG, 1),
-            'bfp_kg': round(b['BFP'], 1), 'bfp_bags': round(b['BFP'] / BAG_KG, 1),
+            'week': i + 1, 'start': str(start), 'end': str(end),
+            'by_type': shape(b),
             'total_kg': round(total_kg, 1), 'total_bags': round(total_kg / BAG_KG, 1),
         })
 
-    grand_total_kg = grand['BPSC'] + grand['BSC'] + grand['BFP']
+    grand_total_kg = sum(grand.values())
     return Response({
         'generated_on': str(today),
         'weeks': weeks,
         'active_flocks': len(per_flock),
         'weekly': week_rows,
         'totals': {
-            'bpsc_kg': round(grand['BPSC'], 1), 'bpsc_bags': round(grand['BPSC'] / BAG_KG, 1),
-            'bsc_kg': round(grand['BSC'], 1), 'bsc_bags': round(grand['BSC'] / BAG_KG, 1),
-            'bfp_kg': round(grand['BFP'], 1), 'bfp_bags': round(grand['BFP'] / BAG_KG, 1),
+            'by_type': shape(grand),
             'total_kg': round(grand_total_kg, 1), 'total_bags': round(grand_total_kg / BAG_KG, 1),
         },
         'per_flock': per_flock,

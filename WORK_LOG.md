@@ -1054,3 +1054,33 @@ settings admin-only; plant user = feed only.
 - BUG-029: the payment-date check read the bill's date in UTC, so a bill made
   just after midnight IST accepted a payment dated the day before. Now IST.
 - Tests: test_bill_payments (5), e2e bill-payments.spec (3).
+
+### Feed types configurable by admin (+ BUG-030)  ✅ DONE
+- Asked for: feed types are BPSC / BSC / BFP1 / BFP2 now and will change; make
+  them configurable; names as the admin sets them; no age-based schedule.
+- FeedType (Settings → Feed types): permanent `key` (what records store) +
+  editable code, name, colour, order, kg per bird, active. Admin adds,
+  renames (BFP → BFP1 keeps all history), reorders, retires (kept on old
+  records, not offered for new ones); delete only if never used; at least
+  one active type. Everyone reads the list; only admin changes it.
+- Storage: daily entries' three columns → DailyEntryFeed lines (any number of
+  types per day); bag counts → bags {key: n}; orders / transfers / rates keep
+  the key (fixed choices removed, validated against the list). Per-bird
+  estimates moved from each flock to the feed types. Migration 0039–0041
+  copies everything and is reversible (tested both ways on real old-style
+  rows; running it back and forth no longer duplicates rows).
+- No ages: the feed a flock is on = first type whose kg-per-bird isn't used up
+  (last type = the rest); feed schedule shows each type against its amount;
+  the forecast splits each day's feed by those amounts from what the flock has
+  already eaten. Lift planner uses the last active type's rate.
+- Every screen follows the list: daily entry (defaults to the flock's current
+  feed; "+ Another feed" for two feeds in a day), order / transfer / rate
+  forms, feed stock table and rate cards, flock stock bar, schedule, chart,
+  entries table, farm page, bag counts, forecast, dashboard rates, approvals.
+- Dashboard low-stock alert now uses the flock's own stock (incl. transfers).
+- BUG-030: the flock's "Feed by Type — Cumulative" chart asked for fields the
+  server never sent, so it was always empty. Rebuilt from the per-type data.
+- Removed three report pages no menu or link reached (MonthlyReport,
+  TillDateReport, RegionPerformance — the Reports page covers them).
+- Tests: test_feed_types (6, incl. migration forward/back), forecast split
+  test, all feed tests moved to per-type data; e2e feed-types.spec (3).

@@ -11,7 +11,7 @@ pytestmark = pytest.mark.django_db
 
 def _entry(flock, day, bfp=0):
     return DailyEntry.objects.create(
-        flock=flock, date=flock.placement_date + datetime.timedelta(days=day), feed_bfp_bags=bfp,
+        flock=flock, date=flock.placement_date + datetime.timedelta(days=day), feed_bags={'BFP': bfp},
     )
 
 
@@ -79,7 +79,7 @@ class TestBreakEven:
 class TestBlendedBreakEven:
     def _entry(self, flock, day, bfp=0):
         return DailyEntry.objects.create(
-            flock=flock, date=flock.placement_date + datetime.timedelta(days=day), feed_bfp_bags=bfp)
+            flock=flock, date=flock.placement_date + datetime.timedelta(days=day), feed_bags={'BFP': bfp})
 
     def test_overall_present(self, auth_admin, farm, make_flock):
         f = make_flock(farm, chicks=1000, status="active", placed_days_ago=20)

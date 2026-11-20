@@ -13,7 +13,7 @@ pytestmark = pytest.mark.django_db
 def _entry(flock, day, mortality=0, bfp=0):
     return DailyEntry.objects.create(
         flock=flock, date=flock.placement_date + datetime.timedelta(days=day),
-        mortality_count=mortality, feed_bfp_bags=bfp,
+        mortality_count=mortality, feed_bags={'BFP': bfp},
     )
 
 

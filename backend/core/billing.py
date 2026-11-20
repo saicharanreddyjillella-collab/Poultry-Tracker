@@ -56,12 +56,8 @@ def generate_bill(flock, user=None, config=None):
     avg_selling_price = (total_sale_amount / total_sold_weight) if total_sold_weight > 0 else Decimal('0')
 
     # Feed
-    feed_agg = entries.aggregate(
-        bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-    )
-    total_feed_bags = Decimal(str(
-        (feed_agg['bpsc'] or 0) + (feed_agg['bsc'] or 0) + (feed_agg['bfp'] or 0)
-    ))
+    from .feedtypes import consumed_in, total
+    total_feed_bags = Decimal(str(total(consumed_in(entries))))
     total_feed_kg = total_feed_bags * BAG_KG
 
     # ─── COST CALCULATION ───
@@ -178,10 +174,7 @@ def generate_bill(flock, user=None, config=None):
             region_feed = Decimal('0')
             region_sold = Decimal('0')
             for rf in region_flocks:
-                rf_feed_agg = DailyEntry.objects.filter(flock=rf).aggregate(
-                    bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-                )
-                rf_feed = ((rf_feed_agg['bpsc'] or 0) + (rf_feed_agg['bsc'] or 0) + (rf_feed_agg['bfp'] or 0)) * BAG_KG
+                rf_feed = total(consumed_in(DailyEntry.objects.filter(flock=rf))) * BAG_KG
                 rf_sold = Sale.objects.filter(flock=rf).aggregate(t=Sum('total_weight_kg'))['t'] or 0
                 region_feed += Decimal(str(rf_feed))
                 region_sold += Decimal(str(rf_sold))

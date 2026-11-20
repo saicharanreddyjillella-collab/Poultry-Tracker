@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { DashboardSkeleton } from '../components/Skeletons';
 import { dashboardAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import useFeedTypes from '../utils/useFeedTypes';
 import HeatBanner from '../components/HeatBanner';
 import ScopeSwitch from '../components/ScopeSwitch';
 import { useScope } from '../utils/useScope';
@@ -15,6 +16,7 @@ const ALERT_TONE = { danger: 'danger', warning: 'warn', info: 'info' };
 /** Control room: what needs doing today, across the farms this user can see. */
 export default function Dashboard() {
   const { isAdmin } = useAuth();
+  const feedTypes = useFeedTypes();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useScope();          // supervisors: their regions unless they pick All farms
@@ -27,7 +29,7 @@ export default function Dashboard() {
   if (!data) return <div className="empty-state">Could not load the dashboard. Check the connection and refresh.</div>;
 
   const feedToday = data.feed_today || {};
-  const todayBags = (feedToday.bpsc_bags || 0) + (feedToday.bsc_bags || 0) + (feedToday.bfp_bags || 0);
+  const todayBags = feedToday.total_bags || 0;
   const entries = data.entries_today || { done: 0, due: 0 };
   const left = Math.max(entries.due - entries.done, 0);
   const trend = data.trend || { mortality: [], feed_bags: [] };
@@ -68,7 +70,7 @@ export default function Dashboard() {
         <StatTile label="Feed on farms" value={fmtNum(data.feed_on_farms_bags)} unit="bags"
                   note={data.pending_orders?.count ? `${data.pending_orders.count} orders pending · ${fmtNum(data.pending_orders.bags)} bags` : 'No orders pending'}>
           {isAdmin && Object.keys(rates).length > 0 && (
-            <span className="stat-sub">Rates ₹/kg: {['BPSC', 'BSC', 'BFP'].filter(t => rates[t]).map(t => `${t} ${Number(rates[t])}`).join(' · ')}</span>
+            <span className="stat-sub">Rates ₹/kg: {feedTypes.types.filter(t => rates[t.key]).map(t => `${t.code} ${Number(rates[t.key])}`).join(' · ')}</span>
           )}
         </StatTile>
       </div>

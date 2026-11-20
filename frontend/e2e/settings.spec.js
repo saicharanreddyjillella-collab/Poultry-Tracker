@@ -20,7 +20,7 @@ test('admin finds Settings in the user menu; both features start on', async ({ p
 
 test('Feed Audit off: card, page and bag counts disappear for everyone; data comes back when on', async ({ page, request }) => {
   const flock = await flockIdOf(request, 'A1');
-  await api(request, 'sup_a', 'POST', '/feed-counts/', { flock, date: istToday(), bfp_bags: 180 });
+  await api(request, 'sup_a', 'POST', '/feed-counts/', { flock, date: istToday(), bags: { BFP: 180 } });
 
   await loginAs(page, 'admin', '/settings');
   await flip(page, 'Feed Audit (bag counts)');
