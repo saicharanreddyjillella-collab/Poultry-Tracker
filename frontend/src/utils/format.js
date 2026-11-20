@@ -10,3 +10,7 @@ export function fmtDate(iso, short = false) {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-IN', short ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+/** Bill payment state → chip tone and words. */
+export const PAY_TONE = { unpaid: 'danger', part: 'warn', paid: 'ok' };
+export const PAY_LABEL = { unpaid: 'Unpaid', part: 'Part paid', paid: 'Paid' };

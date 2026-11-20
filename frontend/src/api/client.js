@@ -228,12 +228,15 @@ export const rateCardAPI = {
 };
 
 export const billAPI = {
+  approve: (flockId, note) => API.post(`/flocks/${flockId}/bill/approve/`, { note }),
+  addPayment: (flockId, data) => API.post(`/flocks/${flockId}/bill/payments/`, data),
+  deletePayment: (paymentId) => API.delete(`/bill-payments/${paymentId}/`),
+  list: (params) => API.get('/bills/', { params }),
   config: () => API.get('/bill-config/'),
   updateConfig: (data) => API.put('/bill-config/', data),
   closeAndBill: (flockId, flags) => API.post(`/flocks/${flockId}/close-and-bill/`, flags || {}),
   preview: (flockId, body) => API.post(`/flocks/${flockId}/bill-preview/`, body || {}),
   get: (flockId) => API.get(`/flocks/${flockId}/bill/`),
-  list: () => API.get('/bills/'),
   reopen: (flockId, reason) => API.post(`/flocks/${flockId}/reopen-bill/`, { reason }),
   history: (flockId) => API.get(`/flocks/${flockId}/bill-history/`),
 };

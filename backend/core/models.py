@@ -1144,11 +1144,58 @@ class Bill(models.Model):
     # E5: 1 for the first settlement; +1 each time the flock is reopened and re-billed
     version = models.PositiveIntegerField(default=1)
 
+    # Approval: a bill a supervisor generates waits for an admin; an admin's own is approved at once.
+    APPROVAL_STATUSES = [('pending', 'Waiting for approval'), ('approved', 'Approved')]
+    approval_status = models.CharField(max_length=10, choices=APPROVAL_STATUSES, default='pending', db_index=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approval_note = models.TextField(blank=True, default='')
+
+    def payments(self):
+        return self.flock.payments.all()
+
+    @property
+    def paid_total(self):
+        # sum in Python so a prefetched flock__payments list costs no extra query
+        return sum((p.amount for p in self.flock.payments.all()), Decimal('0'))
+
+    @property
+    def balance_due(self):
+        return (self.amount_paid - self.paid_total).quantize(Decimal('0.01'))
+
+    @property
+    def payment_status(self):
+        paid = self.paid_total
+        if paid <= 0:
+            return 'unpaid'
+        return 'paid' if paid >= self.amount_paid else 'part'
+
     class Meta:
         ordering = ['-generated_at']
 
     def __str__(self):
         return f"Bill: {self.flock.farm.farm_code} - {self.flock.placement_date} - ₹{self.net_payable}"
+
+
+class BillPayment(models.Model):
+    """Money paid to the grower against a flock's bill. Kept on the flock, so payments
+    already made still count if the bill is reopened and re-generated."""
+    MODES = [('bank', 'Bank transfer'), ('upi', 'UPI'), ('cheque', 'Cheque'), ('cash', 'Cash'), ('other', 'Other')]
+    flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='payments')
+    bill_version = models.PositiveIntegerField(help_text="Bill version it was paid against")
+    date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    mode = models.CharField(max_length=10, choices=MODES, default='bank')
+    reference = models.CharField(max_length=100, blank=True, default='', help_text="UTR / cheque no. / note")
+    notes = models.TextField(blank=True, default='')
+    recorded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['date', 'id']
+
+    def __str__(self):
+        return f"₹{self.amount} on {self.date} ({self.get_mode_display()})"
 
 
 class BillVersion(models.Model):

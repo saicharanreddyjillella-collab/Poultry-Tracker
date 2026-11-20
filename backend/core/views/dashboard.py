@@ -139,6 +139,11 @@ def dashboard(request):
         if n:
             alerts.insert(0, {'type': 'warning', 'farm_name': 'Approvals', 'link': '/approvals',
                               'message': f"{n} change{'s' if n > 1 else ''} outside the edit window waiting for approval"})
+        from ..models import Bill
+        nb = Bill.objects.filter(approval_status='pending').count()
+        if nb:
+            alerts.insert(0, {'type': 'warning', 'farm_name': 'Bills', 'link': '/approvals',
+                              'message': f"{nb} bill{'s' if nb > 1 else ''} waiting for approval before payment"})
     data['alerts'] = alerts
     data.update(scope_info(request))
     from ..control_room import control_room          # next actions, trends, regions (no extra per-flock queries)

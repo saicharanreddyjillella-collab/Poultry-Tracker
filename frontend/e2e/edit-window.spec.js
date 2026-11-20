@@ -34,7 +34,7 @@ test('the admin sees it on the dashboard and approves it', async ({ page, reques
   const waiting = page.getByRole('region', { name: 'Changes waiting for approval' });
   await expect(waiting).toContainText('Lakshmi Farm');
   await waiting.getByRole('button', { name: 'Approve' }).click();
-  await expect(page.getByText('Nothing is waiting for approval.')).toBeVisible();
+  await expect(page.getByText('No changes waiting for approval.')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Recently decided' })).toContainText('Approved');
   const flock = await flockIdOf(request, 'A1');
   const rows = (await api(request, 'admin', 'GET', `/flocks/${flock}/cumulative/`)).body.entries;

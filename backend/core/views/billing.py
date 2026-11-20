@@ -207,10 +207,83 @@ def get_bill(request, flock_id):
 
 @api_view(['GET'])
 def list_bills(request):
+    """?approval=pending|approved  ?payment=unpaid|part|paid"""
     deny_plant(request.user)
-    bills = Bill.objects.select_related('flock', 'flock__farm').filter(
-        flock__farm_id__in=visible_farm_ids(request.user))
-    return Response(BillSerializer(bills, many=True).data)
+    bills = (Bill.objects.select_related('flock', 'flock__farm', 'approved_by', 'generated_by')
+             .prefetch_related('flock__payments__recorded_by')
+             .filter(flock__farm_id__in=visible_farm_ids(request.user)))
+    if request.query_params.get('approval'):
+        bills = bills.filter(approval_status=request.query_params['approval'])
+    rows = BillSerializer(bills, many=True).data
+    if request.query_params.get('payment'):
+        rows = [r for r in rows if r['payment_status'] == request.query_params['payment']]
+    return Response(rows)
+
+
+def _admin_bill(request, flock_id):
+    if not is_admin(request.user):
+        return None, Response({'error': 'Only an admin can do this.'}, status=403)
+    bill = Bill.objects.select_related('flock', 'flock__farm').filter(flock_id=flock_id).first()
+    if bill is None:
+        return None, Response({'error': 'This flock has no bill.'}, status=404)
+    return bill, None
+
+
+@api_view(['POST'])
+def approve_bill(request, flock_id):
+    """Admin approves a supervisor's bill. Payments can be recorded after this."""
+    from django.utils import timezone
+    from ..billlock import unlocked
+    bill, err = _admin_bill(request, flock_id)
+    if err:
+        return err
+    if bill.approval_status == 'approved':
+        return Response({'error': 'This bill is already approved.'}, status=400)
+    with unlocked():
+        bill.approval_status, bill.approved_by, bill.approved_at = 'approved', request.user, timezone.now()
+        bill.approval_note = (request.data.get('note') or '').strip()
+        bill.save(update_fields=['approval_status', 'approved_by', 'approved_at', 'approval_note'])
+    return Response(BillSerializer(bill).data)
+
+
+@api_view(['POST'])
+def add_bill_payment(request, flock_id):
+    """Admin records a payment to the grower: {date, amount, mode, reference, notes}."""
+    from ..models import BillPayment
+    from ..serializers import BillPaymentSerializer
+    bill, err = _admin_bill(request, flock_id)
+    if err:
+        return err
+    if bill.approval_status != 'approved':
+        return Response({'error': 'Approve the bill before recording payments.'}, status=400)
+    ser = BillPaymentSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    amount = ser.validated_data['amount']
+    if amount <= 0:
+        return Response({'amount': ['Enter an amount above ₹0.']}, status=400)
+    if amount > bill.balance_due:
+        return Response({'amount': [f'Only ₹{bill.balance_due:,} is still due on this bill.']}, status=400)
+    from django.utils import timezone
+    if ser.validated_data['date'] < timezone.localdate(bill.generated_at):      # Indian date, not UTC
+        return Response({'date': ['A payment cannot be dated before the bill.']}, status=400)
+    ser.save(flock=bill.flock, bill_version=bill.version, recorded_by=request.user)
+    bill.flock.refresh_from_db()
+    return Response(BillSerializer(Bill.objects.get(pk=bill.pk)).data, status=201)
+
+
+@api_view(['DELETE'])
+def delete_bill_payment(request, payment_id):
+    """Admin removes a payment recorded by mistake (kept in the change history)."""
+    from ..models import BillPayment
+    if not is_admin(request.user):
+        return Response({'error': 'Only an admin can do this.'}, status=403)
+    p = BillPayment.objects.filter(pk=payment_id).first()
+    if p is None:
+        return Response({'error': 'Not found'}, status=404)
+    flock_id = p.flock_id
+    p.delete()
+    bill = Bill.objects.filter(flock_id=flock_id).first()
+    return Response(BillSerializer(bill).data if bill else {}, status=200)
 
 
 @api_view(['POST'])

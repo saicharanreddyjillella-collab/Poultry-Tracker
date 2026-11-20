@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { billAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import brand from '../config/brand';
+import BillPayments from '../components/BillPayments';
 
 const REOPEN_MIN_CHARS = 10;
 
@@ -221,6 +222,8 @@ export default function BillView() {
           )}
         </div>
       </div>
+
+      <BillPayments bill={bill} onChange={setBill} />
 
       {history.length > 0 && (
         <div className="card bill-no-print" style={{ margin: '1rem 0', padding: '1rem' }}>
