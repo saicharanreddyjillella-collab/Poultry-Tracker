@@ -7,6 +7,7 @@ import datetime
 from collections import defaultdict
 
 from .standards import get_daily_feed_intake
+from .serializers import person
 
 TREND_DAYS = 14
 FEED_DAYS_WARNING = 2       # fewer days of feed than this on the farm → "Order feed"
@@ -53,6 +54,7 @@ def control_room(active_flocks, farms, today):
             'weight_pct': round(wvs['actual_g'] / wvs['standard_g'] * 100) if wvs and wvs['standard_g'] else None,
             'feed_bags': round(float(stock['total']), 1),
             'last_entry': last_entry.isoformat() if last_entry else None, 'entry_today': entry_today,
+            'last_entry_by': person(entries[0].entered_by) if entries else None,
             'next_action': action,
         })
         r = regions.setdefault(f.farm.region or '—', {'region': f.farm.region or '—', 'farms': set(), 'flocks': 0,

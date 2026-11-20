@@ -8,7 +8,7 @@ test('menu opens from the hamburger and navigates', async ({ page }) => {
   await loginAs(page, 'sup_a', '/feeds');
   await page.locator('.nav-hamburger, .hamburger, button[aria-label*="menu" i]').first().click();
   await page.locator('nav').getByRole('link', { name: 'Farms', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Farms (3)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Farms (4)' })).toBeVisible();
 });
 
 test('daily entry can be added on a phone', async ({ page, request }) => {

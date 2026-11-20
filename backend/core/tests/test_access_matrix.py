@@ -2,9 +2,11 @@
 
 Roles: admin; supA = supervisor of Zone-A (B is someone else's region);
 plant = feed mill (feed screens only); anon = not logged in.
-Expected codes come from the access policy agreed with Sai (2026-11-15):
-supervisors see/edit only their regions (other regions → 404), bills for own
-farms only, billing settings admin-only, plant = feed only.
+Expected codes come from the access policy agreed with Sai (2026-11-15, changed
+2026-11-20): every supervisor sees and enters data for every farm (to cover for
+each other); a farm's own details and deleting it stay with its region's
+supervisor; regions set the default scope of the dashboard and reports;
+billing settings admin-only, plant = feed only.
 """
 import datetime
 from decimal import Decimal
@@ -64,33 +66,33 @@ def world(settings, tmp_path):
 
 # url template, expected status for (admin, supA, plant, anon)
 READS = [
-    ("/api/farms/{B.id}/",                      (200, 404, 200, 401)),   # plant: name only
-    ("/api/flocks/{fb.id}/",                    (200, 404, 403, 401)),
+    ("/api/farms/{B.id}/",                      (200, 200, 200, 401)),   # plant: name only
+    ("/api/flocks/{fb.id}/",                    (200, 200, 403, 401)),
     ("/api/flocks/{fa.id}/",                    (200, 200, 403, 401)),
     ("/api/flocks/?status=active",              (200, 200, 403, 401)),
     ("/api/daily-entries/?flock={fb.id}",       (200, 200, 403, 401)),   # supA: empty list
     ("/api/sales/?flock={fb.id}",               (200, 200, 403, 401)),
     ("/api/medications/?flock={fb.id}",         (200, 200, 403, 401)),
-    ("/api/documents/{doc}/",                   (200, 404, 404, 401)),
+    ("/api/documents/{doc}/",                   (200, 200, 404, 401)),
     ("/api/feed-orders/",                       (200, 200, 200, 401)),
     ("/api/feed-transfers/",                    (200, 200, 200, 401)),
     ("/api/feed-stock/",                        (200, 200, 200, 401)),
     ("/api/feed-rates/",                        (200, 403, 200, 401)),   # prices: admin + mill
     ("/api/dashboard/",                         (200, 200, 403, 401)),
-    ("/api/flocks/{fb.id}/cumulative/",         (200, 404, 403, 401)),
+    ("/api/flocks/{fb.id}/cumulative/",         (200, 200, 403, 401)),
     ("/api/flocks/{fa.id}/cumulative/",         (200, 200, 403, 401)),
-    ("/api/farms/{B.id}/cumulative/",           (200, 404, 403, 401)),
-    ("/api/farms/{B.id}/performance-history/",  (200, 404, 403, 401)),
+    ("/api/farms/{B.id}/cumulative/",           (200, 200, 403, 401)),
+    ("/api/farms/{B.id}/performance-history/",  (200, 200, 403, 401)),
     ("/api/reports/monthly/",                   (200, 200, 403, 401)),
     ("/api/reports/region/",                    (200, 200, 403, 401)),
     ("/api/reports/till-date/",                 (200, 200, 403, 401)),
     ("/api/reports/monthly/export/",            (200, 200, 403, 401)),
-    ("/api/flocks/{fb.id}/export/",             (200, 404, 403, 401)),
+    ("/api/flocks/{fb.id}/export/",             (200, 200, 403, 401)),
     ("/api/flocks/{fa.id}/export/",             (200, 200, 403, 401)),
     ("/api/bill-config/",                       (200, 403, 403, 401)),
-    ("/api/flocks/{fb2.id}/bill/",              (200, 404, 403, 401)),
+    ("/api/flocks/{fb2.id}/bill/",              (200, 200, 403, 401)),
     ("/api/flocks/{fa2.id}/bill/",              (200, 200, 403, 401)),   # own farm's bill
-    ("/api/flocks/{fb2.id}/bill-history/",      (200, 404, 403, 401)),
+    ("/api/flocks/{fb2.id}/bill-history/",      (200, 200, 403, 401)),
     ("/api/bills/",                             (200, 200, 403, 401)),
     ("/api/reports/owner-dashboard/",           (200, 403, 403, 401)),
     ("/api/reports/break-even/",                (200, 403, 403, 401)),
@@ -113,12 +115,29 @@ def test_read_matrix(world, url, expected):
 
 
 @pytest.mark.parametrize("url", ["/api/farms/", "/api/flocks/?status=active", "/api/feed-orders/",
-                                 "/api/feed-transfers/", "/api/feed-stock/", "/api/dashboard/", "/api/bills/",
-                                 "/api/reports/region/", "/api/reports/till-date/",
-                                 "/api/daily-entries/?flock={fb.id}"])
-def test_supervisor_lists_contain_only_their_region(world, url):
+                                 "/api/feed-stock/", "/api/bills/"])
+def test_supervisor_lists_show_every_farm(world, url):
     body = world["c"]["supA"].get(url.format(**world)).content.decode()
+    assert "FarmB" in body or '"B1"' in body
+
+
+@pytest.mark.parametrize("url", ["/api/dashboard/", "/api/reports/region/", "/api/reports/till-date/",
+                                 "/api/reports/monthly/", "/api/reports/heat-stress/"])
+def test_dashboards_and_reports_open_on_the_supervisors_regions(world, url):
+    c = world["c"]["supA"]
+    mine = c.get(url)
+    assert mine.status_code == 200
+    if "scope" in mine.data:
+        assert mine.data["scope"] == "mine" and mine.data["has_home"] is True
+    body = mine.content.decode()
     assert "FarmB" not in body and '"B1"' not in body and "Zone-B" not in body
+    every = c.get(url + "?scope=all")
+    if "scope" in every.data:
+        assert every.data["scope"] == "all"
+    if url in ("/api/dashboard/", "/api/reports/region/"):
+        assert "Zone-B" in every.content.decode()
+    # admins always see everything; ?scope=mine means nothing for them
+    assert world["c"]["admin"].get(url + "?scope=mine").data.get("scope", "all") == "all"
 
 
 def test_plant_sees_farm_names_only(world):
@@ -135,25 +154,25 @@ def _write(c, method, url, body=None, multipart=False):
 
 # label, method, url, body, expected (supA, plant, anon) — admin covered by feature tests
 WRITES = [
-    ("entry on other region",   "post",  "/api/daily-entries/", lambda w: {"flock": w["fb"].id, "date": str(T - datetime.timedelta(days=5)), "mortality_count": 0}, (403, 403, 401)),
-    ("edit other-region entry", "patch", "/api/daily-entries/{eb.id}/", lambda w: {"mortality_count": 0}, (404, 403, 401)),
-    ("edit other-region sale",  "patch", "/api/sales/{sb.id}/", lambda w: {"rate_per_kg": "1"}, (404, 403, 401)),
-    ("medication other region", "post",  "/api/medications/", lambda w: {"flock": w["fb"].id, "name": "x", "date": str(T), "cost": "1"}, (403, 403, 401)),
-    ("edit other-region farm",  "patch", "/api/farms/{B.id}/", lambda w: {"owner_name": "x"}, (404, 403, 401)),
-    ("edit other-region flock", "patch", "/api/flocks/{fb.id}/", lambda w: {"chick_count": 1}, (404, 403, 401)),
-    ("flock on other region",   "post",  "/api/flocks/", lambda w: {"farm": w["B"].id, "placement_date": str(T), "chick_count": 10}, (403, 403, 401)),
+    ("entry on other region",   "post",  "/api/daily-entries/", lambda w: {"flock": w["fb"].id, "date": str(T - datetime.timedelta(days=5)), "mortality_count": 0}, (201, 403, 401)),
+    ("edit other-region entry", "patch", "/api/daily-entries/{eb.id}/", lambda w: {"mortality_count": 0}, (200, 403, 401)),
+    ("edit other-region sale",  "patch", "/api/sales/{sb.id}/", lambda w: {"rate_per_kg": "1"}, (200, 403, 401)),
+    ("medication other region", "post",  "/api/medications/", lambda w: {"flock": w["fb"].id, "name": "x", "date": str(T), "cost": "1"}, (201, 403, 401)),
+    ("edit other-region farm",  "patch", "/api/farms/{B.id}/", lambda w: {"owner_name": "x"}, (403, 403, 401)),
+    ("edit other-region flock", "patch", "/api/flocks/{fb.id}/", lambda w: {"chick_count": 1}, (200, 403, 401)),
+    ("flock on other region",   "post",  "/api/flocks/", lambda w: {"farm": w["B"].id, "placement_date": str(T), "chick_count": 10}, (201, 403, 401)),
     ("farm in other region",    "post",  "/api/farms/", lambda w: {"farm_code": "Z8", "name": "Z", "owner_name": "z", "capacity": 10, "region": "Zone-B"}, (400, 403, 401)),
-    ("feed order other region", "post",  "/api/feed-orders/", lambda w: {"farm": w["B"].id, "feed_type": "BFP", "quantity_bags": 1}, (403, 403, 401)),
-    ("edit other-region order", "patch", "/api/feed-orders/{ob.id}/", lambda w: {"quantity_bags": 999}, (404, 403, 401)),
+    ("feed order other region", "post",  "/api/feed-orders/", lambda w: {"farm": w["B"].id, "feed_type": "BFP", "quantity_bags": 1}, (201, 403, 401)),
+    ("edit other-region order", "patch", "/api/feed-orders/{ob.id}/", lambda w: {"quantity_bags": 999}, (200, 403, 401)),
     ("delete own order (plant)","delete","/api/feed-orders/{oa.id}/", None, (None, 403, 401)),
-    ("transfer from other reg", "post",  "/api/feed-transfers/", lambda w: {"from_farm": w["B"].id, "to_farm": w["A"].id, "feed_type": "BFP", "quantity_bags": 1, "date": str(T)}, (403, 403, 401)),
-    ("transfer to other region","post",  "/api/feed-transfers/", lambda w: {"from_farm": w["A"].id, "to_farm": w["B"].id, "feed_type": "BFP", "quantity_bags": 1, "date": str(T)}, (403, 403, 401)),
+    ("transfer from other reg", "post",  "/api/feed-transfers/", lambda w: {"from_farm": w["B"].id, "to_farm": w["A"].id, "feed_type": "BFP", "quantity_bags": 1, "date": str(T)}, (201, 403, 401)),
+    ("transfer to other region","post",  "/api/feed-transfers/", lambda w: {"from_farm": w["A"].id, "to_farm": w["B"].id, "feed_type": "BFP", "quantity_bags": 1, "date": str(T)}, (201, 403, 401)),
     ("mark other order sent",   "post",  "/api/feed-orders/{ob.id}/mark-sent/", None, (403, 200, 401)),
     ("feed rate",               "post",  "/api/feed-rates/", lambda w: {"week_start_date": str(T), "feed_type": "BFP", "rate_per_kg": "44"}, (403, 403, 401)),
     ("bill settings",           "put",   "/api/bill-config/", lambda w: {"feed_cost_per_kg": "1"}, (403, 403, 401)),
-    ("close other-region flock","post",  "/api/flocks/{fb.id}/close-and-bill/", None, (404, 403, 401)),
-    ("closed other flock bill", "post",  "/api/flocks/{fb2.id}/close-and-bill/", None, (404, 403, 401)),
-    ("delete other-region farm","delete","/api/farms/{B.id}/", None, (404, 403, 401)),
+    ("close other-region flock","post",  "/api/flocks/{fb.id}/close-and-bill/", None, (201, 403, 401)),
+    ("closed other flock bill", "post",  "/api/flocks/{fb2.id}/close-and-bill/", None, (200, 403, 401)),   # returns the existing bill
+    ("delete other-region farm","delete","/api/farms/{B.id}/", None, (403, 403, 401)),
 ]
 
 

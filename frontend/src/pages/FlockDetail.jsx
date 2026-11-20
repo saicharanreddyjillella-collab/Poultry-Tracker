@@ -627,7 +627,7 @@ export default function FlockDetail() {
               <thead>
                 <tr>
                   <th>Day</th><th>Date</th><th>Mort.</th><th>Cum.M</th><th>M%</th>
-                  <th>Feed</th><th>Bags</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th>Std(g)</th>{flock.status === 'active' && <th>Actions</th>}
+                  <th>Feed</th><th>Bags</th><th>Cum (bags)</th><th>Cum (kg)</th><th>Water</th><th>Wt(g)</th><th>Std(g)</th><th>Entered by</th>{flock.status === 'active' && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -643,6 +643,7 @@ export default function FlockDetail() {
                       <td>{feedBags || '—'}</td>
                       <td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
                       <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td><td className="text-muted-cell">{e.standard_weight_grams}</td>
+                      <td className="cell-by">{e.entered_by_name || <span className="muted">—</span>}{e.edited_by_name && e.edited_by_name !== e.entered_by_name && <span className="cell-sub">edited by {e.edited_by_name}</span>}</td>
                       {flock.status === 'active' && (
                         <td className="entry-actions">
                           <button className="btn-action btn-action-edit" onClick={() => startEditEntry(e)}>Edit</button>
@@ -673,7 +674,7 @@ export default function FlockDetail() {
           <h2 className="section-h">Sales / Liftings</h2>
           <div className="table-wrapper">
             <table>
-              <thead><tr><th>Date</th><th>Trader</th><th>Birds</th><th>Weight</th><th>Avg/Bird</th><th>Rate</th><th>Amount</th><th>Notes</th></tr></thead>
+              <thead><tr><th>Date</th><th>Trader</th><th>Birds</th><th>Weight</th><th>Avg/Bird</th><th>Rate</th><th>Amount</th><th>Notes</th><th>Entered by</th></tr></thead>
               <tbody>
                 {cumulative.sales.map(s => (
                   <tr key={s.id} className={!s.rate_per_kg ? 'row-missing-price' : ''}>
@@ -685,6 +686,7 @@ export default function FlockDetail() {
                     <td>{s.rate_per_kg ? `₹${s.rate_per_kg}` : <span className="text-danger">Missing</span>}</td>
                     <td>{s.rate_per_kg ? `₹${(parseFloat(s.total_weight_kg) * parseFloat(s.rate_per_kg)).toLocaleString()}` : '—'}</td>
                     <td>{s.notes || '—'}</td>
+                    <td className="cell-by">{s.entered_by_name || <span className="muted">—</span>}{s.edited_by_name && s.edited_by_name !== s.entered_by_name && <span className="cell-sub">edited by {s.edited_by_name}</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -768,7 +770,7 @@ export default function FlockDetail() {
           <h2 className="section-h">Medications / Vaccines <small style={{ fontWeight: 400, color: '#6b6b6b' }}>(Total: ₹{parseFloat(flock.total_medication_cost).toLocaleString()})</small></h2>
           <div className="table-wrapper">
             <table>
-              <thead><tr><th>Date</th><th>Day</th><th>Name</th><th>Dose</th><th>Route</th><th>Cost (₹)</th><th>Reason</th></tr></thead>
+              <thead><tr><th>Date</th><th>Day</th><th>Name</th><th>Dose</th><th>Route</th><th>Cost (₹)</th><th>Reason</th><th>Entered by</th></tr></thead>
               <tbody>
                 {flock.medications.map(m => (
                   <tr key={m.id}>
@@ -779,6 +781,7 @@ export default function FlockDetail() {
                     <td>{m.route || '—'}</td>
                     <td>₹{parseFloat(m.cost).toLocaleString()}</td>
                     <td>{m.reason || '—'}</td>
+                    <td className="cell-by">{m.entered_by_name || <span className="muted">—</span>}{m.edited_by_name && m.edited_by_name !== m.entered_by_name && <span className="cell-sub">edited by {m.edited_by_name}</span>}</td>
                   </tr>
                 ))}
               </tbody>

@@ -34,7 +34,7 @@ test('deleting a farm (API) shows as one bin row with everything under it', asyn
   await row.getByRole('button', { name: 'Restore' }).click();
   await page.getByRole('button', { name: 'Restore' }).last().click();
   await expect(page.getByText(/^Restored Farm B1/)).toBeVisible();
-  expect((await api(request, 'sup_b', 'GET', '/farms/')).body.map(f => f.farm_code)).toEqual(['B1']);
+  expect((await api(request, 'sup_b', 'GET', '/farms/')).body.map(f => f.farm_code)).toContain('B1');
 });
 
 test('a billed farm cannot be deleted', async ({ request }) => {

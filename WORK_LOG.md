@@ -989,3 +989,26 @@ settings admin-only; plant user = feed only.
   method and rule in the snapshot) and shows "Rate card" and the rule.
 - Existing card renamed "Original rates" by the migration; old bills unchanged.
 - Tests: test_rate_cards (14), e2e rate-cards.spec (3); all suites pass.
+
+### Supervisors cover for each other; regions only for performance  ✅ DONE
+- Asked for: any supervisor can view and enter data for any farm (someone covers
+  when the responsible supervisor is on leave); regions only for metrics and
+  reports; keep a log of who entered a farm's figures each day.
+- Access (core/access.py): supervisors see every farm; UserProfile.can_edit_farm
+  is true for any supervisor (entries, sales, medicines, feed orders/transfers,
+  bag counts, documents, new flocks, close & bill). A farm's own details and
+  deleting it stay with its region's supervisor (can_manage_farm) or admin.
+  Admin-only items (company costs, PAN, billing rates, users…) unchanged.
+- Regions = performance scope: dashboard, reports (monthly + Excel, region,
+  till date) and the heat warning open on the supervisor's regions; a
+  "My regions / All farms" switch (?scope=all) shows everything. Admins have
+  no switch (always all). The alert bell follows the dashboard default.
+- Who entered: DailyEntry / Sale / Medication get entered_by and edited_by
+  (set by the server, read-only to clients), filled in for older records from
+  the change history. Shown as "Entered by" (and "edited by …") on the flock's
+  entries, sales and medicines tables, and "by …" in the dashboard's last-entry
+  column. No extra queries (page-speed tests unchanged).
+- Users page explains what regions now do.
+- Tests: test_entered_by (3), access matrix rewritten for the new rule
+  (lists show every farm; dashboards/reports scoped; farm details still
+  region-only), regions.spec rewritten (covering, scope switch, who entered).

@@ -20,7 +20,9 @@ class IsAdminOrReadOnly(BasePermission):
 
 
 class CanEditFarm(BasePermission):
-    """Admin can edit any farm. Supervisor can edit only assigned farms."""
+    """Farm details (owner, capacity, region…) and deleting a farm: admin, or a supervisor
+    for farms in their own regions. Day-to-day data on any farm is open to every
+    supervisor (see UserProfile.can_edit_farm)."""
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
@@ -36,7 +38,7 @@ class CanEditFarm(BasePermission):
         if hasattr(request.user, 'profile') and request.user.profile.is_admin:
             return True
         if hasattr(request.user, 'profile'):
-            return request.user.profile.can_edit_farm(obj)
+            return request.user.profile.can_manage_farm(obj)
         return False
 
 

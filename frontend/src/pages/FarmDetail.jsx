@@ -10,7 +10,7 @@ import { todayISO } from '../utils/dates';
 
 export default function FarmDetail() {
   const { id } = useParams();
-  const { canEditFarm, isAdmin } = useAuth();
+  const { canEditFarm, canManageFarm, isAdmin } = useAuth();
   const [farm, setFarm] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [supervisors, setSupervisors] = useState([]);
@@ -95,7 +95,7 @@ export default function FarmDetail() {
           <button className="btn btn-secondary" onClick={() => setShowDetails(!showDetails)}>
             {showDetails ? 'Hide' : 'Farm'} Details
           </button>
-          <Link to={`/farms/${id}/edit`} className="btn btn-secondary">Edit</Link>
+          {canManageFarm(farm.id) && <Link to={`/farms/${id}/edit`} className="btn btn-secondary">Edit</Link>}
           <button className="btn btn-primary" onClick={() => setShowFlockForm(!showFlockForm)}>+ New Flock</button>
         </div>
       </div>

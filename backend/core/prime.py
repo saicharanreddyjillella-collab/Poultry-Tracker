@@ -34,7 +34,7 @@ def prime_flocks(flocks):
     ids = [f.pk for f in todo]
 
     entries = defaultdict(list)                                   # newest first, like the model's ordering
-    for e in DailyEntry.objects.filter(flock_id__in=ids).order_by('flock_id', '-date'):
+    for e in DailyEntry.objects.filter(flock_id__in=ids).select_related('entered_by').order_by('flock_id', '-date'):
         entries[e.flock_id].append(e)
     sales = {r['flock_id']: r for r in Sale.objects.filter(flock_id__in=ids).values('flock_id')
              .annotate(birds=Sum('bird_count'), kg=Sum('total_weight_kg'))}

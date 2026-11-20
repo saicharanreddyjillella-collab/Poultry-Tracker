@@ -263,3 +263,5 @@ a.alert-farm:hover { color: var(--primary); }
 .bill-preview .strong { font-weight: 600; color: var(--text); }
 .modal-card { max-height: 92vh; overflow-y: auto; }
 .bill-rule { font-size: 0.75rem; text-align: right; }
+.cell-by { white-space: nowrap; font-size: 0.8125rem; } .cell-by .cell-sub { display: block; }
+.form-hint { font-size: 0.75rem; color: var(--text-muted); margin: 2px 0 8px; max-width: 640px; }

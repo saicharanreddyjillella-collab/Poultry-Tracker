@@ -195,13 +195,14 @@ export const medicationAPI = {
 };
 
 export const dashboardAPI = {
-  get: () => API.get('/dashboard/'),
+  get: (scope) => API.get('/dashboard/', { params: scope ? { scope } : {} }),
 };
 
 export const reportAPI = {
-  monthly: (year, month) => API.get(`/reports/monthly/?year=${year}&month=${month}`),
-  region: (region) => API.get(`/reports/region/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
-  tillDate: () => API.get('/reports/till-date/'),
+  // scope: 'mine' (a supervisor's regions — their default) or 'all'
+  monthly: (year, month, scope) => API.get('/reports/monthly/', { params: { year, month, ...(scope ? { scope } : {}) } }),
+  region: (region, scope) => API.get('/reports/region/', { params: { ...(region ? { region } : {}), ...(scope ? { scope } : {}) } }),
+  tillDate: (scope) => API.get('/reports/till-date/', { params: scope ? { scope } : {} }),
   feedForecast: (weeks) => API.get(`/reports/feed-forecast/${weeks ? `?weeks=${weeks}` : ''}`),
   ownerDashboard: (periodDays) => API.get(`/reports/owner-dashboard/${periodDays ? `?period_days=${periodDays}` : ''}`),
   breakEven: (finishAge) => API.get(`/reports/break-even/${finishAge ? `?finish_age=${finishAge}` : ''}`),
@@ -341,7 +342,7 @@ export const feedCountAPI = {
 
 export const insightsAPI = {
   feedAudit: (region) => API.get(`/reports/feed-audit/${region ? `?region=${encodeURIComponent(region)}` : ''}`),
-  heatStress: () => API.get('/reports/heat-stress/'),
+  heatStress: (scope) => API.get('/reports/heat-stress/', { params: scope ? { scope } : {} }),
   hatcheries: (days) => API.get(`/reports/hatcheries/${days ? `?days=${days}` : ''}`),
   liftPlanner: (trend = true) => API.get(`/reports/lift-planner/${trend ? '' : '?trend=0'}`),
   growerRanking: (params = {}) => API.get('/reports/grower-ranking/', { params }),

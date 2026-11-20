@@ -4,6 +4,8 @@ import { DashboardSkeleton } from '../components/Skeletons';
 import { dashboardAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import HeatBanner from '../components/HeatBanner';
+import ScopeSwitch from '../components/ScopeSwitch';
+import { useScope } from '../utils/useScope';
 import { Chip, Meter, Panel, StatTile } from '../components/ui';
 import { fmtDate, fmtNum } from '../utils/format';
 
@@ -15,10 +17,11 @@ export default function Dashboard() {
   const { isAdmin } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [scope, setScope] = useScope();          // supervisors: their regions unless they pick All farms
 
   useEffect(() => {
-    dashboardAPI.get().then(res => { setData(res.data); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    dashboardAPI.get(scope).then(res => { setData(res.data); setLoading(false); }).catch(() => setLoading(false));
+  }, [scope]);
 
   if (loading) return <DashboardSkeleton />;
   if (!data) return <div className="empty-state">Could not load the dashboard. Check the connection and refresh.</div>;
@@ -45,10 +48,13 @@ export default function Dashboard() {
             {entries.due > 0 && <> · {entries.done} of {entries.due} daily entries done</>}
           </p>
         </div>
-        <Link to="/farms/new" className="btn btn-primary">+ Add Farm</Link>
+        <div className="header-actions">
+          <ScopeSwitch info={data} onChange={setScope} />
+          <Link to="/farms/new" className="btn btn-primary">+ Add Farm</Link>
+        </div>
       </div>
 
-      <HeatBanner />
+      <HeatBanner scope={data.scope} />
 
       <div className="stats-grid tiles">
         <StatTile label="Live birds" value={fmtNum(data.total_live_birds)}
@@ -126,7 +132,7 @@ export default function Dashboard() {
                     <td data-label="Mort %" className="r num">{r.mortality_pct}</td>
                     <td data-label="Weight vs std"><Meter pct={r.weight_pct} /></td>
                     <td data-label="Feed (bags)" className="r num">{fmtNum(r.feed_bags)}</td>
-                    <td data-label="Last entry">{r.last_entry ? fmtDate(r.last_entry, true) : <span className="muted">none</span>}</td>
+                    <td data-label="Last entry">{r.last_entry ? <>{fmtDate(r.last_entry, true)}{r.last_entry_by && <span className="cell-sub">by {r.last_entry_by}</span>}</> : <span className="muted">none</span>}</td>
                     <td className="cell-action"><Link to={actionLink(r)} className="action-link"><Chip tone={ACTION_TONE[r.next_action.severity]}>{r.next_action.label}</Chip></Link></td>
                   </tr>
                 ))}

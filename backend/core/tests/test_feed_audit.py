@@ -95,16 +95,17 @@ def test_supervisor_records_a_count_and_sees_the_gap(world):
     assert [x["gap_bags"] for x in rows] == [10]
 
 
-@pytest.mark.parametrize("who,expected", [("plant", 403), ("supA", 403)])
-def test_counts_outside_your_role_or_regions_are_refused(world, who, expected):
+@pytest.mark.parametrize("who,expected", [("plant", 403), ("supA", 201)])
+def test_counts_by_role(world, who, expected):
+    """Feed mill can't count bags; any supervisor can, on any farm (covering for a colleague)."""
     flock = world["fb"] if who == "supA" else world["fa"]
     r = world[who].post("/api/feed-counts/", {"flock": flock.id, "date": str(T), "bfp_bags": 1}, format="json")
     assert r.status_code == expected
 
 
-def test_other_regions_counts_are_invisible(world):
+def test_other_regions_counts_are_visible(world):
     count(world["fb"], 5)
-    assert world["supA"].get(f"/api/feed-counts/?flock={world['fb'].id}").data == []
+    assert len(world["supA"].get(f"/api/feed-counts/?flock={world['fb'].id}").data) == 1
 
 
 @pytest.mark.parametrize("body,field", [
