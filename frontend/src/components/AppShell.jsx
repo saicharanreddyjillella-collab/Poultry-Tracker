@@ -34,7 +34,7 @@ export default function AppShell({ brandName, logo, home, groups, showSearch, sh
   const search = (e) => {
     e.preventDefault();
     const q = query.trim();
-    navigate(q ? `/farms?q=${encodeURIComponent(q)}` : '/farms');
+    navigate(q ? `/farms?q=${encodeURIComponent(q)}` : '/farms', { state: { searchId: Date.now() } });   // Farms list adopts it
   };
 
   return (

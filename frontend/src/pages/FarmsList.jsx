@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FarmsListSkeleton } from '../components/Skeletons';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { farmAPI } from '../api/client';
 import { Chip, Panel } from '../components/ui';
 import { fmtNum } from '../utils/format';
@@ -11,27 +11,30 @@ const STATUSES = [['all', 'All'], ['running', 'Running'], ['empty', 'Empty']];
 export default function FarmsList() {
   const [farms, setFarms] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Filters live in the address (?q=…&status=…&region=…) so the top bar's search can open them.
+  // Filters are page state, so quick clicks and typing always apply in order. The address mirrors them
+  // (?q=&status=&region= — links and back/forward keep the view); a search from the top bar arrives as a
+  // navigation carrying a fresh `searchId` and replaces the search text.
   const [params, setParams] = useSearchParams();
-  const urlSearch = params.get('q') || '';
-  const status = params.get('status') || 'all';
-  const region = params.get('region') || '';
-  const setParam = (key, v) => {
-    setParams(prev => {                                   // from the latest address, not this render's copy
-      const next = new URLSearchParams(prev);
-      if (v && v !== 'all') next.set(key, v); else next.delete(key);
-      return next;
-    }, { replace: true });
-  };
-  // The search box keeps its own text (typing never waits for the address to update, so no letters are
-  // lost); a new ?q= from elsewhere — the top bar's search — replaces it.
-  const [search, setSearch] = useState(urlSearch);
-  const [pushed, setPushed] = useState(urlSearch);
-  if (urlSearch !== pushed) {
-    setPushed(urlSearch);
-    setSearch(urlSearch);
+  const location = useLocation();
+  const [filters, setFilters] = useState(() => ({
+    q: params.get('q') || '', status: params.get('status') || 'all', region: params.get('region') || '',
+  }));
+  const searchId = location.state?.searchId;
+  const [seenSearchId, setSeenSearchId] = useState(searchId);
+  if (searchId && searchId !== seenSearchId) {
+    setSeenSearchId(searchId);
+    setFilters(f => ({ ...f, q: params.get('q') || '' }));
   }
-  const typeSearch = (v) => { setSearch(v); setPushed(v); setParam('q', v); };
+  const { q: search, status, region } = filters;
+  const setParam = (key, v) => setFilters(f => ({ ...f, [key]: v }));
+  const typeSearch = (v) => setParam('q', v);
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (search) next.set('q', search);
+    if (status !== 'all') next.set('status', status);
+    if (region) next.set('region', region);
+    setParams(next, { replace: true, state: null });
+  }, [search, status, region, setParams]);
 
   useEffect(() => {
     farmAPI.list().then(res => {
