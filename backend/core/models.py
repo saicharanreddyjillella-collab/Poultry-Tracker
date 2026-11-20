@@ -40,15 +40,17 @@ class UserProfile(models.Model):
         return self.role == 'plant'
 
     def can_edit_farm(self, farm):
+        """Admins and supervisors can enter data for any farm (supervisors cover for each
+        other); regions only set what their dashboards and reports show first."""
+        return self.is_admin or self.role == 'supervisor'
+
+    def can_manage_farm(self, farm):
+        """Change a farm's own details or delete it: admin, or the supervisor whose region it is."""
         if self.is_admin:
             return True
-        # Check by region first, then by direct assignment
         if farm.region and farm.region in (self.assigned_regions or []):
             return True
-        if self.assigned_farms.filter(id=farm.id).exists():
-            return True
-        # Supervisor assigned to any active flock on this farm
-        return farm.flocks.filter(supervisor=self.user, status='active').exists()
+        return self.assigned_farms.filter(id=farm.id).exists()
 
     def sync_farms_from_regions(self):
         """Auto-assign all farms in assigned regions to this user."""
@@ -595,6 +597,10 @@ class Flock(SoftDeleteModel):
 
 class DailyEntry(SoftDeleteModel):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='daily_entries')
+    entered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                   help_text="Who entered it (any supervisor may enter for any farm)")
+    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                  help_text="Who changed it last")
     date = models.DateField()
     mortality_count = models.PositiveIntegerField(default=0)
     cull_count = models.PositiveIntegerField(default=0, help_text="Birds intentionally removed (culled), tracked separately from deaths")
@@ -693,6 +699,10 @@ class DailyEntry(SoftDeleteModel):
 
 class Sale(SoftDeleteModel):
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='sales')
+    entered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                   help_text="Who entered it (any supervisor may enter for any farm)")
+    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                  help_text="Who changed it last")
     date = models.DateField()
     bird_count = models.PositiveIntegerField()
     total_weight_kg = models.DecimalField(max_digits=12, decimal_places=2)
@@ -749,6 +759,10 @@ class Medication(SoftDeleteModel):
         ('other', 'Other'),
     ]
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='medications')
+    entered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                   help_text="Who entered it (any supervisor may enter for any farm)")
+    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                  help_text="Who changed it last")
     date = models.DateField()
     name = models.CharField(max_length=200)
     dose = models.CharField(max_length=100, blank=True)

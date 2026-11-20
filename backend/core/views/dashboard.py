@@ -9,14 +9,18 @@ from decimal import Decimal
 from ..models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder
 from ..serializers import FarmSerializer, FeedRateSerializer
 from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
-                      get_visible_farm, get_visible_flock)
+                      get_visible_farm, get_visible_flock, scoped_farms, report_scope, has_home)
+
+def scope_info(request):
+    """Tells the screen which scope it is showing and whether a 'My regions' switch applies."""
+    return {'scope': report_scope(request), 'has_home': has_home(request.user)}
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, NotPlant])
 def dashboard(request):
     today = date.today()
-    farms = visible_farms(request.user)
+    farms = scoped_farms(request)                 # supervisors: their regions unless ?scope=all
     from ..prime import prime_flocks
     active_flocks = prime_flocks(Flock.objects.filter(status='active', farm__in=farms).select_related('farm'))
     today_entries = {e.flock_id: e for e in DailyEntry.objects.filter(date=today,
@@ -130,6 +134,7 @@ def dashboard(request):
             })
 
     data['alerts'] = alerts
+    data.update(scope_info(request))
     from ..control_room import control_room          # next actions, trends, regions (no extra per-flock queries)
     data.update(control_room(active_flocks, list(farms), today))
     return Response(data)
@@ -143,8 +148,9 @@ def flock_cumulative(request, flock_id):
     from ..standards import get_standard_weight
 
     flock = get_visible_flock(request.user, flock_id)          # 404 if missing / other region
-    entries = DailyEntry.objects.filter(flock_id=flock_id).order_by('date')
-    sales = Sale.objects.filter(flock_id=flock_id).order_by('date')
+    from ..serializers import person
+    entries = DailyEntry.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by').order_by('date')
+    sales = Sale.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by').order_by('date')
 
     BAG_KG = 50
     cum_mortality = 0
@@ -183,6 +189,8 @@ def flock_cumulative(request, flock_id):
             'water_feed_status': entry.water_feed_status,
             'avg_body_weight_grams': float(entry.avg_body_weight_grams) if entry.avg_body_weight_grams else None,
             'standard_weight_grams': get_standard_weight(day_number),
+            'entered_by_name': person(entry.entered_by),
+            'edited_by_name': person(entry.edited_by),
         })
 
     result_sales = [{
@@ -194,6 +202,8 @@ def flock_cumulative(request, flock_id):
         'rate_per_kg': float(s.rate_per_kg) if s.rate_per_kg else None,
         'trader_name': s.trader_name,
         'notes': s.notes,
+        'entered_by_name': person(s.entered_by),
+        'edited_by_name': person(s.edited_by),
     } for s in sales]
 
     meds = Medication.objects.filter(flock_id=flock_id).order_by('date')

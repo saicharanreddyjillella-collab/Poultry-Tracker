@@ -201,6 +201,8 @@ export default function UserManagement() {
           {form.role === 'supervisor' && (
             <div className="form-group">
               <label>Assigned Regions</label>
+              <p className="form-hint">Every supervisor can open and enter data for every farm (to cover when someone is on leave).
+                Regions decide what their dashboard and reports show first, and which farms' details they can change.</p>
               <div className="region-checkbox-grid">
                 {regions.map(r => (
                   <label key={r} className={`farm-checkbox ${form.assigned_regions.includes(r) ? 'farm-checkbox-active' : ''}`}>

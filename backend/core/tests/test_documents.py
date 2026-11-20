@@ -66,13 +66,14 @@ class TestDocumentPermissions:
         api.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
         return api
 
-    def test_supervisor_cannot_upload_to_unassigned_farm(self, api, supervisor_user, farm):
+    def test_supervisor_can_upload_to_any_farm(self, api, supervisor_user, farm):
+        """Supervisors cover for each other, so any farm's documents are open to them."""
         self._login(api, "sup")
         resp = api.post("/api/documents/", {
             "farm": farm.id, "doc_type": "agreement", "file": _file(),
         }, format="multipart")
-        assert resp.status_code in (403, 400)
-        assert Document.objects.filter(farm=farm).count() == 0
+        assert resp.status_code == 201
+        assert Document.objects.filter(farm=farm).count() == 1
 
     def test_supervisor_can_upload_to_assigned_farm(self, api, supervisor_user, farm):
         supervisor_user.profile.assigned_regions = ["Zone-A"]

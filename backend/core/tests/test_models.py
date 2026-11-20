@@ -91,8 +91,14 @@ class TestPermissionsModel:
         supervisor_user.profile.save()
         assert supervisor_user.profile.can_edit_farm(farm) is True
 
-    def test_supervisor_without_assignment_denied(self, farm, supervisor_user):
-        assert supervisor_user.profile.can_edit_farm(farm) is False
+    def test_supervisor_without_assignment_can_cover(self, farm, supervisor_user):
+        """Any supervisor may enter data for any farm (covering for a colleague),
+        but only the farm's own region manages its details."""
+        assert supervisor_user.profile.can_edit_farm(farm) is True
+        supervisor_user.profile.assigned_regions = []
+        supervisor_user.profile.save()
+        supervisor_user.profile.assigned_farms.clear()
+        assert supervisor_user.profile.can_manage_farm(farm) is False
 
     def test_supervisor_by_direct_assignment(self, farm, supervisor_user):
         supervisor_user.profile.assigned_farms.add(farm)

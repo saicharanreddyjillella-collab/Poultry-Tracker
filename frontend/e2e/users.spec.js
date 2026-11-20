@@ -46,7 +46,7 @@ test('the new supervisor signs in, sets their own password, works in Zone-A', as
   await page.getByRole('button', { name: 'Change Password' }).click();
   await expect(page.getByRole('heading', { name: "Today's Dashboard" })).toBeVisible();
   await page.goto('/farms');
-  await expect(page.getByRole('heading', { name: 'Farms (3)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Farms (4)' })).toBeVisible();       // every farm (covering)
 });
 
 test('admin resets their password: old one stops working, new one is temporary', async ({ page, request }) => {

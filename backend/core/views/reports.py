@@ -11,7 +11,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from ..models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication
 from ..serializers import FeedRateSerializer
 from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
-                      get_visible_farm, get_visible_flock)
+                      get_visible_farm, get_visible_flock, scoped_farms, report_scope, has_home)
+
+def scope_info(request):
+    """Tells the screen which scope it is showing and whether a 'My regions' switch applies."""
+    return {'scope': report_scope(request), 'has_home': has_home(request.user)}
 
 
 def _compute_monthly_report(year, month, farm_ids=None):
@@ -81,8 +85,9 @@ def _compute_monthly_report(year, month, farm_ids=None):
     }
 
 
-def _report_scope(user):
-    return None if is_admin(user) else visible_farm_ids(user)
+def _report_scope(request):
+    """Farm ids a report covers: None = every farm."""
+    return list(scoped_farms(request).values_list('id', flat=True)) if report_scope(request) == 'mine' else None
 
 
 @api_view(['GET'])
@@ -90,7 +95,7 @@ def _report_scope(user):
 def monthly_report(request):
     year = int(request.query_params.get('year', date.today().year))
     month = int(request.query_params.get('month', date.today().month))
-    return Response(_compute_monthly_report(year, month, _report_scope(request.user)))
+    return Response({**_compute_monthly_report(year, month, _report_scope(request)), **scope_info(request)})
 
 
 @api_view(['GET'])
@@ -103,7 +108,7 @@ def export_monthly_report(request):
     year = int(request.query_params.get('year', date.today().year))
     month = int(request.query_params.get('month', date.today().month))
 
-    report = _compute_monthly_report(year, month, _report_scope(request.user))
+    report = _compute_monthly_report(year, month, _report_scope(request))
     batches = report['flocks']
 
     wb = openpyxl.Workbook()
@@ -218,7 +223,7 @@ def export_flock_report(request, flock_id):
 def region_performance(request):
     BAG_KG = 50
     region_filter = request.query_params.get('region')
-    farms = visible_farms(request.user)
+    farms = scoped_farms(request)
     if region_filter:
         farms = farms.filter(region=region_filter)
 
@@ -265,8 +270,9 @@ def region_performance(request):
         })
 
     return Response({
-        'regions': sorted(set(visible_farms(request.user).exclude(region='').values_list('region', flat=True))),
+        'regions': sorted(set(scoped_farms(request).exclude(region='').values_list('region', flat=True))),
         'data': result,
+        **scope_info(request),
     })
 
 
@@ -276,7 +282,7 @@ def region_performance(request):
 @permission_classes([IsAuthenticated, NotPlant])
 def till_date_report(request):
     BAG_KG = 50
-    all_flocks = Flock.objects.select_related('farm').filter(farm__in=visible_farms(request.user))
+    all_flocks = Flock.objects.select_related('farm').filter(farm__in=scoped_farms(request))
     active_flocks = all_flocks.filter(status='active')
 
     total_placed = 0
@@ -324,6 +330,7 @@ def till_date_report(request):
             latest_rates[ft] = str(rate.rate_per_kg)
 
     return Response({
+        **scope_info(request),
         'total_birds_placed': total_placed,
         'total_mortality': total_mortality,
         'mortality_percentage': round((total_mortality / total_placed) * 100, 2) if total_placed > 0 else 0,

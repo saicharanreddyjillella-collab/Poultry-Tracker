@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { ReportSkeleton } from '../components/Skeletons';
 import { reportAPI } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import ScopeSwitch from '../components/ScopeSwitch';
+import { useScope } from '../utils/useScope';
 
 export default function Reports() {
   const { isAdmin } = useAuth();   // company costs: admin only
@@ -12,18 +14,19 @@ export default function Reports() {
   const [data, setData] = useState(null);
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scope, setScope] = useScope();          // supervisors: their regions unless they pick All farms
 
   const load = async () => {
     setLoading(true);
     try {
       if (view === 'monthly') {
-        const res = await reportAPI.monthly(year, month);
+        const res = await reportAPI.monthly(year, month, scope);
         setData(res.data);
       } else if (view === 'tilldate') {
-        const res = await reportAPI.tillDate();
+        const res = await reportAPI.tillDate(scope);
         setData(res.data);
       } else if (view === 'region') {
-        const res = await reportAPI.region(regionFilter);
+        const res = await reportAPI.region(regionFilter, scope);
         setData(res.data);
         if (res.data.regions) setRegions(res.data.regions);
       }
@@ -34,7 +37,7 @@ export default function Reports() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [view, year, month, regionFilter]);
+  useEffect(() => { load(); }, [view, year, month, regionFilter, scope]);
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN') : '—';
   const fmtDec = (n) => n != null ? Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
@@ -45,7 +48,7 @@ export default function Reports() {
     if (view !== 'monthly') return;
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/reports/monthly/export/?year=${year}&month=${month}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/reports/monthly/export/?year=${year}&month=${month}${scope ? `&scope=${scope}` : ''}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const blob = await response.blob();
@@ -62,6 +65,8 @@ export default function Reports() {
     <div className="page">
       <div className="page-header">
         <h1>Reports</h1>
+        <span className="head-spacer" />
+        <ScopeSwitch info={data} onChange={setScope} />
         {view === 'monthly' && <button className="btn btn-secondary" onClick={handleExport}>Export Excel</button>}
       </div>
 

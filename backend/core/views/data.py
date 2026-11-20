@@ -70,6 +70,11 @@ class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset().filter(farm_id__in=visible_farm_ids(self.request.user))
+        if self.action == 'retrieve':
+            from django.db.models import Prefetch
+            qs = qs.prefetch_related(*(Prefetch(rel, queryset=model.objects.select_related('entered_by', 'edited_by'))
+                                       for rel, model in (('daily_entries', DailyEntry), ('sales', Sale),
+                                                          ('medications', Medication))))
         if self.action == 'list':
             farm = self.request.query_params.get('farm')
             status = self.request.query_params.get('status')
@@ -109,7 +114,7 @@ class FlockViewSet(GuardedListMixin, viewsets.ModelViewSet):
 
 
 class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
-    queryset = DailyEntry.objects.select_related('flock', 'flock__farm').all()
+    queryset = DailyEntry.objects.select_related('flock', 'flock__farm', 'entered_by', 'edited_by').all()
     serializer_class = DailyEntrySerializer
     permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
@@ -194,15 +199,15 @@ class DailyEntryViewSet(GuardedListMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         self._validate_entry(serializer.validated_data)
-        serializer.save()
+        serializer.save(entered_by=self.request.user)
 
     def perform_update(self, serializer):
         self._validate_entry(serializer.validated_data, instance=serializer.instance)
-        serializer.save()
+        serializer.save(edited_by=self.request.user)
 
 
 class SaleViewSet(GuardedListMixin, viewsets.ModelViewSet):
-    queryset = Sale.objects.select_related('flock', 'flock__farm').all()
+    queryset = Sale.objects.select_related('flock', 'flock__farm', 'entered_by', 'edited_by').all()
     serializer_class = SaleSerializer
     permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
 
@@ -232,7 +237,10 @@ class SaleViewSet(GuardedListMixin, viewsets.ModelViewSet):
             raise ValidationError({
                 'bird_count': f'Cannot sell {bird_count} birds. Only {live_birds} live birds available.'
             })
-        serializer.save()
+        serializer.save(entered_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(edited_by=self.request.user)
 
 
 class FeedRateViewSet(viewsets.ModelViewSet):
@@ -254,9 +262,15 @@ class FeedRateViewSet(viewsets.ModelViewSet):
 
 
 class MedicationViewSet(GuardedListMixin, viewsets.ModelViewSet):
-    queryset = Medication.objects.select_related('flock', 'flock__farm').all()
+    queryset = Medication.objects.select_related('flock', 'flock__farm', 'entered_by', 'edited_by').all()
     serializer_class = MedicationSerializer
     permission_classes = [IsAuthenticated, NotPlant, CanEditFlockData]
+
+    def perform_create(self, serializer):
+        serializer.save(entered_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(edited_by=self.request.user)
 
     def get_queryset(self):
         qs = super().get_queryset().filter(flock__farm_id__in=visible_farm_ids(self.request.user))

@@ -7,7 +7,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..access import NotPlant, is_admin, visible_farms
+from ..access import NotPlant, is_admin, scoped_farms
 from ..heat import heat_report
 from ..models import Farm, Flock, RegionLocation
 
@@ -15,9 +15,9 @@ from ..models import Farm, Flock, RegionLocation
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, NotPlant])
 def heat_stress_report(request):
-    """Admin: all farms. Supervisor: farms in their regions."""
+    """Admin: all farms. Supervisor: farms in their regions (?scope=all for every farm)."""
     flocks = (Flock.objects.select_related('farm')
-              .filter(status='active', farm__in=visible_farms(request.user)))
+              .filter(status='active', farm__in=scoped_farms(request)))
     return Response(heat_report(flocks, timezone.localdate()))
 
 

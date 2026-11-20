@@ -53,13 +53,14 @@ export function AuthProvider({ children }) {
 
   const isAdmin = user?.role === 'admin';
   const isPlant = user?.role === 'plant';
-  const canEditFarm = (farmId) => {
-    if (isAdmin) return true;
-    return user?.assigned_farm_ids?.includes(farmId);
-  };
+  // Day-to-day data (entries, sales, medicines, feed, bills): any supervisor, any farm —
+  // they cover for each other. Regions only set the default scope of dashboards/reports.
+  const canEditFarm = () => isAdmin || user?.role === 'supervisor';
+  // A farm's own details (owner, capacity, region) and deleting it: admin, or its region's supervisor.
+  const canManageFarm = (farmId) => isAdmin || !!user?.assigned_farm_ids?.includes(farmId);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser, loading, isAdmin, isPlant, canEditFarm }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, loading, isAdmin, isPlant, canEditFarm, canManageFarm }}>
       {children}
     </AuthContext.Provider>
   );

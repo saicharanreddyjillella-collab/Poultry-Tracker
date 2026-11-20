@@ -3,7 +3,29 @@ from .prime import prime_flocks, unprime
 from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, BillVersion, Document, AuditLog
 
 
-class DailyEntrySerializer(serializers.ModelSerializer):
+def person(user):
+    """Name to show for a user: their full name, else username."""
+    if user is None:
+        return None
+    return user.get_full_name() or user.username
+
+
+class EnteredByMixin(serializers.Serializer):
+    """Who entered a record and who changed it last — set by the server, never by the client."""
+    entered_by_name = serializers.SerializerMethodField()
+    edited_by_name = serializers.SerializerMethodField()
+
+    def get_entered_by_name(self, obj):
+        return person(obj.entered_by)
+
+    def get_edited_by_name(self, obj):
+        return person(obj.edited_by)
+
+
+ENTERED_BY_READ_ONLY = ('entered_by', 'edited_by')
+
+
+class DailyEntrySerializer(EnteredByMixin, serializers.ModelSerializer):
     total_feed_bags = serializers.ReadOnlyField()
 
     def validate(self, attrs):
@@ -25,15 +47,17 @@ class DailyEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyEntry
         fields = '__all__'
+        read_only_fields = ENTERED_BY_READ_ONLY
 
 
-class SaleSerializer(serializers.ModelSerializer):
+class SaleSerializer(EnteredByMixin, serializers.ModelSerializer):
     total_amount = serializers.ReadOnlyField()
     avg_bird_weight_kg = serializers.ReadOnlyField()
 
     class Meta:
         model = Sale
         fields = '__all__'
+        read_only_fields = ENTERED_BY_READ_ONLY
 
 
 class FeedRateSerializer(serializers.ModelSerializer):
@@ -42,10 +66,11 @@ class FeedRateSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class MedicationSerializer(serializers.ModelSerializer):
+class MedicationSerializer(EnteredByMixin, serializers.ModelSerializer):
     class Meta:
         model = Medication
         fields = '__all__'
+        read_only_fields = ENTERED_BY_READ_ONLY
 
 
 class ChickQualityFields(serializers.Serializer):
