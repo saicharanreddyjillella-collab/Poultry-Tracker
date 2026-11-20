@@ -1089,5 +1089,8 @@ settings admin-only; plant user = feed only.
 - Found by CI (farms-table e2e, timing-dependent). Each filter change rebuilt
   the address from the copy of it the page had when it last drew, so quick
   changes (All → clear region → type a search) could bring back the region
-  just cleared ("Zone-B + lakshmi" → no rows). Changes now build on the latest
-  address; the search box keeps its own text so typing never waits for it.
+  just cleared ("Zone-B + lakshmi" → no rows). First fix (build on the latest
+  address) wasn't enough — the router doesn't chain quick updates. Final fix:
+  filters are page state (always applied in order) and the address only
+  mirrors them; a top-bar search arrives with a fresh searchId and replaces
+  the search text. farms/regions/mobile e2e passed 48/48 on repeat.
