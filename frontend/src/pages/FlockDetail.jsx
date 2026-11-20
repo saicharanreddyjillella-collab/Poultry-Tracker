@@ -6,6 +6,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { flockAPI, dailyEntryAPI, saleAPI, medicationAPI, feedOrderAPI, feedStockAPI, billAPI, getErrorMessage } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import BillCardPicker from '../components/BillCardPicker';
 import DocumentsSection from '../components/DocumentsSection';
 import BagCountSection from '../components/BagCountSection';
 import ChickQualityCard from '../components/ChickQualityCard';
@@ -37,6 +38,7 @@ export default function FlockDetail() {
   const [showFeedOrderForm, setShowFeedOrderForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [billCard, setBillCard] = useState(null);           // admin's choice; null = card for the placement date
   const [closeFlags, setCloseFlags] = useState({
     recovery_excess_mortality: true,
     recovery_negligence: false,
@@ -793,7 +795,7 @@ export default function FlockDetail() {
       {/* Close Flock Modal */}
       {showCloseModal && (
         <div className="modal-overlay" onClick={() => setShowCloseModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-card" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
             <h3 className="modal-title">Close Flock & Generate Bill</h3>
             <p className="modal-message">Review billing settings before generating the bill. This cannot be undone.</p>
             {cumulative.feed_reconciliation && !cumulative.feed_reconciliation.is_balanced && (
@@ -806,6 +808,8 @@ export default function FlockDetail() {
               </div>
             )}
 
+            {isAdmin && <BillCardPicker flockId={id} flags={closeFlags} value={billCard} onChange={setBillCard} />}
+
             <div style={{ marginBottom: '1rem' }}>
               <label className="bill-flag-title">Medicine Cost Method</label>
               <div className="bill-flag-row">
@@ -813,7 +817,7 @@ export default function FlockDetail() {
                   <input type="checkbox" checked={closeFlags.medicine_use_actual} onChange={e => setCloseFlags({ ...closeFlags, medicine_use_actual: e.target.checked })} />
                   Use actual medicine cost
                 </label>
-                <span className="bill-flag-hint">{closeFlags.medicine_use_actual ? 'Actual cost from records' : 'Chicks × ₹5 (default)'}</span>
+                <span className="bill-flag-hint">{closeFlags.medicine_use_actual ? 'Actual cost from records' : 'Chicks × rate on the card (unless the card says actual)'}</span>
               </div>
             </div>
 
@@ -834,7 +838,7 @@ export default function FlockDetail() {
               <button className="btn btn-danger" onClick={async () => {
                 setShowCloseModal(false);
                 try {
-                  await billAPI.closeAndBill(id, closeFlags);
+                  await billAPI.closeAndBill(id, { ...closeFlags, ...(isAdmin && billCard ? { rate_card: billCard } : {}) });
                   navigate(`/flocks/${id}/bill`);
                 } catch (err) {
                   alert(getErrorMessage(err));

@@ -151,6 +151,11 @@ export default function BillView() {
             <h4>Growing Charges</h4>
             <table className="bill-t">
               <tbody>
+                {bill.rate_card_name && <tr><td>Rate card</td><td>{bill.rate_card_name}</td></tr>}
+                {bill.growing_method === 'standard' && bill.config_snapshot?.standard_growing_charges && (
+                  <tr><td>Rule</td><td className="bill-rule">₹{fmt(bill.config_snapshot.standard_growing_charges)} {Number(bill.config_snapshot.gc_increase_pct) === Number(bill.config_snapshot.gc_decrease_pct) ? `± ${Number(bill.config_snapshot.gc_increase_pct)}%` : `+${Number(bill.config_snapshot.gc_increase_pct)}% / −${Number(bill.config_snapshot.gc_decrease_pct)}%`} of
+                    (₹{fmt(bill.config_snapshot.standard_production_cost)} − ₹{fmt(bill.production_cost_per_kg)}), min ₹{fmt(bill.config_snapshot.min_growing_charges)}</td></tr>
+                )}
                 <tr><td>Grade</td><td><span className={`bill-grade bill-grade-${bill.farmer_grade.toLowerCase().replace('+', 'plus')}`}>{bill.farmer_grade}</span></td></tr>
                 <tr><td>Rate</td><td>₹{fmt(bill.growing_charges_per_kg)}/kg</td></tr>
                 <tr className="bill-t-total"><td>Total ({fmt(bill.total_sold_weight_kg)} kg)</td><td>₹{fmt(bill.growing_charges_total)}</td></tr>

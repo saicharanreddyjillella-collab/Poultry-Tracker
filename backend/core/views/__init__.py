@@ -21,7 +21,7 @@ from .feed import (
 )
 from .billing import (
     bill_config_view, close_flock_and_generate_bill, get_bill, list_bills,
-    reopen_bill, bill_history,
+    reopen_bill, bill_history, rate_cards, rate_card_detail, rate_card_make_default, bill_preview,
 )
 from .documents import DocumentViewSet
 from .audit import AuditLogViewSet

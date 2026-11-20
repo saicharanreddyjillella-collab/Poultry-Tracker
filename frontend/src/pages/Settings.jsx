@@ -32,6 +32,14 @@ export default function Settings() {
         <h1>Settings</h1>
         <Link to="/system-health" className="btn btn-secondary">System Health →</Link>
       </div>
+      <section className="settings-link-card">
+        <div>
+          <h2>Billing Rates</h2>
+          <p className="muted">Feed, chick and admin costs, standards, growing charge rule and rate incentive used on grower
+            bills. Add a new card when rates change; older bills keep the card they used.</p>
+        </div>
+        <Link to="/settings/rate-cards" className="btn btn-primary">Open billing rates →</Link>
+      </section>
       <h2>Features</h2>
       <p className="muted">Switch optional features on or off for everyone. Turning one off hides its screens; data
         already saved is kept and comes back when you turn it on again.</p>

@@ -5,9 +5,31 @@ from .models import (
 )
 
 
-def generate_bill(flock, user=None):
-    """Generate a bill for a closed flock."""
-    config = BillConfig.get_active()
+def growing_charge_per_kg(config, avg_selling_price, production_cost_per_kg, grade):
+    """₹/kg growing charge under the card's method (before rounding)."""
+    if config.growing_method == BillConfig.METHOD_STANDARD:
+        # Standard charge moves with the gap between standard and actual production cost:
+        # each ₹1 below standard adds gc_increase_pct paise, each ₹1 above takes off gc_decrease_pct.
+        gap = config.standard_production_cost - production_cost_per_kg
+        pct = config.gc_increase_pct if gap >= 0 else config.gc_decrease_pct
+        gc = config.standard_growing_charges + gap * pct / Decimal('100')
+        if config.max_growing_charges is not None:
+            gc = min(gc, config.max_growing_charges)
+        return max(gc, config.min_growing_charges)
+    # Margin & grade: selling price − production cost (at least the minimum), then ± % by grade.
+    gc = max(avg_selling_price - production_cost_per_kg, config.min_growing_charges)
+    grade_factor = config.grade_incentive_pct / Decimal('100')
+    if grade in ('A+', 'A'):
+        gc = gc * (1 + grade_factor)
+    else:
+        gc = gc * (1 - grade_factor)
+    return gc
+
+
+def generate_bill(flock, user=None, config=None):
+    """Generate a bill for a closed flock with `config` (a rate card), or the card in
+    effect on the flock's placement date."""
+    config = config or BillConfig.for_date(flock.placement_date)
     config.refresh_from_db()  # Ensure all fields are Decimal, not float defaults
     farm = flock.farm
     BAG_KG = 50
@@ -45,7 +67,8 @@ def generate_bill(flock, user=None):
     feed_cost = D(total_feed_kg) * D(config.feed_cost_per_kg)
 
     # Medicine cost: actual if flag is on, else chicks × rate
-    if farm.medicine_use_actual:
+    medicine_actual = farm.medicine_use_actual or config.medicine_always_actual
+    if medicine_actual:
         medicine_cost = D(flock.total_medication_cost)
     else:
         medicine_cost = D(chicks_placed) * D(config.medicine_cost_per_chick)
@@ -71,18 +94,8 @@ def generate_bill(flock, user=None):
     else:
         grade = 'Z'
 
-    # ─── GROWING CHARGES ───
-    growing_charges_per_kg = avg_selling_price - production_cost_per_kg
-    # Apply min
-    growing_charges_per_kg = max(growing_charges_per_kg, config.min_growing_charges)
-
-    # Grade adjustment (50% incentive/penalty)
-    grade_factor = config.grade_incentive_pct / Decimal('100')
-    if grade in ('A+', 'A'):
-        growing_charges_per_kg = growing_charges_per_kg * (1 + grade_factor)
-    elif grade in ('B', 'C', 'D', 'Z'):
-        growing_charges_per_kg = growing_charges_per_kg * (1 - grade_factor)
-
+    # ─── GROWING CHARGES (method set on the rate card) ───
+    growing_charges_per_kg = growing_charge_per_kg(config, avg_selling_price, production_cost_per_kg, grade)
     growing_charges_per_kg = growing_charges_per_kg.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     growing_charges_total = (growing_charges_per_kg * total_sold_weight).quantize(Decimal('0.01'))
 
@@ -282,12 +295,29 @@ def generate_bill(flock, user=None):
         tds_amount=tds_amount,
         tds_pan_missing=pan_missing,
         amount_paid=amount_paid,
+        rate_card=config,
         config_snapshot={
+            'rate_card_id': config.pk,
+            'rate_card_name': config.label,
+            'effective_from': config.effective_from.isoformat() if config.effective_from else None,
+            'growing_method': config.growing_method,
+            'standard_production_cost': str(config.standard_production_cost),
+            'standard_growing_charges': str(config.standard_growing_charges),
+            'min_growing_charges': str(config.min_growing_charges),
+            'max_growing_charges': str(config.max_growing_charges) if config.max_growing_charges is not None else None,
+            'gc_increase_pct': str(config.gc_increase_pct),
+            'gc_decrease_pct': str(config.gc_decrease_pct),
+            'grade_incentive_pct': str(config.grade_incentive_pct),
+            'incentive_threshold_1': str(config.incentive_threshold_1),
+            'incentive_threshold_2': str(config.incentive_threshold_2),
+            'incentive_rate_1': str(config.incentive_rate_1),
+            'incentive_rate_2': str(config.incentive_rate_2),
+            'max_rate_incentive': str(config.max_rate_incentive),
             'chick_cost_per_bird': str(config.chick_cost_per_bird),
             'feed_cost_per_kg': str(config.feed_cost_per_kg),
             'admin_cost_per_chick': str(config.admin_cost_per_chick),
             'medicine_cost_per_chick': str(config.medicine_cost_per_chick),
-            'medicine_use_actual': farm.medicine_use_actual,
+            'medicine_use_actual': medicine_actual,
             'tds_rate_pct': str(tds_rate),
             'entity_type': farm.entity_type,
             'pan_present': farm.has_valid_pan,
