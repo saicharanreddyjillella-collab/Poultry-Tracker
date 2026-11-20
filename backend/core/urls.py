@@ -58,6 +58,9 @@ urlpatterns = [
     path('flocks/<int:flock_id>/close-and-bill/', views.close_flock_and_generate_bill),
     path('flocks/<int:flock_id>/bill/', views.get_bill),
     path('flocks/<int:flock_id>/reopen-bill/', views.reopen_bill),
+    path('flocks/<int:flock_id>/bill/approve/', views.approve_bill),
+    path('flocks/<int:flock_id>/bill/payments/', views.add_bill_payment),
+    path('bill-payments/<int:payment_id>/', views.delete_bill_payment),
     path('flocks/<int:flock_id>/bill-history/', views.bill_history),
     path('bills/', views.list_bills),
 ]

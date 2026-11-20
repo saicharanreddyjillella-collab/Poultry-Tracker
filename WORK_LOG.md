@@ -1033,3 +1033,24 @@ settings admin-only; plant user = feed only.
   recently decided list); dashboard alert + bell for the admin.
 - Tests: test_edit_window (9), e2e edit-window.spec (4). Access-matrix and two
   e2e files that edit weeks-old entries turn the window off for themselves.
+
+### Bill approval and payments (+ BUG-029)  ✅ DONE
+- Asked for: supervisor closes → admin approves → payments recorded; part
+  payments allowed.
+- Bill.approval_status (pending / approved), approved_by / at / note. A bill an
+  admin generates is approved at once; a supervisor's waits. Existing bills were
+  marked approved by the migration (already settled).
+- BillPayment (date, amount, mode bank/UPI/cheque/cash/other, UTR/reference,
+  notes, recorded by). Kept on the flock, so payments survive a reopen and
+  count against the re-generated bill (shown "on bill v1"). Only on approved
+  bills; not above the balance; not dated before the bill; admin can remove a
+  mistaken payment (change history keeps it).
+- Bill: paid_total, balance_due, payment_status (unpaid / part / paid).
+  /api/bills/?approval=…&payment=…; approve, add/remove payment endpoints.
+- Screens: "Approval & payments" box on the bill (approve, record payment with
+  the balance pre-filled, payments table, remove); Approvals page now lists
+  bills waiting for approval and approved bills still to pay; dashboard/bell
+  alert for bills waiting.
+- BUG-029: the payment-date check read the bill's date in UTC, so a bill made
+  just after midnight IST accepted a payment dated the day before. Now IST.
+- Tests: test_bill_payments (5), e2e bill-payments.spec (3).

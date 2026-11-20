@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .prime import prime_flocks, unprime
-from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, BillVersion, Document, AuditLog
+from .models import Farm, Flock, DailyEntry, Sale, FeedRate, Medication, FeedOrder, FeedTransfer, BillConfig, Bill, BillPayment, BillVersion, Document, AuditLog
 
 
 def person(user):
@@ -343,8 +343,38 @@ class BillVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class BillPaymentSerializer(serializers.ModelSerializer):
+    mode_label = serializers.CharField(source='get_mode_display', read_only=True)
+    recorded_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BillPayment
+        fields = ['id', 'bill_version', 'date', 'amount', 'mode', 'mode_label', 'reference', 'notes',
+                  'recorded_by_name', 'recorded_at']
+        read_only_fields = ['bill_version', 'recorded_at']
+
+    def get_recorded_by_name(self, o):
+        return person(o.recorded_by)
+
+
 class BillSerializer(serializers.ModelSerializer):
     farm_code = serializers.CharField(source='flock.farm.farm_code', read_only=True)
+    approval_status_label = serializers.CharField(source='get_approval_status_display', read_only=True)
+    approved_by_name = serializers.SerializerMethodField()
+    generated_by_name = serializers.SerializerMethodField()
+    payments = serializers.SerializerMethodField()
+    paid_total = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    balance_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    payment_status = serializers.ReadOnlyField()
+
+    def get_approved_by_name(self, o):
+        return person(o.approved_by)
+
+    def get_generated_by_name(self, o):
+        return person(o.generated_by)
+
+    def get_payments(self, o):
+        return BillPaymentSerializer(o.flock.payments.all(), many=True).data
     farm_name = serializers.CharField(source='flock.farm.name', read_only=True)
     farmer_name = serializers.CharField(source='flock.farm.owner_name', read_only=True)
     placement_date = serializers.DateField(source='flock.placement_date', read_only=True)

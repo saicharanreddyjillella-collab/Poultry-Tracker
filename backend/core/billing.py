@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Sum, Avg
+from django.utils import timezone
 from .models import (
     Flock, DailyEntry, Sale, FeedOrder, BillConfig, Bill, Farm, BillVersion
 )
@@ -260,10 +261,15 @@ def generate_bill(flock, user=None, config=None):
     # E5: a re-bill after reopen is the next version of this flock's settlement.
     from django.db.models import Max
     prev_version = BillVersion.objects.filter(flock=flock).aggregate(v=Max('version'))['v'] or 0
+    # An admin's bill is approved as generated; a supervisor's waits for an admin.
+    by_admin = bool(user and getattr(getattr(user, 'profile', None), 'is_admin', getattr(user, 'is_superuser', False)))
     bill = Bill.objects.create(
         flock=flock,
         version=prev_version + 1,
         generated_by=user,
+        approval_status='approved' if by_admin else 'pending',
+        approved_by=user if by_admin else None,
+        approved_at=timezone.now() if by_admin else None,
         chicks_placed=chicks_placed,
         total_mortality=total_mortality,
         live_birds=max(0, live_birds),
