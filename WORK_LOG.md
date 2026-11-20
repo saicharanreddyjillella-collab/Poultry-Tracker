@@ -1084,3 +1084,10 @@ settings admin-only; plant user = feed only.
   TillDateReport, RegionPerformance — the Reports page covers them).
 - Tests: test_feed_types (6, incl. migration forward/back), forecast split
   test, all feed tests moved to per-type data; e2e feed-types.spec (3).
+
+### BUG-031: Farms filters could undo each other  ✅ FIXED
+- Found by CI (farms-table e2e, timing-dependent). Each filter change rebuilt
+  the address from the copy of it the page had when it last drew, so quick
+  changes (All → clear region → type a search) could bring back the region
+  just cleared ("Zone-B + lakshmi" → no rows). Changes now build on the latest
+  address; the search box keeps its own text so typing never waits for it.

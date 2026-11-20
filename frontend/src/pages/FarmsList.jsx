@@ -13,14 +13,25 @@ export default function FarmsList() {
   const [loading, setLoading] = useState(true);
   // Filters live in the address (?q=…&status=…&region=…) so the top bar's search can open them.
   const [params, setParams] = useSearchParams();
-  const search = params.get('q') || '';
+  const urlSearch = params.get('q') || '';
   const status = params.get('status') || 'all';
   const region = params.get('region') || '';
   const setParam = (key, v) => {
-    const next = new URLSearchParams(params);
-    if (v && v !== 'all') next.set(key, v); else next.delete(key);
-    setParams(next, { replace: true });
+    setParams(prev => {                                   // from the latest address, not this render's copy
+      const next = new URLSearchParams(prev);
+      if (v && v !== 'all') next.set(key, v); else next.delete(key);
+      return next;
+    }, { replace: true });
   };
+  // The search box keeps its own text (typing never waits for the address to update, so no letters are
+  // lost); a new ?q= from elsewhere — the top bar's search — replaces it.
+  const [search, setSearch] = useState(urlSearch);
+  const [pushed, setPushed] = useState(urlSearch);
+  if (urlSearch !== pushed) {
+    setPushed(urlSearch);
+    setSearch(urlSearch);
+  }
+  const typeSearch = (v) => { setSearch(v); setPushed(v); setParam('q', v); };
 
   useEffect(() => {
     farmAPI.list().then(res => {
@@ -71,8 +82,8 @@ export default function FarmsList() {
           )}
           <div className="search-bar filter-search">
             <input type="text" placeholder="Search code, name, owner, region…" aria-label="Search farms"
-                   value={search} onChange={e => setParam('q', e.target.value)} />
-            {search && <button className="search-clear" aria-label="Clear search" onClick={() => setParam('q', '')}>&times;</button>}
+                   value={search} onChange={e => typeSearch(e.target.value)} />
+            {search && <button className="search-clear" aria-label="Clear search" onClick={() => typeSearch('')}>&times;</button>}
           </div>
         </>}
       >
