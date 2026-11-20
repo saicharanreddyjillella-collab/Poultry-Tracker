@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { feedCountAPI, getErrorMessage } from '../api/client';
 import { todayISO } from '../utils/dates';
 import { useFeatures } from '../utils/features';
+import useFeedTypes from '../utils/useFeedTypes';
 import '../styles/insights.css';
 
-const FEEDS = [['bpsc_bags', 'BPSC'], ['bsc_bags', 'BSC'], ['bfp_bags', 'BFP']];
-const emptyForm = () => ({ date: todayISO(), bpsc_bags: '', bsc_bags: '', bfp_bags: '', notes: '' });
+const emptyForm = () => ({ date: todayISO(), bags: {}, notes: '' });
 
 export function GapText({ gap }) {
   if (gap > 0) return <span className="gap-short">{gap} bags short</span>;
@@ -25,6 +25,7 @@ function BagCounts({ flock, canEdit, isAdmin }) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(null);
+  const feedTypes = useFeedTypes();
 
   const load = () => feedCountAPI.list(flock.id).then(r => setCounts(r.data)).catch(() => {});
   useEffect(() => { load(); }, [flock.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -36,8 +37,9 @@ function BagCounts({ flock, canEdit, isAdmin }) {
     e.preventDefault();
     setError('');
     try {
-      const body = { flock: flock.id, date: form.date, notes: form.notes };
-      for (const [k] of FEEDS) body[k] = parseInt(form[k], 10) || 0;
+      const bags = {};
+      for (const [k, v] of Object.entries(form.bags)) if (parseInt(v, 10) > 0) bags[k] = parseInt(v, 10);
+      const body = { flock: flock.id, date: form.date, notes: form.notes, bags };
       const r = await feedCountAPI.create(body);
       setSaved(r.data);
       setOpen(false);
@@ -85,11 +87,11 @@ function BagCounts({ flock, canEdit, isAdmin }) {
               <input type="date" value={form.date} required min={flock.placement_date} max={todayISO()}
                      onChange={e => setForm({ ...form, date: e.target.value })} />
             </div>
-            {FEEDS.map(([k, label]) => (
-              <div className="form-group" key={k}>
-                <label>{label} bags</label>
-                <input type="text" inputMode="numeric" pattern="[0-9]*" value={form[k]} placeholder="0"
-                       onChange={e => setForm({ ...form, [k]: e.target.value })} />
+            {feedTypes.active.map(t => (
+              <div className="form-group" key={t.key}>
+                <label htmlFor={`count-${t.key}`}>{t.code} bags</label>
+                <input id={`count-${t.key}`} type="text" inputMode="numeric" pattern="[0-9]*" value={form.bags[t.key] ?? ''} placeholder="0"
+                       onChange={e => setForm({ ...form, bags: { ...form.bags, [t.key]: e.target.value } })} />
               </div>
             ))}
           </div>
@@ -109,13 +111,15 @@ function BagCounts({ flock, canEdit, isAdmin }) {
         <div className="table-wrapper">
           <table>
             <thead>
-              <tr><th>Date</th><th>Counted (BPSC / BSC / BFP)</th><th>Paper</th><th>Difference</th><th>By</th>{isAdmin && <th></th>}</tr>
+              <tr><th>Date</th><th>Counted</th><th>Paper</th><th>Difference</th><th>By</th>{isAdmin && <th></th>}</tr>
             </thead>
             <tbody>
               {counts.map(c => (
                 <tr key={c.id}>
                   <td>{c.date}</td>
-                  <td>{c.bpsc_bags} / {c.bsc_bags} / {c.bfp_bags}</td>
+                  <td>{Object.keys(c.bags || {}).length
+                    ? Object.entries(c.bags).map(([k, v]) => `${feedTypes.code(k)} ${v}`).join(' · ')
+                    : '0'}</td>
                   <td>{c.book.total}</td>
                   <td><GapText gap={c.gap_bags} /></td>
                   <td>{c.counted_by_name}</td>

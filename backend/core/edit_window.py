@@ -56,8 +56,11 @@ def _plain(data):
 
 def _snapshot(obj):
     from django.forms.models import model_to_dict
-    return {k: (str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v)
+    snap = {k: (str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v)
             for k, v in model_to_dict(obj).items()}
+    if hasattr(obj, 'feeds'):                       # daily entry: its feed by type
+        snap['feed_bags'] = obj.feed_bags
+    return snap
 
 
 class EditWindowMixin:

@@ -12,11 +12,11 @@ class FarmAdmin(admin.ModelAdmin):
 
 @admin.register(Flock)
 class FlockAdmin(admin.ModelAdmin):
-    list_display = ('farm', 'placement_date', 'chick_count', 'status', 'bpsc_per_bird_kg', 'bsc_per_bird_kg')
+    list_display = ('farm', 'placement_date', 'chick_count', 'status')
 
 @admin.register(DailyEntry)
 class DailyEntryAdmin(admin.ModelAdmin):
-    list_display = ('flock', 'date', 'mortality_count', 'feed_bpsc_bags', 'feed_bsc_bags', 'feed_bfp_bags')
+    list_display = ('flock', 'date', 'mortality_count', 'total_feed_bags')
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):

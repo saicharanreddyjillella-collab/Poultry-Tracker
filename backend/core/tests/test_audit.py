@@ -66,7 +66,7 @@ class TestAuditActor:
         from core.models import DailyEntry
         f = make_flock(farm, chicks=1000, status='active', placed_days_ago=42)
         DailyEntry.objects.create(flock=f, date=f.placement_date + datetime.timedelta(days=1),
-                                  feed_bfp_bags=40)
+                                  feed_bags={'BFP': 40})
         Sale.objects.create(flock=f, date=f.placement_date, bird_count=1000,
                             total_weight_kg=Decimal('2000'), rate_per_kg=Decimal('100'))
         resp = auth_admin.post(f'/api/flocks/{f.id}/close-and-bill/', {}, format='json')

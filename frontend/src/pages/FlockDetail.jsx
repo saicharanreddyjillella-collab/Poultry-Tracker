@@ -9,6 +9,8 @@ import PendingChanges from '../components/PendingChanges';
 import useApprovalSave from '../utils/useApprovalSave';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import FeedBadge from '../components/FeedBadge';
+import useFeedTypes from '../utils/useFeedTypes';
 import BillCardPicker from '../components/BillCardPicker';
 import DocumentsSection from '../components/DocumentsSection';
 import BagCountSection from '../components/BagCountSection';
@@ -66,7 +68,7 @@ export default function FlockDetail() {
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, danger: false });
   const [entryForm, setEntryForm] = useState({
     date: todayISO(),
-    mortality_count: '', cull_count: '', feed_type: 'BPSC', feed_bags: '',
+    mortality_count: '', cull_count: '', feed_type: '', feed_bags: '', extra_feeds: [],
     water_consumed_liters: '', avg_body_weight_grams: '', notes: '',
   });
   const [saleForm, setSaleForm] = useState({
@@ -77,7 +79,14 @@ export default function FlockDetail() {
     date: todayISO(),
     name: '', dose: '', route: '', cost: '', reason: '',
   });
-  const [feedOrderForm, setFeedOrderForm] = useState({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
+  const [feedOrderForm, setFeedOrderForm] = useState({ feed_type: '', quantity_bags: '', notes: '' });
+  const feedTypes = useFeedTypes();
+  // New entries / orders start on the feed the flock is on now (Settings → Feed types order + amounts)
+  const defaultFeed = cumulative?.feed_schedule_status?.current_feed_type || feedTypes.active[0]?.key || '';
+  // Active types to choose from, plus the record's own (possibly retired) type when editing
+  const feedOptions = (current) => feedTypes.types
+    .filter(t => t.active || t.key === current)
+    .map(t => <option key={t.key} value={t.key}>{t.code}{t.name ? ` (${t.name})` : ''}{t.active ? '' : ' — retired'}</option>);
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
 
@@ -102,16 +111,13 @@ export default function FlockDetail() {
   useEffect(() => { load(); }, [id]);
 
   const resetEntryForm = () => {
-    setEntryForm({ date: todayISO(), mortality_count: '', cull_count: '', feed_type: 'BPSC', feed_bags: '', water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
+    setEntryForm({ date: todayISO(), mortality_count: '', cull_count: '', feed_type: '', feed_bags: '', extra_feeds: [], water_consumed_liters: '', avg_body_weight_grams: '', notes: '' });
     setEditingEntry(null);
   };
 
   const startEditEntry = (entry) => {
-    // Figure out which feed type was used
-    let feed_type = 'BPSC', feed_bags = '';
-    if (entry.feed_bpsc_bags > 0) { feed_type = 'BPSC'; feed_bags = entry.feed_bpsc_bags; }
-    else if (entry.feed_bsc_bags > 0) { feed_type = 'BSC'; feed_bags = entry.feed_bsc_bags; }
-    else if (entry.feed_bfp_bags > 0) { feed_type = 'BFP'; feed_bags = entry.feed_bfp_bags; }
+    // The day's feeds: first one in the main row, any others as extra rows
+    const [[feed_type, feed_bags] = ['', ''], ...rest] = Object.entries(entry.feed_bags || {});
 
     setEntryForm({
       date: entry.date,
@@ -119,6 +125,7 @@ export default function FlockDetail() {
       cull_count: entry.daily_culls || '',
       feed_type,
       feed_bags: feed_bags || '',
+      extra_feeds: rest.map(([type, bags]) => ({ type, bags: String(bags) })),
       water_consumed_liters: entry.water_liters || '',
       avg_body_weight_grams: entry.avg_body_weight_grams || '',
       notes: '',
@@ -132,7 +139,13 @@ export default function FlockDetail() {
 
   const handleEntry = async (e) => {
     e.preventDefault(); setError('');
-    const bags = parseInt(entryForm.feed_bags) || 0;
+    const feedRows = [{ type: entryForm.feed_type || defaultFeed, bags: entryForm.feed_bags }, ...entryForm.extra_feeds];
+    const feed_bags = {};
+    for (const r of feedRows) {
+      const n = parseInt(r.bags) || 0;
+      if (n > 0 && r.type) feed_bags[r.type] = (feed_bags[r.type] || 0) + n;
+    }
+    const bags = Object.values(feed_bags).reduce((a, b) => a + b, 0);
     const mortality = parseInt(entryForm.mortality_count) || 0;
     const culls = parseInt(entryForm.cull_count) || 0;
     const water = parseFloat(entryForm.water_consumed_liters) || 0;
@@ -170,9 +183,7 @@ export default function FlockDetail() {
       flock: id, date: entryForm.date,
       mortality_count: mortality,
       cull_count: culls,
-      feed_bpsc_bags: entryForm.feed_type === 'BPSC' ? bags : 0,
-      feed_bsc_bags: entryForm.feed_type === 'BSC' ? bags : 0,
-      feed_bfp_bags: entryForm.feed_type === 'BFP' ? bags : 0,
+      feed_bags,
       water_consumed_liters: water,
       avg_body_weight_grams: bodyWeight,
       notes: entryForm.notes,
@@ -226,13 +237,13 @@ export default function FlockDetail() {
       await feedOrderAPI.create({
         farm: flock.farm,
         flock: parseInt(id),
-        feed_type: feedOrderForm.feed_type,
+        feed_type: feedOrderForm.feed_type || defaultFeed,
         quantity_bags: parseInt(feedOrderForm.quantity_bags),
         notes: feedOrderForm.notes,
       });
       setShowFeedOrderForm(false);
       showTab('feed');                       // show what was just saved
-      setFeedOrderForm({ feed_type: 'BPSC', quantity_bags: '', notes: '' });
+      setFeedOrderForm({ feed_type: '', quantity_bags: '', notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -269,7 +280,19 @@ export default function FlockDetail() {
   const counts = { entries: cumulative.entries.length, sales: (cumulative.sales || []).length, health: (flock.medications || []).length };
   const wvs = cumulative.weight_vs_standard;
   const fr = cumulative.feed_reconciliation;
-  const totalBags = cumulative.feed_by_type.bpsc_bags + cumulative.feed_by_type.bsc_bags + cumulative.feed_by_type.bfp_bags;
+  const totalBags = Object.values(cumulative.feed_by_type || {}).reduce((a, t) => a + t.bags, 0);
+  const stockByType = cumulative.flock_feed_stock?.by_type || {};
+  // feed types worth showing on this flock: active ones + any old type it actually used or holds
+  const flockTypes = feedTypes.types.filter(t => t.active || cumulative.feed_by_type?.[t.key] || stockByType[t.key]);
+  // cumulative bags per type by day, for the stacked chart
+  const feedSeries = (() => {
+    const run = {};
+    return cumulative.entries.map(e => {
+      for (const [k, v] of Object.entries(e.feed_bags || {})) run[k] = (run[k] || 0) + v;
+      return { day_number: e.day_number, ...Object.fromEntries(flockTypes.map(t => [t.key, run[t.key] || 0])) };
+    });
+  })();
+
   const hasEntries = cumulative.entries.length > 0;
 
   return (
@@ -331,14 +354,32 @@ export default function FlockDetail() {
           <div className="form-row">
             <div className="form-group">
               <label>Feed Type</label>
-              <select value={entryForm.feed_type} onChange={e => setEntryForm({ ...entryForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
+              <select value={entryForm.feed_type || defaultFeed} onChange={e => setEntryForm({ ...entryForm, feed_type: e.target.value })}>
+                {feedOptions(entryForm.feed_type)}
               </select>
             </div>
             <div className="form-group"><label>Bags</label><input type="text" inputMode="numeric" pattern="[0-9]*" value={entryForm.feed_bags} onChange={e => setEntryForm({ ...entryForm, feed_bags: e.target.value })} placeholder="0" /><small className="field-hint">1 bag = 50 kg</small></div>
           </div>
+          {entryForm.extra_feeds.map((r, i) => (
+            <div className="form-row" key={i}>
+              <div className="form-group">
+                <label htmlFor={`extra-feed-${i}`}>Feed Type {i + 2}</label>
+                <select id={`extra-feed-${i}`} value={r.type} onChange={e => setEntryForm({ ...entryForm, extra_feeds: entryForm.extra_feeds.map((x, j) => j === i ? { ...x, type: e.target.value } : x) })}>
+                  {feedOptions(r.type)}
+                </select>
+              </div>
+              <div className="form-group"><label htmlFor={`extra-bags-${i}`}>Bags {i + 2}</label>
+                <input id={`extra-bags-${i}`} type="text" inputMode="numeric" pattern="[0-9]*" value={r.bags}
+                       onChange={e => setEntryForm({ ...entryForm, extra_feeds: entryForm.extra_feeds.map((x, j) => j === i ? { ...x, bags: e.target.value } : x) })} placeholder="0" /></div>
+              <div className="form-group form-group-end">
+                <button type="button" className="btn-action btn-action-cancel" onClick={() => setEntryForm({ ...entryForm, extra_feeds: entryForm.extra_feeds.filter((_, j) => j !== i) })}>Remove</button>
+              </div>
+            </div>
+          ))}
+          {feedTypes.active.length > 1 && (
+            <button type="button" className="link-btn" onClick={() => setEntryForm({ ...entryForm, extra_feeds: [...entryForm.extra_feeds, { type: feedTypes.active.find(t => t.key !== (entryForm.feed_type || defaultFeed))?.key || defaultFeed, bags: '' }] })}>
+              + Another feed (when two feeds were given this day)</button>
+          )}
           <div className="form-row">
             <div className="form-group"><label>Water (L)</label><input type="text" inputMode="decimal" value={entryForm.water_consumed_liters} onChange={e => setEntryForm({ ...entryForm, water_consumed_liters: e.target.value })} placeholder="0" /></div>
             <div className="form-group"><label>Body Weight (g)</label><input type="text" inputMode="decimal" value={entryForm.avg_body_weight_grams} onChange={e => setEntryForm({ ...entryForm, avg_body_weight_grams: e.target.value })} placeholder="Optional" /></div>
@@ -411,18 +452,14 @@ export default function FlockDetail() {
           {farmStock && (
             <div className="stock-inline">
               Current stock:
-              <span className="feed-badge feed-badge-bpsc">BPSC: {farmStock.stock.bpsc} bags</span>
-              <span className="feed-badge feed-badge-bsc">BSC: {farmStock.stock.bsc} bags</span>
-              <span className="feed-badge feed-badge-bfp">BFP: {farmStock.stock.bfp} bags</span>
+              {flockTypes.map(t => <FeedBadge key={t.key} type={t.key}>{t.code}: {farmStock.stock[t.key] || 0} bags</FeedBadge>)}
             </div>
           )}
           <div className="form-row">
             <div className="form-group">
               <label>Feed Type *</label>
-              <select value={feedOrderForm.feed_type} onChange={e => setFeedOrderForm({ ...feedOrderForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
+              <select value={feedOrderForm.feed_type || defaultFeed} onChange={e => setFeedOrderForm({ ...feedOrderForm, feed_type: e.target.value })}>
+                {feedOptions(feedOrderForm.feed_type)}
               </select>
             </div>
             <div className="form-group">
@@ -595,7 +632,7 @@ export default function FlockDetail() {
                 <dt>Sold</dt><dd className="num">{fmtNum(cumulative.total_sold_birds)} · {fmtNum(cumulative.total_sold_weight_kg)} kg</dd>
                 <dt>Feed used</dt><dd className="num">{totalBags.toFixed(1)} bags</dd>
                 {fr && <><dt>Dispatched vs fed</dt><dd className={`num ${fr.is_balanced ? '' : 'tone-danger'}`}>{fr.dispatched_bags} / {fr.consumed_bags}{fr.is_balanced ? '' : ` (${fr.variance_bags > 0 ? '+' : ''}${fr.variance_bags})`}</dd></>}
-                <dt>Current feed</dt><dd><span className={`feed-badge feed-badge-${(fs.current_feed_type || '').toLowerCase()}`}>{fs.current_feed_type || '—'}</span></dd>
+                <dt>Current feed</dt><dd>{fs.current_feed_type ? <FeedBadge type={fs.current_feed_type} /> : '—'}</dd>
                 <dt>Medicine cost</dt><dd className="num">₹{fmtNum(flock.total_medication_cost)}</dd>
               </dl>
             </Panel>
@@ -647,14 +684,14 @@ export default function FlockDetail() {
               </thead>
               <tbody>
                 {cumulative.entries.map((e, i) => {
-                  const feedType = e.feed_bpsc_bags > 0 ? 'BPSC' : e.feed_bsc_bags > 0 ? 'BSC' : e.feed_bfp_bags > 0 ? 'BFP' : '—';
-                  const feedBags = e.feed_bpsc_bags || e.feed_bsc_bags || e.feed_bfp_bags || 0;
+                  const dayFeeds = Object.keys(e.feed_bags || {});
+                  const feedBags = e.daily_feed_bags || 0;
                   return (
                     <tr key={i}>
                       <td>{e.day_number}</td><td>{e.date}</td>
                       <td>{e.daily_mortality}</td><td>{e.cumulative_mortality}</td>
                       <td className={e.mortality_percentage > 5 ? 'text-danger' : ''}>{e.mortality_percentage}%</td>
-                      <td>{feedType !== '—' ? <span className={`feed-badge feed-badge-${feedType.toLowerCase()}`}>{feedType}</span> : '—'}</td>
+                      <td>{dayFeeds.length ? dayFeeds.map(k => <FeedBadge key={k} type={k}>{feedTypes.code(k)}{dayFeeds.length > 1 ? ` ${e.feed_bags[k]}` : ''}</FeedBadge>) : '—'}</td>
                       <td>{feedBags || '—'}</td>
                       <td>{e.cumulative_feed_bags}</td><td>{e.cumulative_feed_kg}</td>
                       <td>{e.water_liters}</td><td>{e.avg_body_weight_grams || '—'}</td><td className="text-muted-cell">{e.standard_weight_grams}</td>
@@ -720,52 +757,43 @@ export default function FlockDetail() {
           {flock.status === 'active' && cumulative.flock_feed_stock && (
             <div className="farm-stock-bar">
               <strong>This Flock's Feed Stock:</strong>
-              <span className={`feed-badge feed-badge-bpsc ${cumulative.flock_feed_stock.bpsc <= 0 ? 'stock-low' : ''}`}>BPSC: {cumulative.flock_feed_stock.bpsc}</span>
-              <span className={`feed-badge feed-badge-bsc ${cumulative.flock_feed_stock.bsc <= 0 ? 'stock-low' : ''}`}>BSC: {cumulative.flock_feed_stock.bsc}</span>
-              <span className={`feed-badge feed-badge-bfp ${cumulative.flock_feed_stock.bfp <= 0 ? 'stock-low' : ''}`}>BFP: {cumulative.flock_feed_stock.bfp}</span>
+              {flockTypes.map(t => (
+                <FeedBadge key={t.key} type={t.key} className={(stockByType[t.key] || 0) <= 0 ? 'stock-low' : ''}>{t.code}: {stockByType[t.key] || 0}</FeedBadge>
+              ))}
               <span>Total: {cumulative.flock_feed_stock.total} bags</span>
               {cumulative.flock_feed_stock.total <= 0 && <span className="text-danger" style={{ fontSize: '0.8rem' }}>Order feed for this flock</span>}
             </div>
           )}
           <h2 className="section-h">Feed Schedule</h2>
-      <h2 style={{ margin: '1.5rem 0 0.75rem' }}>Feed Schedule</h2>
       <div className="feed-progress-grid">
-        <div className="feed-progress-card">
-          <div className="feed-progress-header">
-            <span className="feed-badge feed-badge-bpsc">BPSC</span>
-            <span>{fs.bpsc_used_bags} / ~{fs.bpsc_estimate_bags} bags ({fs.bpsc_used_kg} / ~{fs.bpsc_estimate_kg} kg)</span>
+        {(fs.types || []).map(r => (
+          <div className="feed-progress-card" key={r.feed_type}>
+            <div className="feed-progress-header">
+              <FeedBadge type={r.feed_type} />
+              <span>{r.estimate_bags != null ? `${r.used_bags} / ~${r.estimate_bags} bags (${r.used_kg} / ~${r.estimate_kg} kg)` : `${r.used_bags} bags (${r.used_kg} kg)`}</span>
+            </div>
+            {r.estimate_kg != null && (
+              <div className="progress-bar"><div className="progress-fill" style={{ width: `${pctUsed(r.used_kg, r.estimate_kg)}%`, background: feedTypes.colour(r.feed_type) }}></div></div>
+            )}
+            <span className="feed-progress-sub">{r.per_bird_kg != null
+              ? `${r.remaining_kg} kg remaining (est.) · ~${r.per_bird_kg} kg/bird`
+              : 'No fixed amount — given after the feeds before it'}</span>
           </div>
-          <div className="progress-bar"><div className="progress-fill progress-bpsc" style={{ width: `${pctUsed(fs.bpsc_used_kg, fs.bpsc_estimate_kg)}%` }}></div></div>
-          <span className="feed-progress-sub">{fs.bpsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bpsc_per_bird_kg} kg/bird</span>
-        </div>
-        <div className="feed-progress-card">
-          <div className="feed-progress-header">
-            <span className="feed-badge feed-badge-bsc">BSC</span>
-            <span>{fs.bsc_used_bags} / ~{fs.bsc_estimate_bags} bags ({fs.bsc_used_kg} / ~{fs.bsc_estimate_kg} kg)</span>
-          </div>
-          <div className="progress-bar"><div className="progress-fill progress-bsc" style={{ width: `${pctUsed(fs.bsc_used_kg, fs.bsc_estimate_kg)}%` }}></div></div>
-          <span className="feed-progress-sub">{fs.bsc_remaining_kg} kg remaining (est.) &middot; ~{flock.bsc_per_bird_kg} kg/bird</span>
-        </div>
-        <div className="feed-progress-card">
-          <div className="feed-progress-header">
-            <span className="feed-badge feed-badge-bfp">BFP</span>
-            <span>{fs.bfp_used_bags} bags ({fs.bfp_used_kg} kg)</span>
-          </div>
-          <span className="feed-progress-sub">No fixed target — given after BPSC &amp; BSC</span>
-        </div>
+        ))}
       </div>
           {hasEntries && (
             <>
           <h2 className="section-h">Feed by Type — Cumulative (bags)</h2>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={cumulative.entries}>
+              <AreaChart data={feedSeries} margin={{ bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E4EAF0" vertical={false} />
-                <XAxis dataKey="day_number" label={{ value: 'Day', position: 'bottom' }} />
-                <YAxis /><Tooltip /><Legend />
-                <Area type="monotone" dataKey="cum_bpsc_bags" name="BPSC (bags)" stackId="1" stroke="#C2410C" fill="#FBE3D3" />
-                <Area type="monotone" dataKey="cum_bsc_bags" name="BSC (bags)" stackId="1" stroke="#1D4ED8" fill="#DCE6FB" />
-                <Area type="monotone" dataKey="cum_bfp_bags" name="BFP (bags)" stackId="1" stroke="#0F766E" fill="#D3EEEA" />
+                <XAxis dataKey="day_number" tickFormatter={d => `d${d}`} />
+                <YAxis /><Tooltip labelFormatter={d => `Day ${d}`} /><Legend wrapperStyle={{ paddingTop: 8 }} />
+                {flockTypes.map(t => (
+                  <Area key={t.key} type="monotone" dataKey={t.key} name={`${t.code} (bags)`} stackId="1"
+                        stroke={t.colour} fill={t.colour} fillOpacity={0.18} />
+                ))}
               </AreaChart>
             </ResponsiveContainer>
           </div>

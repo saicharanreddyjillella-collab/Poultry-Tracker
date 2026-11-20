@@ -21,6 +21,7 @@ import LiftPlanner from './pages/LiftPlanner';
 import Settings from './pages/Settings';
 import RateCards from './pages/RateCards';
 import Approvals from './pages/Approvals';
+import FeedTypes from './pages/FeedTypes';
 import GrowerRanking from './pages/GrowerRanking';
 import SystemHealth from './pages/SystemHealth';
 import OwnerDashboard from './pages/OwnerDashboard';
@@ -118,6 +119,7 @@ function AppRoutes() {
           <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
           <Route path="/settings/rate-cards" element={<AdminRoute><RateCards /></AdminRoute>} />
           <Route path="/approvals" element={<AdminRoute><Approvals /></AdminRoute>} />
+          <Route path="/settings/feed-types" element={<AdminRoute><FeedTypes /></AdminRoute>} />
           <Route path="/grower-ranking" element={<AdminRoute><GrowerRanking /></AdminRoute>} />
           <Route path="/system-health" element={<AdminRoute><SystemHealth /></AdminRoute>} />
           <Route path="/owner-dashboard" element={<AdminRoute><OwnerDashboard /></AdminRoute>} />

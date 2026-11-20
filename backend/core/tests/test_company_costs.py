@@ -46,7 +46,7 @@ def world(db):
     active = Flock.objects.create(farm=farm, placement_date=T - D(days=20), chick_count=5000)
     FeedOrder.objects.create(farm=farm, flock=active, feed_type="BFP", quantity_bags=50, status="delivered")
     DailyEntry.objects.create(flock=active, date=active.placement_date + D(days=1), mortality_count=3,
-                              feed_bfp_bags=Decimal("5"))
+                              feed_bags={'BFP': Decimal("5")})
     Medication.objects.create(flock=active, name="Vit C", date=T, cost=Decimal("800"))
     Sale.objects.create(flock=active, date=T, bird_count=10, total_weight_kg=Decimal("22"),
                         rate_per_kg=Decimal("101"), trader_name="t")
@@ -54,7 +54,7 @@ def world(db):
     closed = Flock.objects.create(farm=farm2, placement_date=T - D(days=60), chick_count=4000)
     FeedOrder.objects.create(farm=farm2, flock=closed, feed_type="BFP", quantity_bags=100, status="delivered")
     DailyEntry.objects.create(flock=closed, date=closed.placement_date + D(days=2), mortality_count=40,
-                              feed_bfp_bags=Decimal("90"))
+                              feed_bags={'BFP': Decimal("90")})
     Sale.objects.create(flock=closed, date=T - D(days=3), bird_count=3960, total_weight_kg=Decimal("8000"),
                         rate_per_kg=Decimal("100"), trader_name="t")
     closed.status = "closed"

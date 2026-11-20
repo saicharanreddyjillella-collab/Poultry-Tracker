@@ -61,11 +61,11 @@ def test_bad_requests_are_explained(world):
 
 def test_turning_feed_audit_off_blocks_counts_and_report_and_keeps_data(world):
     fl = world["flock"]
-    FeedStockCount.objects.create(flock=fl, date=T, bfp_bags=5)
+    FeedStockCount.objects.create(flock=fl, date=T, bags={'BFP': 5})
     r = switch(world, "feed_audit", False)
     assert r.status_code == 200 and r.data["enabled"] is False and r.data["updated_by"] == "Boss"
     assert world["sup"].get("/api/features/").data["feed_audit"] is False
-    r = world["sup"].post("/api/feed-counts/", {"flock": fl.id, "date": str(T), "bfp_bags": 1}, format="json")
+    r = world["sup"].post("/api/feed-counts/", {"flock": fl.id, "date": str(T), "bags": {"BFP": 1}}, format="json")
     assert r.status_code == 403 and "turned off" in str(r.data["detail"])
     assert world["sup"].get(f"/api/feed-counts/?flock={fl.id}").status_code == 403
     assert world["admin"].get("/api/reports/feed-audit/").status_code == 403

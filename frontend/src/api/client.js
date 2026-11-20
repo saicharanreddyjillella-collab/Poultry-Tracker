@@ -200,6 +200,13 @@ export const changeRequestAPI = {
   reject: (id, note) => API.post(`/change-requests/${id}/reject/`, { note }),
 };
 
+export const feedTypeAPI = {
+  list: () => API.get('/feed-types/'),
+  create: (data) => API.post('/feed-types/', data),
+  update: (id, data) => API.patch(`/feed-types/${id}/`, data),
+  remove: (id) => API.delete(`/feed-types/${id}/`),
+};
+
 export const rulesAPI = {
   list: () => API.get('/settings/rules/'),
   save: (values) => API.put('/settings/rules/', values),

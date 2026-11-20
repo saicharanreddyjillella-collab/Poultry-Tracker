@@ -28,7 +28,7 @@ def w(db):
     farm = Farm.objects.create(farm_code='A1', name='Lakshmi', owner_name='o', region='Zone-A', capacity=5000,
                                pan='ABCDE1234F')
     fl = Flock.objects.create(farm=farm, placement_date=T - datetime.timedelta(days=42), chick_count=1000)
-    DailyEntry.objects.create(flock=fl, date=fl.placement_date + datetime.timedelta(days=1), feed_bfp_bags=60)
+    DailyEntry.objects.create(flock=fl, date=fl.placement_date + datetime.timedelta(days=1), feed_bags={'BFP': 60})
     Sale.objects.create(flock=fl, date=T, bird_count=1000, total_weight_kg=D('2000'), rate_per_kg=D('110'),
                         trader_name='t')
     return {'flock': fl, 'sup': login('ravi', 'supervisor'), 'admin': login('boss', 'admin')}

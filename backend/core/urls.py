@@ -1,10 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import approvals, feed_audit, hatchery, heat, lift, placement, settings as settings_views
+from .views import approvals, feed_audit, feed_types, hatchery, heat, lift, placement, settings as settings_views
 
 router = DefaultRouter()
 router.register(r'farms', views.FarmViewSet)
+router.register(r'feed-types', feed_types.FeedTypeViewSet)
 router.register(r'flocks', views.FlockViewSet)
 router.register(r'daily-entries', views.DailyEntryViewSet)
 router.register(r'sales', views.SaleViewSet)

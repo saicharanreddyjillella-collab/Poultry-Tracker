@@ -11,6 +11,12 @@ from ..serializers import FarmSerializer, FeedRateSerializer
 from ..access import (NotPlant, deny_plant, is_admin, is_plant, visible_farms, visible_farm_ids,
                       get_visible_farm, get_visible_flock, scoped_farms, report_scope, has_home)
 
+
+def total_bags_in(entries):
+    """Feed bags eaten across a DailyEntry queryset (every feed type)."""
+    from ..feedtypes import consumed_in
+    return sum(consumed_in(entries).values())
+
 def scope_info(request):
     """Tells the screen which scope it is showing and whether a 'My regions' switch applies."""
     return {'scope': report_scope(request), 'has_home': has_home(request.user)}
@@ -35,13 +41,12 @@ def dashboard(request):
         if today_entry:
             mortality_today += today_entry.mortality_count
 
-    today_feed = DailyEntry.objects.filter(date=today, flock__farm__in=farms).aggregate(
-        bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-    )
+    from ..feedtypes import consumed_in, keys as feed_keys
+    today_feed = consumed_in(DailyEntry.objects.filter(date=today, flock__farm__in=farms))
 
-    # Latest feed rates
+    # Latest feed rates {feed type key: ₹/kg}
     latest_rates = {}
-    for ft in ['BPSC', 'BSC', 'BFP']:
+    for ft in feed_keys():
         rate = FeedRate.objects.filter(feed_type=ft).first()
         if rate:
             latest_rates[ft] = str(rate.rate_per_kg)
@@ -53,11 +58,7 @@ def dashboard(request):
         'mortality_today': mortality_today,
         'latest_feed_rates': latest_rates,
 
-        'feed_today': {
-            'bpsc_bags': float(today_feed['bpsc'] or 0),
-            'bsc_bags': float(today_feed['bsc'] or 0),
-            'bfp_bags': float(today_feed['bfp'] or 0),
-        },
+        'feed_today': {'by_type': today_feed, 'total_bags': float(sum(today_feed.values()))},
 
         'feed_rates': FeedRateSerializer(FeedRate.objects.all()[:30], many=True).data,
         'farms': FarmSerializer(farms, many=True).data,
@@ -108,29 +109,21 @@ def dashboard(request):
     first_active = {}
     for f in sorted(active_flocks, key=lambda f: f.id):
         first_active.setdefault(f.farm_id, f)
-    farm_ids = list(first_active)
-    delivered_by = {(r['farm_id'], r['feed_type']): r['t'] for r in
-                    FeedOrder.objects.filter(farm_id__in=farm_ids, status='delivered')
-                    .values('farm_id', 'feed_type').annotate(t=Sum('quantity_bags'))}
-    consumed_by = {r['flock__farm_id']: r for r in
-                   DailyEntry.objects.filter(flock__farm_id__in=farm_ids).values('flock__farm_id')
-                   .annotate(bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'))}
+    from ..feedtypes import codes
+    names = codes()
     for farm in farms:
         active_flock = first_active.get(farm.id)
         if not active_flock:
             continue
-        fs = active_flock.feed_schedule_status
-        current_type = fs.get('current_feed_type', 'BFP')
-        delivered = delivered_by.get((farm.id, current_type)) or 0
-        consumed_map = {'BPSC': 'bpsc', 'BSC': 'bsc', 'BFP': 'bfp'}
-        consumed = consumed_by.get(farm.id) or {'bpsc': None, 'bsc': None, 'bfp': None}
-        consumed_bags = float(consumed[consumed_map[current_type]] or 0)
-        stock = float(delivered) - consumed_bags
+        current_type = active_flock.feed_schedule_status.get('current_feed_type')
+        if not current_type:
+            continue
+        stock = float(active_flock.flock_feed_stock['by_type'].get(current_type, 0))   # incl. transfers
         if stock <= 2:
             alerts.append({
                 'type': 'warning', 'farm_code': farm.farm_code,
                 'farm_name': farm.name, 'flock_id': active_flock.id,
-                'message': f'{current_type} stock low: {round(stock, 1)} bags',
+                'message': f'{names.get(current_type, current_type)} stock low: {round(stock, 1)} bags',
             })
 
     if is_admin(request.user):                       # decisions waiting for the admin come first
@@ -160,24 +153,23 @@ def flock_cumulative(request, flock_id):
 
     flock = get_visible_flock(request.user, flock_id)          # 404 if missing / other region
     from ..serializers import person
-    entries = DailyEntry.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by').order_by('date')
+    entries = (DailyEntry.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by')
+               .prefetch_related('feeds').order_by('date'))
     sales = Sale.objects.filter(flock_id=flock_id).select_related('entered_by', 'edited_by').order_by('date')
 
     BAG_KG = 50
     cum_mortality = 0
     cum_culls = 0
-    cum_bpsc = 0
-    cum_bsc = 0
-    cum_bfp = 0
+    cum_by_type = {}                                   # {feed type key: bags}
     result_entries = []
 
     for entry in entries:
         cum_mortality += entry.mortality_count
         cum_culls += entry.cull_count
-        cum_bpsc += entry.feed_bpsc_bags
-        cum_bsc += entry.feed_bsc_bags
-        cum_bfp += entry.feed_bfp_bags
-        total_bags = cum_bpsc + cum_bsc + cum_bfp
+        day_bags = entry.feed_bags
+        for k, v in day_bags.items():
+            cum_by_type[k] = cum_by_type.get(k, 0) + v
+        total_bags = sum(cum_by_type.values())
         day_number = (entry.date - flock.placement_date).days
 
         result_entries.append({
@@ -189,10 +181,8 @@ def flock_cumulative(request, flock_id):
             'cumulative_culls': cum_culls,
             'cumulative_mortality': cum_mortality,
             'mortality_percentage': round((cum_mortality / flock.chick_count) * 100, 2) if flock.chick_count > 0 else 0,
-            'feed_bpsc_bags': entry.feed_bpsc_bags,
-            'feed_bsc_bags': entry.feed_bsc_bags,
-            'feed_bfp_bags': entry.feed_bfp_bags,
-            'daily_feed_bags': entry.feed_bpsc_bags + entry.feed_bsc_bags + entry.feed_bfp_bags,
+            'feed_bags': day_bags,
+            'daily_feed_bags': sum(day_bags.values()),
             'cumulative_feed_bags': total_bags,
             'cumulative_feed_kg': total_bags * BAG_KG,
             'water_liters': float(entry.water_consumed_liters),
@@ -226,7 +216,7 @@ def flock_cumulative(request, flock_id):
 
     total_sold_birds = sum(s.bird_count for s in sales)
     total_sold_weight = sum(float(s.total_weight_kg) for s in sales)
-    total_feed_bags = cum_bpsc + cum_bsc + cum_bfp
+    total_feed_bags = sum(cum_by_type.values())
     total_feed_kg = total_feed_bags * BAG_KG
     fcr = round(total_feed_kg / total_sold_weight, 3) if total_sold_weight > 0 else None
 
@@ -257,11 +247,7 @@ def flock_cumulative(request, flock_id):
         'total_sold_weight_kg': round(total_sold_weight, 2),
         'total_feed_bags': total_feed_bags,
         'total_feed_kg': total_feed_kg,
-        'feed_by_type': {
-            'bpsc_bags': cum_bpsc, 'bpsc_kg': cum_bpsc * BAG_KG,
-            'bsc_bags': cum_bsc, 'bsc_kg': cum_bsc * BAG_KG,
-            'bfp_bags': cum_bfp, 'bfp_kg': cum_bfp * BAG_KG,
-        },
+        'feed_by_type': {k: {'bags': v, 'kg': v * BAG_KG} for k, v in cum_by_type.items()},
         'feed_schedule_status': flock.feed_schedule_status,
         'flock_feed_stock': flock.flock_feed_stock,
         'fcr': fcr,
@@ -294,10 +280,7 @@ def farm_cumulative(request, farm_id):
         total_placed += flock.chick_count
         entries = DailyEntry.objects.filter(flock=flock)
         total_mortality += entries.aggregate(t=Sum('mortality_count'))['t'] or 0
-        feed = entries.aggregate(
-            bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'), bfp=Sum('feed_bfp_bags'),
-        )
-        total_feed_bags += (feed['bpsc'] or 0) + (feed['bsc'] or 0) + (feed['bfp'] or 0)
+        total_feed_bags += total_bags_in(entries)
         sales = Sale.objects.filter(flock=flock)
         total_sold_birds += sales.aggregate(t=Sum('bird_count'))['t'] or 0
         total_sold_weight += sales.aggregate(t=Sum('total_weight_kg'))['t'] or Decimal('0')

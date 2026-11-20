@@ -5,11 +5,36 @@ from decimal import Decimal
 from .softdelete import SoftDeleteModel
 
 
+# The feed types in use when they became configurable (Settings → Feed types).
+# Kept only for the data migration; the live list is the FeedType table.
 FEED_TYPES = [
     ('BPSC', 'BPSC (Pre-Starter Crumble)'),
     ('BSC', 'BSC (Starter Crumble)'),
     ('BFP', 'BFP (Finisher Pellet)'),
 ]
+
+
+class FeedType(models.Model):
+    """A feed the mill makes and farms use (admin: Settings → Feed types).
+
+    `key` is permanent and is what orders, transfers, rates, entries and counts store,
+    so the admin can rename `code` / `name` (e.g. BFP → BFP1) without breaking history.
+    """
+    key = models.CharField(max_length=20, unique=True, editable=False)
+    code = models.CharField(max_length=20, unique=True, help_text="Short name shown everywhere, e.g. BFP1")
+    name = models.CharField(max_length=80, blank=True, default='', help_text="e.g. Finisher Pellet")
+    colour = models.CharField(max_length=7, default='#0F766E', help_text="Badge colour, #RRGGBB")
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order fed: first feed first")
+    per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True,
+                                      help_text="Expected kg per bird of this feed (blank = whatever is left)")
+    active = models.BooleanField(default=True, help_text="Retired types stay on old records but can't be chosen")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return self.code
 
 ROLE_CHOICES = [
     ('admin', 'Admin'),
@@ -175,10 +200,6 @@ class Flock(SoftDeleteModel):
     chick_weight_g = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True,
                                          help_text="Average chick weight on arrival (grams), from a sample box")
 
-    # Feed estimate per bird (kg) — soft target, not a hard limit
-    bpsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="Estimated BPSC per bird (kg)")
-    bsc_per_bird_kg = models.DecimalField(max_digits=6, decimal_places=3, default=1.0, help_text="Estimated BSC per bird (kg)")
-    # BFP = remaining (no fixed limit)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -222,12 +243,11 @@ class Flock(SoftDeleteModel):
     _stats = None
 
     def _consumed_bags(self):
-        """{'BPSC', 'BSC', 'BFP'} → bags recorded as eaten (None when no entries, like SQL SUM)."""
+        """{feed type key: bags} recorded as eaten."""
         if self._stats is not None:
             return self._stats['consumed']
-        agg = self.daily_entries.aggregate(BPSC=models.Sum('feed_bpsc_bags'), BSC=models.Sum('feed_bsc_bags'),
-                                           BFP=models.Sum('feed_bfp_bags'))
-        return agg
+        from .feedtypes import consumed_by_flock
+        return consumed_by_flock([self.id]).get(self.id, {})
 
     def _feed_moves(self):
         """(delivered, transfers in, transfers out) bags by feed type for this flock."""
@@ -265,44 +285,31 @@ class Flock(SoftDeleteModel):
 
     @property
     def total_feed_kg(self):
-        c = self._consumed_bags()
-        total_bags = float(c['BPSC'] or 0) + float(c['BSC'] or 0) + float(c['BFP'] or 0)
-        return total_bags * 50
+        from .feedtypes import total
+        return float(total(self._consumed_bags())) * 50
 
     @property
     def feed_by_type(self):
-        c = self._consumed_bags()
-        agg = {'bpsc': c['BPSC'], 'bsc': c['BSC'], 'bfp': c['BFP']}
-        return {
-            'bpsc_bags': float(agg['bpsc'] or 0),
-            'bsc_bags': float(agg['bsc'] or 0),
-            'bfp_bags': float(agg['bfp'] or 0),
-            'bpsc_kg': float(agg['bpsc'] or 0) * 50,
-            'bsc_kg': float(agg['bsc'] or 0) * 50,
-            'bfp_kg': float(agg['bfp'] or 0) * 50,
-        }
+        """{feed type key: {'bags', 'kg'}} eaten so far."""
+        return {k: {'bags': float(v), 'kg': float(v) * 50} for k, v in self._consumed_bags().items()}
 
     @property
     def feed_schedule_status(self):
-        """How much of each feed type has been used vs estimated target."""
-        fb = self.feed_by_type
-        bpsc_est = float(self.bpsc_per_bird_kg) * self.chick_count
-        bsc_est = float(self.bsc_per_bird_kg) * self.chick_count
-        return {
-            'bpsc_used_kg': fb['bpsc_kg'],
-            'bpsc_used_bags': fb['bpsc_bags'],
-            'bpsc_estimate_kg': round(bpsc_est, 2),
-            'bpsc_estimate_bags': round(bpsc_est / 50, 2),
-            'bpsc_remaining_kg': round(max(0, bpsc_est - fb['bpsc_kg']), 2),
-            'bsc_used_kg': fb['bsc_kg'],
-            'bsc_used_bags': fb['bsc_bags'],
-            'bsc_estimate_kg': round(bsc_est, 2),
-            'bsc_estimate_bags': round(bsc_est / 50, 2),
-            'bsc_remaining_kg': round(max(0, bsc_est - fb['bsc_kg']), 2),
-            'bfp_used_kg': fb['bfp_kg'],
-            'bfp_used_bags': fb['bfp_bags'],
-            'current_feed_type': 'BPSC' if fb['bpsc_kg'] < bpsc_est else ('BSC' if fb['bsc_kg'] < bsc_est else 'BFP'),
-        }
+        """Each feed type used so far against its per-bird budget (Settings → Feed types),
+        and the feed the flock is on now. No ages: it goes by quantity."""
+        from .feedtypes import budget_kg_per_bird, current_type
+        used = self._consumed_bags()
+        types = self._stats.get('feed_types') if self._stats is not None else None
+        rows = []
+        for key, per_bird in budget_kg_per_bird(types):
+            used_kg = float(used.get(key, 0)) * 50
+            est = per_bird * self.chick_count if per_bird is not None else None
+            rows.append({'feed_type': key, 'used_bags': float(used.get(key, 0)), 'used_kg': used_kg,
+                         'per_bird_kg': per_bird,
+                         'estimate_kg': round(est, 2) if est is not None else None,
+                         'estimate_bags': round(est / 50, 2) if est is not None else None,
+                         'remaining_kg': round(max(0, est - used_kg), 2) if est is not None else None})
+        return {'types': rows, 'current_feed_type': current_type(used, self.chick_count, types)}
 
     @property
     def total_sold_birds(self):
@@ -524,15 +531,12 @@ class Flock(SoftDeleteModel):
     @property
     def flock_feed_stock(self):
         """Feed stock for THIS flock only = delivered to this flock + transfers in - consumed - transfers out."""
+        from .feedtypes import add
         del_map, in_map, out_map = self._feed_moves()
-        c = self._consumed_bags()
-        consumed = {'bpsc': c['BPSC'], 'bsc': c['BSC'], 'bfp': c['BFP']}
-
-        bpsc = del_map.get('BPSC', 0) + in_map.get('BPSC', 0) - out_map.get('BPSC', 0) - (consumed['bpsc'] or 0)
-        bsc = del_map.get('BSC', 0) + in_map.get('BSC', 0) - out_map.get('BSC', 0) - (consumed['bsc'] or 0)
-        bfp = del_map.get('BFP', 0) + in_map.get('BFP', 0) - out_map.get('BFP', 0) - (consumed['bfp'] or 0)
-
-        return {'bpsc': bpsc, 'bsc': bsc, 'bfp': bfp, 'total': bpsc + bsc + bfp}
+        stock = add(add(add({}, del_map), in_map), out_map, -1)
+        stock = add(stock, self._consumed_bags(), -1)
+        by_type = {k: v for k, v in stock.items() if v}
+        return {'by_type': by_type, 'total': sum(by_type.values())}
 
     @property
     def feed_reconciliation(self):
@@ -556,7 +560,7 @@ class Flock(SoftDeleteModel):
 
         by_type = {}
         disp_total = cons_total = 0
-        for ft in ('BPSC', 'BSC', 'BFP'):
+        for ft in sorted(set(del_map) | set(t_in) | set(t_out) | set(consumed)):
             disp = del_map.get(ft, 0) + t_in.get(ft, 0) - t_out.get(ft, 0)
             cons = consumed.get(ft) or 0
             by_type[ft] = {'dispatched': disp, 'consumed': cons, 'variance': disp - cons}
@@ -607,15 +611,30 @@ class DailyEntry(SoftDeleteModel):
 
     BAG_WEIGHT_KG = 50
 
-    # Feed by type (in bags — each bag = 50 kg)
-    feed_bpsc_bags = models.PositiveIntegerField(default=0, verbose_name="BPSC (bags)")
-    feed_bsc_bags = models.PositiveIntegerField(default=0, verbose_name="BSC (bags)")
-    feed_bfp_bags = models.PositiveIntegerField(default=0, verbose_name="BFP (bags)")
+    # Feed eaten by type: DailyEntryFeed lines (entry.feeds), bags of BAG_WEIGHT_KG
 
     water_consumed_liters = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     avg_body_weight_grams = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def __init__(self, *args, feed_bags=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pending_feed_bags = feed_bags          # DailyEntry(…, feed_bags={'BFP': 5})
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self._pending_feed_bags is not None:
+            self.set_feed_bags(self._pending_feed_bags)
+            self._pending_feed_bags = None
+
+    def set_feed_bags(self, bags):
+        """Replace this day's feed with {feed type key: bags} (zeros dropped)."""
+        self.feeds.all().delete()
+        DailyEntryFeed.objects.bulk_create([DailyEntryFeed(entry=self, feed_type=k, bags=int(v))
+                                            for k, v in (bags or {}).items() if v])
+        if hasattr(self, '_prefetched_objects_cache'):
+            self._prefetched_objects_cache.pop('feeds', None)
 
     class Meta:
         ordering = ['-date']
@@ -649,24 +668,17 @@ class DailyEntry(SoftDeleteModel):
             raise ValidationError(errors)
 
     @property
-    def feed_bpsc_kg(self):
-        return float(self.feed_bpsc_bags) * self.BAG_WEIGHT_KG
-
-    @property
-    def feed_bsc_kg(self):
-        return float(self.feed_bsc_bags) * self.BAG_WEIGHT_KG
-
-    @property
-    def feed_bfp_kg(self):
-        return float(self.feed_bfp_bags) * self.BAG_WEIGHT_KG
-
-    @property
     def total_feed_bags(self):
-        return float(self.feed_bpsc_bags) + float(self.feed_bsc_bags) + float(self.feed_bfp_bags)
+        return float(sum(self.feed_bags.values()))
 
     @property
     def total_feed_kg(self):
         return self.total_feed_bags * self.BAG_WEIGHT_KG
+
+    @property
+    def feed_bags(self):
+        """{feed type key: bags} for this day (uses prefetched feeds when available)."""
+        return {f.feed_type: f.bags for f in self.feeds.all() if f.bags}
 
     # Normal broiler water:feed ratio is ~1.6-2.0 L water per kg feed.
     # Outside this band can signal illness/under-drinking (low) or heat
@@ -734,9 +746,8 @@ class Sale(SoftDeleteModel):
 
 
 class FeedRate(models.Model):
-    FEED_TYPE_CHOICES = FEED_TYPES
     week_start_date = models.DateField()
-    feed_type = models.CharField(max_length=10, choices=FEED_TYPE_CHOICES, default='BFP')
+    feed_type = models.CharField(max_length=20, help_text="FeedType.key")
     rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2, help_text="Cost per kg in ₹")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -789,7 +800,7 @@ class FeedOrder(SoftDeleteModel):
     ]
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_orders')
     flock = models.ForeignKey('Flock', on_delete=models.SET_NULL, null=True, blank=True, related_name='feed_orders', help_text="Which flock this feed is for")
-    feed_type = models.CharField(max_length=10, choices=FEED_TYPES)
+    feed_type = models.CharField(max_length=20, help_text="FeedType.key")
     quantity_bags = models.PositiveIntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     ordered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='feed_orders')
@@ -816,7 +827,7 @@ class FeedTransfer(SoftDeleteModel):
     to_farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='feed_transfers_in')
     from_flock = models.ForeignKey('Flock', on_delete=models.SET_NULL, null=True, blank=True, related_name='feed_transfers_out')
     to_flock = models.ForeignKey('Flock', on_delete=models.SET_NULL, null=True, blank=True, related_name='feed_transfers_in')
-    feed_type = models.CharField(max_length=10, choices=FEED_TYPES)
+    feed_type = models.CharField(max_length=20, help_text="FeedType.key")
     quantity_bags = models.PositiveIntegerField()
     date = models.DateField()
     transferred_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -837,6 +848,19 @@ class FeedTransfer(SoftDeleteModel):
         return f"{self.from_farm.farm_code} → {self.to_farm.farm_code}: {self.feed_type} x{self.quantity_bags}"
 
 
+class DailyEntryFeed(models.Model):
+    """Bags of one feed type eaten on a daily entry's day."""
+    entry = models.ForeignKey(DailyEntry, on_delete=models.CASCADE, related_name='feeds')
+    feed_type = models.CharField(max_length=20, help_text="FeedType.key")
+    bags = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['entry', 'feed_type'], name='one_line_per_feed_type')]
+
+    def __str__(self):
+        return f"{self.feed_type} x{self.bags}"
+
+
 class FeedStockCount(models.Model):
     """A physical count of feed bags at the farm for one flock (feed leakage check).
 
@@ -846,9 +870,7 @@ class FeedStockCount(models.Model):
     """
     flock = models.ForeignKey(Flock, on_delete=models.CASCADE, related_name='stock_counts')
     date = models.DateField(help_text="Count taken after this day's feeding is recorded")
-    bpsc_bags = models.PositiveIntegerField(default=0)
-    bsc_bags = models.PositiveIntegerField(default=0)
-    bfp_bags = models.PositiveIntegerField(default=0)
+    bags = models.JSONField(default=dict, blank=True, help_text="{feed type key: bags counted}")
     counted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

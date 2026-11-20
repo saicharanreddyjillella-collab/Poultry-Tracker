@@ -43,6 +43,8 @@ class Command(BaseCommand):
 
         today = datetime.date.today()
         BillConfig.get_active()
+        from core.feedtypes import ensure_defaults
+        ensure_defaults()
         for ft, rate in (('BPSC', '48'), ('BSC', '46'), ('BFP', '44')):
             FeedRate.objects.create(week_start_date=today - datetime.timedelta(days=today.weekday()),
                                     feed_type=ft, rate_per_kg=Decimal(rate))
@@ -81,7 +83,7 @@ class Command(BaseCommand):
         delivered(A1, fa1, 100, 'BSC')
         for d in range(1, 4):
             DailyEntry.objects.create(flock=fa1, date=fa1.placement_date + datetime.timedelta(days=d),
-                                      mortality_count=3, feed_bfp_bags=Decimal('5'))
+                                      mortality_count=3, feed_bags={'BFP': 5})
         Medication.objects.create(flock=fa1, name='Vitamin C', date=fa1.placement_date, cost=Decimal('800'))
         FeedOrder.objects.create(farm=A1, flock=fa1, feed_type='BFP', quantity_bags=40)       # pending
 
@@ -90,7 +92,7 @@ class Command(BaseCommand):
         delivered(A2, fa2, 160)
         for d in range(1, 6):
             DailyEntry.objects.create(flock=fa2, date=fa2.placement_date + datetime.timedelta(days=d),
-                                      mortality_count=4, feed_bfp_bags=Decimal('30'))
+                                      mortality_count=4, feed_bags={'BFP': 30})
         Sale.objects.create(flock=fa2, date=fa2.placement_date + datetime.timedelta(days=40), bird_count=3980,
                             total_weight_kg=Decimal('8200'), rate_per_kg=Decimal('105'), trader_name='Balaji Traders')
         generate_bill(fa2, admin)
@@ -100,7 +102,7 @@ class Command(BaseCommand):
         delivered(A3, fa3, 120)
         for d in range(1, 6):
             DailyEntry.objects.create(flock=fa3, date=fa3.placement_date + datetime.timedelta(days=d),
-                                      mortality_count=2, feed_bfp_bags=Decimal('20'))
+                                      mortality_count=2, feed_bags={'BFP': 20})
         Sale.objects.create(flock=fa3, date=today - datetime.timedelta(days=1), bird_count=2990,
                             total_weight_kg=Decimal('6100'), rate_per_kg=Decimal('102'), trader_name='Sri Traders')
 
@@ -115,7 +117,7 @@ class Command(BaseCommand):
         fb1 = flock(B1, 15, 6000)
         delivered(B1, fb1, 150)
         DailyEntry.objects.create(flock=fb1, date=fb1.placement_date + datetime.timedelta(days=1),
-                                  mortality_count=5, feed_bfp_bags=Decimal('6'))
+                                  mortality_count=5, feed_bags={'BFP': 6})
         FeedOrder.objects.create(farm=B1, flock=fb1, feed_type='BSC', quantity_bags=25)        # pending
 
         self.stdout.write(self.style.SUCCESS(

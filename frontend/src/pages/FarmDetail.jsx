@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { farmAPI, flockAPI, authAPI, hatcheryAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import useFeedTypes from '../utils/useFeedTypes';
 import DocumentsSection from '../components/DocumentsSection';
 import FarmPerformanceHistory from '../components/FarmPerformanceHistory';
 import { todayISO } from '../utils/dates';
@@ -11,6 +12,7 @@ import { todayISO } from '../utils/dates';
 export default function FarmDetail() {
   const { id } = useParams();
   const { canEditFarm, canManageFarm, isAdmin } = useAuth();
+  const feedTypes = useFeedTypes();
   const [farm, setFarm] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [supervisors, setSupervisors] = useState([]);
@@ -197,9 +199,9 @@ export default function FarmDetail() {
               {flock.flock_feed_stock && (
                 <div className="flock-stock-row">
                   <small>Stock:</small>
-                  <span className="feed-badge-sm">BPSC:{flock.flock_feed_stock.bpsc}</span>
-                  <span className="feed-badge-sm">BSC:{flock.flock_feed_stock.bsc}</span>
-                  <span className="feed-badge-sm">BFP:{flock.flock_feed_stock.bfp}</span>
+                  {Object.entries(flock.flock_feed_stock.by_type || {}).map(([k, v]) => (
+                    <span key={k} className="feed-badge-sm">{feedTypes.code(k)}:{v}</span>
+                  ))}
                   <span className="feed-badge-sm"><strong>{flock.flock_feed_stock.total}</strong></span>
                 </div>
               )}

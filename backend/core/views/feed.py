@@ -133,34 +133,27 @@ def feed_stock(request):
     pending_all = by_farm(FeedOrder.objects.filter(farm_id__in=ids, status__in=['pending', 'sent']), 'farm_id')
     in_all = by_farm(FeedTransfer.objects.filter(to_farm_id__in=ids), 'to_farm_id')
     out_all = by_farm(FeedTransfer.objects.filter(from_farm_id__in=ids), 'from_farm_id')
-    consumed_all = {r['flock__farm_id']: r for r in DailyEntry.objects.filter(flock__farm_id__in=ids)
-                    .values('flock__farm_id').annotate(bpsc=Sum('feed_bpsc_bags'), bsc=Sum('feed_bsc_bags'),
-                                                       bfp=Sum('feed_bfp_bags'))}
+    consumed_all = {}
+    from ..models import DailyEntryFeed
+    for r in (DailyEntryFeed.objects.filter(entry__flock__farm_id__in=ids, entry__deleted_at__isnull=True)
+              .values('entry__flock__farm_id', 'feed_type').annotate(total=Sum('bags'))):
+        consumed_all.setdefault(r['entry__flock__farm_id'], {})[r['feed_type']] = float(r['total'] or 0)
 
     result = []
     for farm in farms:
-        delivered_map = delivered_all.get(farm.id, {})
+        delivered = delivered_all.get(farm.id, {})
         consumed = consumed_all.get(farm.id, {})
-        consumed_bpsc = float(consumed.get('bpsc') or 0)
-        consumed_bsc = float(consumed.get('bsc') or 0)
-        consumed_bfp = float(consumed.get('bfp') or 0)
-        pending_map = pending_all.get(farm.id, {})
-        in_map = in_all.get(farm.id, {})
-        out_map = out_all.get(farm.id, {})
-
-        stock_bpsc = delivered_map.get('BPSC', 0) + in_map.get('BPSC', 0) - out_map.get('BPSC', 0) - consumed_bpsc
-        stock_bsc = delivered_map.get('BSC', 0) + in_map.get('BSC', 0) - out_map.get('BSC', 0) - consumed_bsc
-        stock_bfp = delivered_map.get('BFP', 0) + in_map.get('BFP', 0) - out_map.get('BFP', 0) - consumed_bfp
-
+        t_in, t_out = in_all.get(farm.id, {}), out_all.get(farm.id, {})
+        types = set(delivered) | set(consumed) | set(t_in) | set(t_out)
+        stock = {k: round(delivered.get(k, 0) + t_in.get(k, 0) - t_out.get(k, 0) - consumed.get(k, 0), 1)
+                 for k in types}
+        # every figure is {feed type key: bags}; 'total' sits beside them in stock
         result.append({
             'farm_id': farm.id, 'farm_code': farm.farm_code, 'farm_name': farm.name,
-            'stock': {
-                'bpsc': round(stock_bpsc, 1), 'bsc': round(stock_bsc, 1),
-                'bfp': round(stock_bfp, 1), 'total': round(stock_bpsc + stock_bsc + stock_bfp, 1),
-            },
-            'delivered': {'bpsc': delivered_map.get('BPSC', 0), 'bsc': delivered_map.get('BSC', 0), 'bfp': delivered_map.get('BFP', 0)},
-            'consumed': {'bpsc': consumed_bpsc, 'bsc': consumed_bsc, 'bfp': consumed_bfp},
-            'pending_orders': {'bpsc': pending_map.get('BPSC', 0), 'bsc': pending_map.get('BSC', 0), 'bfp': pending_map.get('BFP', 0)},
+            'stock': {**{k: v for k, v in stock.items() if v}, 'total': round(sum(stock.values()), 1)},
+            'delivered': delivered,
+            'consumed': consumed,
+            'pending_orders': pending_all.get(farm.id, {}),
         })
 
     return Response(result)

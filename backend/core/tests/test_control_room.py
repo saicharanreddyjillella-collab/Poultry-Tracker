@@ -35,7 +35,7 @@ def flock(f, age=20, chicks=5000, feed_bags=200):
 
 
 def entry(fl, day, mort=0, feed=0, weight=None):
-    return DailyEntry.objects.create(flock=fl, date=day, mortality_count=mort, feed_bfp_bags=Decimal(feed),
+    return DailyEntry.objects.create(flock=fl, date=day, mortality_count=mort, feed_bags={'BFP': Decimal(feed)},
                                      avg_body_weight_grams=weight)
 
 

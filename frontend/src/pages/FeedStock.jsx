@@ -3,9 +3,15 @@ import { ReportSkeleton } from '../components/Skeletons';
 import { feedOrderAPI, feedStockAPI, feedRateAPI, feedTransferAPI, farmAPI, getErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { todayISO } from '../utils/dates';
+import FeedBadge from '../components/FeedBadge';
+import useFeedTypes from '../utils/useFeedTypes';
 
 export default function FeedStock() {
   const { isAdmin, isPlant, canEditFarm } = useAuth();
+  const feedTypes = useFeedTypes();
+  const firstFeed = feedTypes.active[0]?.key || '';
+  const lastFeed = feedTypes.active[feedTypes.active.length - 1]?.key || '';
+  const feedOptions = () => feedTypes.active.map(t => <option key={t.key} value={t.key}>{t.code}{t.name ? ` (${t.name})` : ''}</option>);
   const [stock, setStock] = useState([]);
   const [orders, setOrders] = useState([]);
   const [transfers, setTransfers] = useState([]);
@@ -15,9 +21,9 @@ export default function FeedStock() {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [showRateForm, setShowRateForm] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
-  const [orderForm, setOrderForm] = useState({ farm: '', flock: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
-  const [rateForm, setRateForm] = useState({ week_start_date: todayISO(), feed_type: 'BFP', rate_per_kg: '', notes: '' });
-  const [transferForm, setTransferForm] = useState({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: todayISO(), notes: '' });
+  const [orderForm, setOrderForm] = useState({ farm: '', flock: '', feed_type: '', quantity_bags: '', notes: '' });
+  const [rateForm, setRateForm] = useState({ week_start_date: todayISO(), feed_type: '', rate_per_kg: '', notes: '' });
+  const [transferForm, setTransferForm] = useState({ from_farm: '', to_farm: '', feed_type: '', quantity_bags: '', date: todayISO(), notes: '' });
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState('');
 
@@ -47,12 +53,12 @@ export default function FeedStock() {
       await feedOrderAPI.create({
         farm: parseInt(orderForm.farm),
         flock: orderForm.flock ? parseInt(orderForm.flock) : null,
-        feed_type: orderForm.feed_type,
+        feed_type: orderForm.feed_type || firstFeed,
         quantity_bags: parseInt(orderForm.quantity_bags),
         notes: orderForm.notes,
       });
       setShowOrderForm(false);
-      setOrderForm({ farm: '', flock: '', feed_type: 'BPSC', quantity_bags: '', notes: '' });
+      setOrderForm({ farm: '', flock: '', feed_type: '', quantity_bags: '', notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -62,7 +68,7 @@ export default function FeedStock() {
     try {
       await feedRateAPI.create(rateForm);
       setShowRateForm(false);
-      setRateForm({ week_start_date: todayISO(), feed_type: 'BFP', rate_per_kg: '', notes: '' });
+      setRateForm({ week_start_date: todayISO(), feed_type: '', rate_per_kg: '', notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -73,13 +79,13 @@ export default function FeedStock() {
       await feedTransferAPI.create({
         from_farm: parseInt(transferForm.from_farm),
         to_farm: parseInt(transferForm.to_farm),
-        feed_type: transferForm.feed_type,
+        feed_type: transferForm.feed_type || lastFeed,
         quantity_bags: parseInt(transferForm.quantity_bags),
         date: transferForm.date,
         notes: transferForm.notes,
       });
       setShowTransferForm(false);
-      setTransferForm({ from_farm: '', to_farm: '', feed_type: 'BFP', quantity_bags: '', date: todayISO(), notes: '' });
+      setTransferForm({ from_farm: '', to_farm: '', feed_type: '', quantity_bags: '', date: todayISO(), notes: '' });
       load();
     } catch (err) { setError(getErrorMessage(err)); }
   };
@@ -98,6 +104,8 @@ export default function FeedStock() {
   // Get latest rate per type
   const latestRates = {};
   feedRates.forEach(r => { if (!latestRates[r.feed_type]) latestRates[r.feed_type] = r; });
+  // columns: active types + any retired type a farm still holds
+  const stockTypes = feedTypes.types.filter(t => t.active || stock.some(st => st.stock[t.key]));
 
   if (loading) return <ReportSkeleton />;
 
@@ -125,10 +133,8 @@ export default function FeedStock() {
             </div>
             <div className="form-group">
               <label>Feed Type *</label>
-              <select value={rateForm.feed_type} onChange={e => setRateForm({ ...rateForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
+              <select value={rateForm.feed_type || lastFeed} onChange={e => setRateForm({ ...rateForm, feed_type: e.target.value })}>
+                {feedOptions()}
               </select>
             </div>
             <div className="form-group">
@@ -174,10 +180,8 @@ export default function FeedStock() {
           <div className="form-row">
             <div className="form-group">
               <label>Feed Type *</label>
-              <select value={orderForm.feed_type} onChange={e => setOrderForm({ ...orderForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC (Pre-Starter)</option>
-                <option value="BSC">BSC (Starter)</option>
-                <option value="BFP">BFP (Finisher)</option>
+              <select value={orderForm.feed_type || firstFeed} onChange={e => setOrderForm({ ...orderForm, feed_type: e.target.value })}>
+                {feedOptions()}
               </select>
             </div>
             <div className="form-group">
@@ -224,10 +228,8 @@ export default function FeedStock() {
           <div className="form-row">
             <div className="form-group">
               <label>Feed Type *</label>
-              <select value={transferForm.feed_type} onChange={e => setTransferForm({ ...transferForm, feed_type: e.target.value })}>
-                <option value="BPSC">BPSC</option>
-                <option value="BSC">BSC</option>
-                <option value="BFP">BFP</option>
+              <select value={transferForm.feed_type || lastFeed} onChange={e => setTransferForm({ ...transferForm, feed_type: e.target.value })}>
+                {feedOptions()}
               </select>
             </div>
             <div className="form-group">
@@ -254,21 +256,13 @@ export default function FeedStock() {
       {(isAdmin || isPlant) && <>
       <h2 className="section-title">Current Feed Rates</h2>
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card feed-card-bpsc">
-          <span className="stat-label">BPSC</span>
-          <span className="stat-value">{latestRates.BPSC ? `₹${latestRates.BPSC.rate_per_kg}/kg` : 'Not set'}</span>
-          {latestRates.BPSC && <span className="stat-sub">from {latestRates.BPSC.week_start_date}</span>}
-        </div>
-        <div className="stat-card feed-card-bsc">
-          <span className="stat-label">BSC</span>
-          <span className="stat-value">{latestRates.BSC ? `₹${latestRates.BSC.rate_per_kg}/kg` : 'Not set'}</span>
-          {latestRates.BSC && <span className="stat-sub">from {latestRates.BSC.week_start_date}</span>}
-        </div>
-        <div className="stat-card feed-card-bfp">
-          <span className="stat-label">BFP</span>
-          <span className="stat-value">{latestRates.BFP ? `₹${latestRates.BFP.rate_per_kg}/kg` : 'Not set'}</span>
-          {latestRates.BFP && <span className="stat-sub">from {latestRates.BFP.week_start_date}</span>}
-        </div>
+        {feedTypes.types.filter(t => t.active || latestRates[t.key]).map(t => (
+          <div className="stat-card" key={t.key} style={{ borderTop: `3px solid ${t.colour}` }}>
+            <span className="stat-label">{t.code}{t.active ? '' : ' (retired)'}</span>
+            <span className="stat-value">{latestRates[t.key] ? `₹${latestRates[t.key].rate_per_kg}/kg` : 'Not set'}</span>
+            {latestRates[t.key] && <span className="stat-sub">from {latestRates[t.key].week_start_date}</span>}
+          </div>
+        ))}
       </div>
 
       {/* RATE HISTORY */}
@@ -282,7 +276,7 @@ export default function FeedStock() {
                 {feedRates.map(r => (
                   <tr key={r.id}>
                     <td>{r.week_start_date}</td>
-                    <td><span className={`feed-badge feed-badge-${r.feed_type.toLowerCase()}`}>{r.feed_type}</span></td>
+                    <td><FeedBadge type={r.feed_type} /></td>
                     <td>₹{r.rate_per_kg}</td>
                     <td>{r.notes || '—'}</td>
                   </tr>
@@ -301,22 +295,21 @@ export default function FeedStock() {
           <thead>
             <tr>
               <th>Farm</th>
-              <th>BPSC</th>
-              <th>BSC</th>
-              <th>BFP</th>
+              {stockTypes.map(t => <th key={t.key}>{t.code}</th>)}
               <th>Total</th>
               <th>Pending Orders</th>
             </tr>
           </thead>
           <tbody>
             {stock.map(s => {
-              const totalPending = (s.pending_orders.bpsc || 0) + (s.pending_orders.bsc || 0) + (s.pending_orders.bfp || 0);
+              const totalPending = Object.values(s.pending_orders || {}).reduce((a, b) => a + b, 0);
               return (
                 <tr key={s.farm_id}>
                   <td><span className="farm-code-badge-sm">{s.farm_code}</span> {s.farm_name}</td>
-                  <td className={s.stock.bpsc < 0 ? 'text-danger' : s.stock.bpsc <= 2 ? 'text-warning' : ''}>{fmtDec(s.stock.bpsc)}</td>
-                  <td className={s.stock.bsc < 0 ? 'text-danger' : s.stock.bsc <= 2 ? 'text-warning' : ''}>{fmtDec(s.stock.bsc)}</td>
-                  <td className={s.stock.bfp < 0 ? 'text-danger' : s.stock.bfp <= 2 ? 'text-warning' : ''}>{fmtDec(s.stock.bfp)}</td>
+                  {stockTypes.map(t => {
+                    const v = s.stock[t.key] || 0;
+                    return <td key={t.key} className={v < 0 ? 'text-danger' : v <= 2 ? 'text-warning' : ''}>{fmtDec(v)}</td>;
+                  })}
                   <td><strong>{fmtDec(s.stock.total)}</strong></td>
                   <td>{totalPending > 0 ? <span className="order-pending-badge">{fmtDec(totalPending)} bags</span> : '—'}</td>
                 </tr>
@@ -351,7 +344,7 @@ export default function FeedStock() {
               <tr key={o.id}>
                 <td>{new Date(o.order_date).toLocaleDateString('en-IN')}</td>
                 <td><span className="farm-code-badge-sm">{o.farm_code}</span> {o.farm_name}</td>
-                <td><span className={`feed-badge feed-badge-${o.feed_type.toLowerCase()}`}>{o.feed_type}</span></td>
+                <td><FeedBadge type={o.feed_type} /></td>
                 <td><strong>{o.quantity_bags}</strong></td>
                 <td><span className={`order-status order-status-${o.status}`}>{o.status}</span></td>
                 <td>{o.ordered_by_name}</td>
@@ -390,7 +383,7 @@ export default function FeedStock() {
                     <td>{t.date}</td>
                     <td><span className="farm-code-badge-sm">{t.from_farm_code}</span> {t.from_farm_name}</td>
                     <td><span className="farm-code-badge-sm">{t.to_farm_code}</span> {t.to_farm_name}</td>
-                    <td><span className={`feed-badge feed-badge-${t.feed_type.toLowerCase()}`}>{t.feed_type}</span></td>
+                    <td><FeedBadge type={t.feed_type} /></td>
                     <td><strong>{t.quantity_bags}</strong></td>
                     <td>{t.transferred_by_name}</td>
                     <td>{t.notes || '—'}</td>

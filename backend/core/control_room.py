@@ -41,7 +41,7 @@ def control_room(active_flocks, farms, today):
         for e in entries:
             if e.date >= start:
                 trend_mort[e.date] += e.mortality_count
-                trend_feed[e.date] += float(e.feed_bpsc_bags + e.feed_bsc_bags + e.feed_bfp_bags)
+                trend_feed[e.date] += e.total_feed_bags
         age = (today - f.placement_date).days
         live = f.live_birds
         stock = f.flock_feed_stock

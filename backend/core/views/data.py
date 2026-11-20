@@ -161,15 +161,6 @@ class DailyEntryViewSet(EditWindowMixin, GuardedListMixin, viewsets.ModelViewSet
                     'mortality_count': f'Mortality ({mortality}) cannot exceed live birds ({live_birds}).'
                 })
 
-        # Feed bags limit — no hard block, frontend confirms high values
-        bpsc = data.get('feed_bpsc_bags', 0) or 0
-        bsc = data.get('feed_bsc_bags', 0) or 0
-        bfp = data.get('feed_bfp_bags', 0) or 0
-
-        # Cannot be negative
-        if bpsc < 0 or bsc < 0 or bfp < 0:
-            raise ValidationError({'feed_bags': 'Feed bags cannot be negative.'})
-
         # Water and body weight cannot be negative
         water = data.get('water_consumed_liters', 0) or 0
         if float(water) < 0:
@@ -178,26 +169,22 @@ class DailyEntryViewSet(EditWindowMixin, GuardedListMixin, viewsets.ModelViewSet
         if body_wt is not None and float(body_wt) < 0:
             raise ValidationError({'avg_body_weight_grams': 'Body weight cannot be negative.'})
 
-        # Cannot exceed available stock for that feed type
-        stock = flock.flock_feed_stock
-        # Add back current entry's bags if editing
-        if instance:
-            stock['bpsc'] += instance.feed_bpsc_bags
-            stock['bsc'] += instance.feed_bsc_bags
-            stock['bfp'] += instance.feed_bfp_bags
-
-        if bpsc > 0 and bpsc > stock.get('bpsc', 0):
-            raise ValidationError({
-                'feed_bags': f'Only {stock.get("bpsc", 0)} BPSC bags in stock. Cannot use {bpsc}.'
-            })
-        if bsc > 0 and bsc > stock.get('bsc', 0):
-            raise ValidationError({
-                'feed_bags': f'Only {stock.get("bsc", 0)} BSC bags in stock. Cannot use {bsc}.'
-            })
-        if bfp > 0 and bfp > stock.get('bfp', 0):
-            raise ValidationError({
-                'feed_bags': f'Only {stock.get("bfp", 0)} BFP bags in stock. Cannot use {bfp}.'
-            })
+        # Feed: no more bags of a type than this flock has in stock (bags are whole, ≥ 0 — FeedBagsField)
+        bags = data.get('feed_bags')
+        if bags is None:
+            return
+        from ..feedtypes import codes
+        stock = dict(flock.flock_feed_stock['by_type'])
+        if instance:                                       # editing: this entry's own bags are back in stock
+            for k, v in instance.feed_bags.items():
+                stock[k] = stock.get(k, 0) + v
+        names = codes()
+        for key, used in bags.items():
+            have = stock.get(key, 0)
+            if used > 0 and used > have:
+                raise ValidationError({
+                    'feed_bags': f'Only {have} {names.get(key, key)} bags in stock. Cannot use {used}.'
+                })
 
     def perform_create(self, serializer):
         self._validate_entry(serializer.validated_data)

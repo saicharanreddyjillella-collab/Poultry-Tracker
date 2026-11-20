@@ -15,7 +15,7 @@ def _entry(flock, day_offset, mortality=0, bpsc=0, bsc=0, bfp=0):
         flock=flock,
         date=flock.placement_date + datetime.timedelta(days=day_offset),
         mortality_count=mortality,
-        feed_bpsc_bags=bpsc, feed_bsc_bags=bsc, feed_bfp_bags=bfp,
+        feed_bags={'BPSC': bpsc, 'BSC': bsc, 'BFP': bfp},
     )
 
 

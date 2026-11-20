@@ -94,10 +94,6 @@ DAILY_FEED_INTAKE_G = {
     50: 252, 51: 252, 52: 253, 53: 253, 54: 253, 55: 253, 56: 253,
 }
 
-# Feed phase by age (days): pre-starter -> starter -> finisher.
-FEED_PHASE_DAYS = {'BPSC': (0, 10), 'BSC': (11, 21), 'BFP': (22, 999)}
-
-
 def get_daily_feed_intake(day):
     """Approx grams of feed per bird on a given day of age. Interpolates;
     clamps below 0 and above 56 to the endpoints."""
@@ -113,11 +109,3 @@ def get_daily_feed_intake(day):
         return DAILY_FEED_INTAKE_G[lower]
     ratio = (day - lower) / (upper - lower)
     return round(DAILY_FEED_INTAKE_G[lower] + ratio * (DAILY_FEED_INTAKE_G[upper] - DAILY_FEED_INTAKE_G[lower]))
-
-
-def get_feed_phase(day):
-    """Which feed phase (BPSC/BSC/BFP) applies at a given age in days."""
-    for phase, (lo, hi) in FEED_PHASE_DAYS.items():
-        if lo <= day <= hi:
-            return phase
-    return 'BFP'

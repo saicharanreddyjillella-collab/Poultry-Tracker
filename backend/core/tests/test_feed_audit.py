@@ -39,12 +39,12 @@ def deliver(flock, bags, ft="BFP"):
 
 def feed(flock, day_no, bags, ft="bfp", weight=None, mort=0):
     return DailyEntry.objects.create(flock=flock, date=flock.placement_date + D(days=day_no),
-                                     mortality_count=mort, **{f"feed_{ft}_bags": bags},
+                                     mortality_count=mort, feed_bags={ft.upper(): bags},
                                      avg_body_weight_grams=weight)
 
 
 def count(flock, bfp, day=None, bpsc=0, bsc=0):
-    return FeedStockCount.objects.create(flock=flock, date=day or T, bfp_bags=bfp, bpsc_bags=bpsc, bsc_bags=bsc)
+    return FeedStockCount.objects.create(flock=flock, date=day or T, bags={'BFP': bfp, 'BPSC': bpsc, 'BSC': bsc})
 
 
 def row_for(flock):
@@ -87,7 +87,7 @@ def test_book_stock_counts_deliveries_transfers_and_feeding_up_to_a_date(world):
 def test_supervisor_records_a_count_and_sees_the_gap(world):
     fa = world["fa"]
     feed(fa, 1, 30)
-    r = world["supA"].post("/api/feed-counts/", {"flock": fa.id, "date": str(T), "bfp_bags": 60}, format="json")
+    r = world["supA"].post("/api/feed-counts/", {"flock": fa.id, "date": str(T), "bags": {"BFP": 60}}, format="json")
     assert r.status_code == 201, r.data
     assert r.data["book"]["total"] == 70 and r.data["gap_bags"] == 10
     assert r.data["counted_by_name"] == "supa"
@@ -99,7 +99,7 @@ def test_supervisor_records_a_count_and_sees_the_gap(world):
 def test_counts_by_role(world, who, expected):
     """Feed mill can't count bags; any supervisor can, on any farm (covering for a colleague)."""
     flock = world["fb"] if who == "supA" else world["fa"]
-    r = world[who].post("/api/feed-counts/", {"flock": flock.id, "date": str(T), "bfp_bags": 1}, format="json")
+    r = world[who].post("/api/feed-counts/", {"flock": flock.id, "date": str(T), "bags": {"BFP": 1}}, format="json")
     assert r.status_code == expected
 
 
@@ -113,13 +113,13 @@ def test_other_regions_counts_are_visible(world):
     ({"date": str(T - D(days=30))}, "date"),                   # before placement (age 20)
 ])
 def test_bad_dates_are_explained(world, body, field):
-    r = world["supA"].post("/api/feed-counts/", {"flock": world["fa"].id, "bfp_bags": 1, **body}, format="json")
+    r = world["supA"].post("/api/feed-counts/", {"flock": world["fa"].id, "bags": {"BFP": 1}, **body}, format="json")
     assert r.status_code == 400 and field in r.data
 
 
 def test_one_count_per_day(world):
     count(world["fa"], 5)
-    r = world["supA"].post("/api/feed-counts/", {"flock": world["fa"].id, "date": str(T), "bfp_bags": 1},
+    r = world["supA"].post("/api/feed-counts/", {"flock": world["fa"].id, "date": str(T), "bags": {"BFP": 1}},
                            format="json")
     assert r.status_code == 400 and "already exists" in str(r.data["date"])
 
@@ -128,17 +128,17 @@ def test_no_new_counts_on_a_closed_flock(world):
     fa = world["fa"]
     fa.status = "closed"
     fa.save()
-    r = world["admin"].post("/api/feed-counts/", {"flock": fa.id, "date": str(T), "bfp_bags": 1}, format="json")
+    r = world["admin"].post("/api/feed-counts/", {"flock": fa.id, "date": str(T), "bags": {"BFP": 1}}, format="json")
     assert r.status_code == 400 and "active" in str(r.data)
 
 
 def test_only_admin_changes_or_removes_a_count(world):
     c = count(world["fa"], 50)
     sup = world["supA"]
-    assert sup.patch(f"/api/feed-counts/{c.id}/", {"bfp_bags": 99}, format="json").status_code == 403
+    assert sup.patch(f"/api/feed-counts/{c.id}/", {"bags": {"BFP": 99}}, format="json").status_code == 403
     assert sup.delete(f"/api/feed-counts/{c.id}/").status_code == 403
-    r = world["admin"].patch(f"/api/feed-counts/{c.id}/", {"bfp_bags": 99}, format="json")
-    assert r.status_code == 200 and r.data["bfp_bags"] == 99
+    r = world["admin"].patch(f"/api/feed-counts/{c.id}/", {"bags": {"BFP": 99}}, format="json")
+    assert r.status_code == 200 and r.data["bags"] == {"BFP": 99}
     assert world["admin"].delete(f"/api/feed-counts/{c.id}/").status_code == 204
 
 
@@ -149,7 +149,7 @@ def test_counts_on_a_billed_flock_are_locked(world):
     fa.status = "closed"
     fa.save()
     generate_bill(fa, User.objects.get(username="boss"))
-    assert world["admin"].patch(f"/api/feed-counts/{c.id}/", {"bfp_bags": 1}, format="json").status_code == 409
+    assert world["admin"].patch(f"/api/feed-counts/{c.id}/", {"bags": {"BFP": 1}}, format="json").status_code == 409
 
 
 # ── audit flags ──────────────────────────────────────────────────────────────
@@ -250,7 +250,7 @@ def test_report_sorts_worst_first_and_sums_money(world):
 
 def test_report_by_region_and_skips_old_closed_flocks(world):
     old = make_flock("OLD", age=120, status="closed")
-    DailyEntry.objects.create(flock=old, date=old.placement_date + D(days=1), feed_bfp_bags=1)
+    DailyEntry.objects.create(flock=old, date=old.placement_date + D(days=1), feed_bags={'BFP': 1})
     rows = world["admin"].get("/api/reports/feed-audit/?region=Zone-B").data["rows"]
     assert [x["farm_code"] for x in rows] == ["B1"]
     all_codes = [x["farm_code"] for x in world["admin"].get("/api/reports/feed-audit/").data["rows"]]
